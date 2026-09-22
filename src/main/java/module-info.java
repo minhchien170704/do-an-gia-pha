@@ -13,4 +13,6 @@ module com.giapha {
     exports com.giapha.repository;
     exports com.giapha.database;
     exports com.giapha.service;
+    exports com.giapha.controller;
+    exports com.giapha.exception;
 }

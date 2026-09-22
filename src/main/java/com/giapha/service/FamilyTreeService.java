@@ -99,34 +99,18 @@ public class FamilyTreeService {
             throw new IllegalArgumentException("Person id phải là số nguyên dương");
         }
 
-        // Kiểm tra sự tồn tại của Person cần cập nhật
-        getPersonById(person.getId());
+        // Luôn lấy father/mother hiện tại từ DB, bỏ qua hoàn toàn những gì
+        // caller truyền vào 2 field này trên object - updatePerson() không
+        // bao giờ được phép thay đổi quan hệ cha/mẹ.
+        Person existing = getPersonById(person.getId());
+        person.setFather(existing.getFather());
+        person.setMother(existing.getMother());
 
-        if (person.getFather() != null) {
-            Person father = getPersonById(person.getFather().getId());
-            validateParentAssignment(person, father, Gender.MALE);
-            if (checkCycle(person.getId(), father.getId())) {
-                throw new CycleDetectedException("Gán cha tạo chu trình vòng lặp trong cây gia phả");
-            }
-            person.setFather(father);
-        }
-
-        if (person.getMother() != null) {
-            Person mother = getPersonById(person.getMother().getId());
-            validateParentAssignment(person, mother, Gender.FEMALE);
-            if (checkCycle(person.getId(), mother.getId())) {
-                throw new CycleDetectedException("Gán mẹ tạo chu trình vòng lặp trong cây gia phả");
-            }
-            person.setMother(mother);
-        }
-
-        if (person.getFather() != null && person.getMother() != null) {
-            if (person.getFather().getId() == person.getMother().getId()) {
-                throw new IllegalArgumentException("Cha và Mẹ không thể là cùng một người");
-            }
-        }
-
-        // BR5 is a warning only and does not block the operation.
+        // Không còn khối validate father/mother ở đây nữa - xóa hoàn toàn
+        // 2 khối "if (person.getFather() != null) {...}" và
+        // "if (person.getMother() != null) {...}" cùng với check
+        // "father.id == mother.id" phía dưới, vì father/mother giờ luôn
+        // là giá trị đã có sẵn trong DB (đã được validate từ trước khi gán).
 
         personRepository.update(person);
     }
@@ -201,6 +185,30 @@ public class FamilyTreeService {
         }
 
         child.setMother(mother);
+        personRepository.update(child);
+    }
+
+    /**
+     * Gỡ quan hệ cha của một người con (thiết lập father_id = NULL).
+     *
+     * @param childId mã định danh của người con
+     * @throws PersonNotFoundException nếu childId không tồn tại
+     */
+    public void clearFather(int childId) {
+        Person child = getPersonById(childId);
+        child.setFather(null);
+        personRepository.update(child);
+    }
+
+    /**
+     * Gỡ quan hệ mẹ của một người con (thiết lập mother_id = NULL).
+     *
+     * @param childId mã định danh của người con
+     * @throws PersonNotFoundException nếu childId không tồn tại
+     */
+    public void clearMother(int childId) {
+        Person child = getPersonById(childId);
+        child.setMother(null);
         personRepository.update(child);
     }
 
@@ -285,6 +293,26 @@ public class FamilyTreeService {
         }
 
         return descendants;
+    }
+
+    /**
+     * Tìm kiếm thành viên theo từ khóa họ tên.
+     * Nếu keyword là null hoặc rỗng, trả về toàn bộ danh sách thành viên.
+     *
+     * @param keyword từ khóa tìm kiếm
+     * @return danh sách các Person phù hợp
+     */
+    public List<Person> searchPersons(String keyword) {
+        return personRepository.search(keyword);
+    }
+
+    /**
+     * Lấy toàn bộ danh sách thành viên trong hệ thống gia phả.
+     *
+     * @return danh sách tất cả các Person
+     */
+    public List<Person> getAllPersons() {
+        return personRepository.findAll();
     }
 
     // ============================================================

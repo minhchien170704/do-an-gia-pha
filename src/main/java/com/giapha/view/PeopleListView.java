@@ -362,4 +362,12 @@ public class PeopleListView {
         tableView.refresh();
         updateStats();
     }
+
+    public Person getSelectedPerson() {
+        return tableView != null ? tableView.getSelectionModel().getSelectedItem() : null;
+    }
+
+    public String getSearchKeyword() {
+        return searchField != null ? searchField.getText() : "";
+    }
 }

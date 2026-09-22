@@ -378,4 +378,32 @@ public class PersonFormView {
     public void setOnCancel(Runnable handler) {
         this.onCancel = handler;
     }
+
+    public Person getEditingPerson() {
+        return editingPerson;
+    }
+
+    public String getFullNameInput() {
+        return txtFullName != null ? txtFullName.getText() : "";
+    }
+
+    public String getBirthYearInput() {
+        return txtBirthYear != null ? txtBirthYear.getText() : "";
+    }
+
+    public Gender getGenderInput() {
+        return cboGender != null ? cboGender.getValue() : null;
+    }
+
+    public String getPhotoPathInput() {
+        return txtPhotoPath != null ? txtPhotoPath.getText() : null;
+    }
+
+    public Person getSelectedFather() {
+        return cboFather != null ? cboFather.getValue() : null;
+    }
+
+    public Person getSelectedMother() {
+        return cboMother != null ? cboMother.getValue() : null;
+    }
 }

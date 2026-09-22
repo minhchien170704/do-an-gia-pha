@@ -44,6 +44,8 @@ class PersonController {
     + handleViewDetail() : void
     + handleAssignFather() : void
     + handleAssignMother() : void
+    + handleClearFather() : void
+    + handleClearMother() : void
     + handleViewTree() : void
 }
 
@@ -52,12 +54,16 @@ class PersonController {
 ' ============================================================
 
 class FamilyTreeService {
+    + getAllPersons() : List<Person>
     + getPersonById(id : int) : Person
+    + searchPersons(keyword : String) : List<Person>
     + addPerson(person : Person) : Person
     + updatePerson(person : Person) : void
     + deletePerson(id : int) : void
     + assignFather(childId : int, fatherId : int) : void
     + assignMother(childId : int, motherId : int) : void
+    + clearFather(childId : int) : void
+    + clearMother(childId : int) : void
     + getAncestors(id : int) : List<Person>
     + getDescendants(id : int) : List<Person>
     - validatePerson(person : Person) : void
