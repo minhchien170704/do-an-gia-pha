@@ -1,0 +1,89 @@
+@startuml sequence-assign-parent
+
+title Sequence Diagram - Gán cha/mẹ
+
+actor "Người dùng" as User
+participant "PersonController" as Controller
+participant "FamilyTreeService" as Service
+participant "PersonRepository" as Repo
+participant "JdbcPersonRepository" as JdbcRepo
+participant "DatabaseConnection" as DBConn
+database "MySQL" as DB
+
+User -> Controller : handleAssignFather() hoặc handleAssignMother()
+
+alt Gán Father
+    Controller -> Service : assignFather(childId, fatherId)
+else Gán Mother
+    Controller -> Service : assignMother(childId, motherId)
+end
+
+Service -> Repo : findById(childId)
+Repo -> JdbcRepo : findById(childId)
+JdbcRepo -> DBConn : getConnection()
+DBConn --> JdbcRepo : Connection
+JdbcRepo -> DB : SELECT * FROM person WHERE id = childId
+DB --> JdbcRepo : row
+JdbcRepo --> Repo : Person (child)
+Repo --> Service : Person (child)
+
+Service -> Repo : findById(parentId)
+Repo -> JdbcRepo : findById(parentId)
+JdbcRepo -> DBConn : getConnection()
+DBConn --> JdbcRepo : Connection
+JdbcRepo -> DB : SELECT * FROM person WHERE id = parentId
+DB --> JdbcRepo : row
+JdbcRepo --> Repo : Person (parent)
+Repo --> Service : Person (parent)
+
+Service -> Service : validateParentAssignment(child, parent, requiredGender)
+
+alt 1. Parent không tồn tại (null)
+    Service --> Controller : PersonNotFoundException
+    Controller --> User : hiển thị lỗi
+
+else 2. child.id == parent.id (Self-parent)
+    Service --> Controller : SelfParentException
+    Controller --> User : hiển thị lỗi
+
+else 3. Kiểm tra Father != Mother (theo role đang gán)
+
+    alt Đang gán Father (assignFather)
+        alt child.mother != null VÀ fatherId == child.mother.id
+            Service --> Controller : validation error (trùng vai trò)
+            Controller --> User : hiển thị lỗi
+        end
+    else Đang gán Mother (assignMother)
+        alt child.father != null VÀ motherId == child.father.id
+            Service --> Controller : validation error (trùng vai trò)
+            Controller --> User : hiển thị lỗi
+        end
+    end
+
+    alt 4. Gender-role không hợp lệ
+        Service --> Controller : validation error (gender không phù hợp vai trò)
+        Controller --> User : hiển thị lỗi
+
+    else Gender hợp lệ
+        Service -> Service : checkCycle(childId, candidateParentId)
+
+        alt 5. Cycle detected
+            Service --> Controller : CycleDetectedException
+            Controller --> User : hiển thị lỗi
+
+        else 6. Không có cycle
+            Service -> Repo : update(child)
+            Repo -> JdbcRepo : update(child)
+            JdbcRepo -> DBConn : getConnection()
+            DBConn --> JdbcRepo : Connection
+            JdbcRepo -> DB : UPDATE person SET father_id/mother_id WHERE id = childId
+            DB --> JdbcRepo : success
+            JdbcRepo --> Repo : void
+            Repo --> Service : void
+            Service --> Controller : void
+            Controller --> User : Gán cha/mẹ thành công
+        end
+    end
+end
+
+@enduml

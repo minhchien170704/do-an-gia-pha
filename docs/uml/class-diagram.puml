@@ -1,0 +1,114 @@
+@startuml class-diagram
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 13
+skinparam class {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    ArrowColor #A80036
+}
+skinparam linetype ortho
+
+' ============================================================
+' ENUM
+' ============================================================
+
+enum Gender {
+    MALE
+    FEMALE
+}
+
+' ============================================================
+' MODEL
+' ============================================================
+
+class Person {
+    - id : int
+    - fullName : String
+    - birthYear : int
+    - gender : Gender
+    - photoPath : String
+    - father : Person
+    - mother : Person
+}
+
+' ============================================================
+' CONTROLLER
+' ============================================================
+
+class PersonController {
+    + handleAdd() : void
+    + handleEdit() : void
+    + handleDelete() : void
+    + handleSearch() : void
+    + handleViewDetail() : void
+    + handleAssignFather() : void
+    + handleAssignMother() : void
+    + handleViewTree() : void
+}
+
+' ============================================================
+' SERVICE
+' ============================================================
+
+class FamilyTreeService {
+    + getPersonById(id : int) : Person
+    + addPerson(person : Person) : Person
+    + updatePerson(person : Person) : void
+    + deletePerson(id : int) : void
+    + assignFather(childId : int, fatherId : int) : void
+    + assignMother(childId : int, motherId : int) : void
+    + getAncestors(id : int) : List<Person>
+    + getDescendants(id : int) : List<Person>
+    - validatePerson(person : Person) : void
+    - validateParentAssignment(child : Person, parent : Person, requiredGender : Gender) : void
+    - checkCycle(childId : int, candidateParentId : int) : boolean
+    - checkPersonInUse(id : int) : boolean
+}
+
+' ============================================================
+' REPOSITORY
+' ============================================================
+
+interface PersonRepository {
+    + findAll() : List<Person>
+    + findById(id : int) : Person
+    + search(keyword : String) : List<Person>
+    + save(person : Person) : int
+    + update(person : Person) : void
+    + delete(id : int) : void
+}
+
+class JdbcPersonRepository {
+    + findAll() : List<Person>
+    + findById(id : int) : Person
+    + search(keyword : String) : List<Person>
+    + save(person : Person) : int
+    + update(person : Person) : void
+    + delete(id : int) : void
+}
+
+' ============================================================
+' DATABASE
+' ============================================================
+
+class DatabaseConnection {
+    + getConnection() : Connection
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+Person --> "1" Gender
+
+Person "0..*" --> "0..1" Person : father
+Person "0..*" --> "0..1" Person : mother
+
+JdbcPersonRepository ..|> PersonRepository
+
+PersonController --> FamilyTreeService
+FamilyTreeService --> PersonRepository
+JdbcPersonRepository --> DatabaseConnection
+
+@enduml

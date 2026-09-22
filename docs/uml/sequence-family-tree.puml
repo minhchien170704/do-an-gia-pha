@@ -1,0 +1,71 @@
+@startuml sequence-family-tree
+
+title Sequence Diagram - Xem cây gia phả
+
+actor "Người dùng" as User
+participant "PersonController" as Controller
+participant "FamilyTreeService" as Service
+participant "PersonRepository" as Repo
+participant "JdbcPersonRepository" as JdbcRepo
+participant "DatabaseConnection" as DBConn
+database "MySQL" as DB
+
+User -> Controller : handleViewTree()
+
+Controller -> Service : getPersonById(focusPersonId)
+Service -> Repo : findById(focusPersonId)
+Repo -> JdbcRepo : findById(focusPersonId)
+JdbcRepo -> DBConn : getConnection()
+DBConn --> JdbcRepo : Connection
+JdbcRepo -> DB : SELECT * FROM person WHERE id = focusPersonId
+DB --> JdbcRepo : row
+JdbcRepo --> Repo : Person (focus)
+Repo --> Service : Person (focus)
+
+alt Person không tồn tại (null)
+    Service --> Controller : PersonNotFoundException
+    Controller --> User : hiển thị lỗi
+
+else Person tồn tại
+
+    Service --> Controller : Person (focus)
+
+    Controller -> Service : getAncestors(focusPersonId)
+    Service -> Repo : findById(id)
+    note right of Service
+      Gọi findById() đệ quy theo
+      liên kết father/mother
+      để duyệt tổ tiên
+    end note
+    Repo -> JdbcRepo : findById(id)
+    JdbcRepo -> DBConn : getConnection()
+    DBConn --> JdbcRepo : Connection
+    JdbcRepo -> DB : SELECT ...
+    DB --> JdbcRepo : rows
+    JdbcRepo --> Repo : List<Person>
+    Repo --> Service : List<Person>
+    Service --> Controller : List<Person> (ancestors)
+
+    Controller -> Service : getDescendants(focusPersonId)
+    Service -> Repo : findAll()
+    note right of Service
+      Lọc những Person có
+      father.id hoặc mother.id
+      trỏ về focusPersonId
+      (đệ quy cho descendants)
+    end note
+    Repo -> JdbcRepo : findAll()
+    JdbcRepo -> DBConn : getConnection()
+    DBConn --> JdbcRepo : Connection
+    JdbcRepo -> DB : SELECT * FROM person
+    DB --> JdbcRepo : rows
+    JdbcRepo --> Repo : List<Person>
+    Repo --> Service : List<Person>
+    Service --> Controller : List<Person> (descendants)
+
+    Controller -> Controller : build TreeView\n(focus + ancestors + descendants)
+    Controller --> User : Hiển thị TreeView
+
+end
+
+@enduml

@@ -1,0 +1,36 @@
+@startuml use-case
+
+left to right direction
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam usecase {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    ArrowColor #A80036
+}
+
+actor "Người dùng" as User
+
+rectangle "Hệ thống quản lý gia phả" {
+    usecase "UC01\nThêm người" as UC01
+    usecase "UC02\nSửa thông tin người" as UC02
+    usecase "UC03\nXóa người" as UC03
+    usecase "UC04\nTìm kiếm người" as UC04
+    usecase "UC05\nXem danh sách người" as UC05
+    usecase "UC06\nXem chi tiết người" as UC06
+    usecase "UC07\nGán cha" as UC07
+    usecase "UC08\nGán mẹ" as UC08
+    usecase "UC09\nXem cây gia phả" as UC09
+}
+
+User --> UC01
+User --> UC02
+User --> UC03
+User --> UC04
+User --> UC05
+User --> UC06
+User --> UC07
+User --> UC08
+User --> UC09
+
+@enduml

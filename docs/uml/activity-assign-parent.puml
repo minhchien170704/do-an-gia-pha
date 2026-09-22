@@ -1,0 +1,71 @@
+@startuml activity-assign-parent
+
+title Activity Diagram - Gán cha/mẹ
+
+start
+
+:Chọn Child;
+
+:Chọn Parent (Father hoặc Mother);
+
+:Kiểm tra Parent tồn tại;
+
+if (Parent tồn tại?) then (yes)
+else (no)
+  :PersonNotFoundException;
+  stop
+endif
+
+if (Parent == Child?) then (yes)
+  :SelfParentException;
+  stop
+else (no)
+endif
+
+if (Đang gán Father?) then (yes)
+  if (Child đã có Mother?) then (yes)
+    if (FatherId mới == MotherId hiện tại?) then (yes)
+      :Lỗi: Father và Mother\nkhông được trùng nhau;
+      stop
+    else (no)
+    endif
+  else (no)
+  endif
+else (đang gán Mother)
+  if (Child đã có Father?) then (yes)
+    if (MotherId mới == FatherId hiện tại?) then (yes)
+      :Lỗi: Father và Mother\nkhông được trùng nhau;
+      stop
+    else (no)
+    endif
+  else (no)
+  endif
+endif
+
+:Kiểm tra gender theo role;
+note right
+  Father phải MALE
+  Mother phải FEMALE
+end note
+
+if (Gender hợp lệ?) then (yes)
+else (no)
+  :Lỗi: Gender không phù hợp vai trò;
+  stop
+endif
+
+:Kiểm tra cycle trong cây gia phả;
+
+if (Cycle detected?) then (yes)
+  :CycleDetectedException;
+  stop
+else (no)
+endif
+
+:Update relationship;
+:Repository lưu vào Database;
+:Gán cha/mẹ thành công;
+
+stop
+
+@enduml

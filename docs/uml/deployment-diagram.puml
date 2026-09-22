@@ -1,0 +1,41 @@
+@startuml deployment-diagram
+
+title Deployment Diagram - Sơ đồ gia phả
+
+skinparam backgroundColor #FFFFFF
+skinparam node {
+    BackgroundColor #F8F9FA
+    BorderColor #A80036
+    FontSize 13
+}
+skinparam component {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    FontSize 12
+}
+skinparam database {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    FontSize 12
+}
+skinparam ArrowColor #A80036
+
+node "Client Computer" as Client {
+    node "Java Runtime Environment\n(Java 25)" as JRE {
+        component "JavaFX Application\n(Ứng dụng Quản lý Gia phả)" as App
+        component "MySQL JDBC Driver\n(Connector/J)" as Driver
+    }
+}
+
+node "MySQL Server" as Server {
+    node "MySQL Database Server" as DBMS {
+        database "Database: gia_pha" as DB {
+            [Bảng PERSON]
+        }
+    }
+}
+
+App ..> Driver : sử dụng
+Driver --> DB : JDBC Connection (TCP/IP Port 3306)
+
+@enduml

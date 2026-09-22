@@ -1,0 +1,76 @@
+@startuml activity-add-person
+
+title Activity Diagram - Thêm người
+
+start
+
+:Người dùng nhập thông tin người;
+note right
+  fullName, birthYear,
+  gender, photoPath
+end note
+
+:Chọn Father / Mother\n(có thể bỏ trống);
+
+:Kiểm tra thông tin cơ bản;
+
+if (Thông tin hợp lệ?) then (yes)
+else (no)
+  :Hiển thị lỗi validation;
+  stop
+endif
+
+if (Father được chọn?) then (yes)
+  :Kiểm tra Father tồn tại;
+  if (Father tồn tại?) then (yes)
+  else (no)
+    :PersonNotFoundException;
+    stop
+  endif
+else (no)
+endif
+
+if (Mother được chọn?) then (yes)
+  :Kiểm tra Mother tồn tại;
+  if (Mother tồn tại?) then (yes)
+  else (no)
+    :PersonNotFoundException;
+    stop
+  endif
+else (no)
+endif
+
+if (Cả Father và Mother đều được chọn?) then (yes)
+  if (Father == Mother?) then (yes)
+    :Lỗi: Father và Mother\nkhông được trùng nhau;
+    stop
+  else (no)
+  endif
+else (no)
+endif
+
+if (Father được chọn?) then (yes)
+  if (Father.gender == MALE?) then (yes)
+  else (no)
+    :Lỗi: Father phải có gender MALE;
+    stop
+  endif
+else (no)
+endif
+
+if (Mother được chọn?) then (yes)
+  if (Mother.gender == FEMALE?) then (yes)
+  else (no)
+    :Lỗi: Mother phải có gender FEMALE;
+    stop
+  endif
+else (no)
+endif
+
+:Save Person;
+:Repository lưu vào Database;
+:Thêm người thành công;
+
+stop
+
+@enduml

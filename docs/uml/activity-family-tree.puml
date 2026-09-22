@@ -1,0 +1,31 @@
+@startuml activity-family-tree
+
+title Activity Diagram - Xem cây gia phả
+
+start
+
+:Chọn Xem cây gia phả;
+
+:Chọn focus person;
+
+:Kiểm tra person tồn tại;
+
+if (Person tồn tại?) then (yes)
+else (no)
+  :PersonNotFoundException;
+  stop
+endif
+
+:Lấy thông tin focus person\n(findById);
+
+:Lấy danh sách tổ tiên\n(getAncestors);
+
+:Lấy danh sách con cháu\n(getDescendants);
+
+:Xây dựng cây gia phả;
+
+:Hiển thị TreeView;
+
+stop
+
+@enduml

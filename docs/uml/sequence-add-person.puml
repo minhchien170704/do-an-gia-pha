@@ -1,0 +1,89 @@
+@startuml sequence-add-person
+
+title Sequence Diagram - Thêm người
+
+actor "Người dùng" as User
+participant "PersonController" as Controller
+participant "FamilyTreeService" as Service
+participant "PersonRepository" as Repo
+participant "JdbcPersonRepository" as JdbcRepo
+participant "DatabaseConnection" as DBConn
+database "MySQL" as DB
+
+User -> Controller : handleAdd()
+Controller -> Service : addPerson(person)
+
+Service -> Service : validatePerson(person)
+
+alt Thông tin cơ bản không hợp lệ
+    Service --> Controller : validation error
+    Controller --> User : hiển thị lỗi
+else Thông tin hợp lệ
+
+    opt Father được chọn
+        Service -> Repo : findById(fatherId)
+        Repo -> JdbcRepo : findById(fatherId)
+        JdbcRepo -> DBConn : getConnection()
+        DBConn --> JdbcRepo : Connection
+        JdbcRepo -> DB : SELECT * FROM person WHERE id = fatherId
+        DB --> JdbcRepo : row
+        JdbcRepo --> Repo : Person (father)
+        Repo --> Service : Person (father)
+
+        alt Father không tồn tại (null)
+            Service --> Controller : PersonNotFoundException
+            Controller --> User : hiển thị lỗi
+        end
+    end
+
+    opt Mother được chọn
+        Service -> Repo : findById(motherId)
+        Repo -> JdbcRepo : findById(motherId)
+        JdbcRepo -> DBConn : getConnection()
+        DBConn --> JdbcRepo : Connection
+        JdbcRepo -> DB : SELECT * FROM person WHERE id = motherId
+        DB --> JdbcRepo : row
+        JdbcRepo --> Repo : Person (mother)
+        Repo --> Service : Person (mother)
+
+        alt Mother không tồn tại (null)
+            Service --> Controller : PersonNotFoundException
+            Controller --> User : hiển thị lỗi
+        end
+    end
+
+    opt Cả Father và Mother đều được chọn
+        alt father.id == mother.id
+            Service --> Controller : validation error (Father == Mother)
+            Controller --> User : hiển thị lỗi
+        end
+    end
+
+    opt Father được chọn
+        alt father.gender != MALE
+            Service --> Controller : validation error (Father phải có gender MALE)
+            Controller --> User : hiển thị lỗi
+        end
+    end
+
+    opt Mother được chọn
+        alt mother.gender != FEMALE
+            Service --> Controller : validation error (Mother phải có gender FEMALE)
+            Controller --> User : hiển thị lỗi
+        end
+    end
+
+    Service -> Repo : save(person)
+    Repo -> JdbcRepo : save(person)
+    JdbcRepo -> DBConn : getConnection()
+    DBConn --> JdbcRepo : Connection
+    JdbcRepo -> DB : INSERT INTO person (...)
+    DB --> JdbcRepo : generated id
+    JdbcRepo --> Repo : int (generated id)
+    Repo --> Service : int (generated id)
+    Service --> Controller : Person (với id đã gán)
+    Controller --> User : Thêm người thành công
+
+end
+
+@enduml

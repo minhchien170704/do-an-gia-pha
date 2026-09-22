@@ -1,0 +1,54 @@
+@startuml component-diagram
+
+title Component Diagram - Sơ đồ gia phả
+
+skinparam componentStyle rectangle
+skinparam backgroundColor #FFFFFF
+skinparam component {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    FontSize 13
+}
+skinparam interface {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+}
+skinparam package {
+    BackgroundColor #F5F5FF
+    BorderColor #A80036
+    FontSize 12
+}
+skinparam ArrowColor #A80036
+
+package "Presentation Layer" {
+    component "JavaFX UI" as UI
+    component "PersonController" as Controller
+}
+
+package "Business Layer" {
+    component "FamilyTreeService" as Service
+}
+
+package "Persistence Layer" {
+    interface "PersonRepository" as RepoInterface
+    component "JdbcPersonRepository" as JdbcRepo
+    component "DatabaseConnection" as DBConn
+}
+
+package "Database" {
+    database "MySQL" as MySQL
+}
+
+UI --> Controller : gọi xử lý sự kiện
+
+Controller --> Service : gọi business logic
+
+Service --> RepoInterface : sử dụng
+
+JdbcRepo ..|> RepoInterface : implements
+
+JdbcRepo --> DBConn : lấy Connection
+
+DBConn --> MySQL : JDBC Connection
+
+@enduml
