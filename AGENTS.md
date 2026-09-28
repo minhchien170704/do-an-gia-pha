@@ -179,9 +179,14 @@ mvn javafx:run
 mvn exec:java "-Dexec.mainClass=com.giapha.database.DatabaseConnectionTest"
 ```
 
-### Chạy bộ kiểm thử Service Layer (12 test cases):
+### Chạy bộ kiểm thử Service Layer (22 test cases):
 ```bash
 mvn exec:java "-Dexec.mainClass=com.giapha.service.FamilyTreeServiceTest"
+```
+
+### Chạy bộ kiểm thử Controller Layer (8 test cases):
+```bash
+mvn exec:java "-Dexec.mainClass=com.giapha.controller.PersonControllerTest"
 ```
 
 ---

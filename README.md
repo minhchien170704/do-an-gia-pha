@@ -134,24 +134,43 @@ mvn javafx:run
 mvn exec:java "-Dexec.mainClass=com.giapha.database.DatabaseConnectionTest"
 ```
 
-### 2. Kiểm thử nghiệp vụ Service Layer (12 Test Cases):
+### 2. Kiểm thử nghiệp vụ Service Layer (22 Test Cases):
 ```bash
 mvn exec:java "-Dexec.mainClass=com.giapha.service.FamilyTreeServiceTest"
 ```
 Bộ test bao gồm:
-- Tìm kiếm theo ID tồn tại & không tồn tại.
-- Gán cha/mẹ hợp lệ và sai giới tính.
-- Kiểm tra tự gán bản thân (SelfParentException).
-- Kiểm tra phát hiện chu trình (CycleDetectedException).
-- Kiểm tra ràng buộc xóa (PersonInUseException).
-- Truy vết tổ tiên đa tầng (Ancestors) và hậu duệ (Descendants).
+- Tra cứu thành viên theo ID tồn tại & không tồn tại (`PersonNotFoundException`).
+- Gán cha/mẹ hợp lệ và kiểm tra giới tính vai trò (`IllegalArgumentException`).
+- Kiểm tra tự gán bản thân (`SelfParentException`).
+- Phát hiện và ngăn chặn chu trình gia phả (`CycleDetectedException`).
+- Ngăn chặn xóa cha/mẹ đang được tham chiếu (`PersonInUseException`).
+- Gỡ quan hệ cha/mẹ (`clearFather`, `clearMother`) và cho phép xóa sau khi gỡ.
+- Kiểm tra hợp lệ năm sinh (`InvalidBirthYearException`).
+- Truy vết tổ tiên đa tầng (`getAncestors`) và hậu duệ (`getDescendants`).
+- Tự động hoàn trả và bảo toàn tuyệt đối 7 bản ghi mẫu (`COUNT(*) = 7`).
+
+### 3. Kiểm thử Controller Layer (8 Test Cases):
+```bash
+mvn exec:java "-Dexec.mainClass=com.giapha.controller.PersonControllerTest"
+```
+Bộ test bao gồm:
+- Tìm kiếm thành viên theo từ khóa (`handleSearch`).
+- Xem chi tiết thành viên (`handleViewDetail`).
+- Xem cây gia phả (`handleViewTree`).
+- Thêm mới thành viên vào cơ sở dữ liệu (`handleAdd`).
+- Chặn xóa người đang làm cha/mẹ theo quy tắc BR4 (`handleDelete`).
+- Cập nhật thông tin và điều chỉnh cha/mẹ qua quy trình 6 bước (`handleEdit`).
+- Gỡ quan hệ cha/mẹ khi chọn "Không có" qua form (`TC-CLEAR-06`).
 - Tự động hoàn trả và xác minh trạng thái toàn vẹn của dữ liệu mẫu (`COUNT(*) = 7`).
+
+> **Lưu ý về kiểm thử giao diện (GUI):**
+> Các bộ kiểm thử tự động trên đảm bảo 100% tính đúng đắn của logic nghiệp vụ, ràng buộc quan hệ và thao tác dữ liệu với MySQL. Các thao tác trực quan bằng chuột/bàn phím trên desktop cần được kiểm chứng thủ công qua giao diện người dùng khi khởi chạy ứng dụng (`mvn javafx:run`).
 
 ---
 
 ## 10. Tài Liệu UML (UML Documentation)
 Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
-- Sơ đồ lớp: `class-diagram.puml` / `class-diagram.png`
+- Sơ đồ lớp: `class-diagram.puml` / `class-diagram.png` (cập nhật đầy đủ các tầng View, Controller, Service, Repository, Database)
 - Sơ đồ thành phần: `component-diagram.puml` / `component-diagram.png`
 - Sơ đồ triển khai: `deployment-diagram.puml` / `deployment-diagram.png`
 - Sơ đồ ca sử dụng: `use-case.puml` / `use-case.png`
@@ -163,5 +182,8 @@ Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
 - [x] **Cụm 1–4**: Thiết kế UML, kiến trúc, UI Mockup & Design System JavaFX.
 - [x] **Cụm 5.1–5.2**: Model Layer, Custom Exceptions & Repository Layer (Interface & JDBC Implementation).
 - [x] **Cụm 5.3**: Database Schema, MySQL setup, DatabaseConnection.
-- [x] **Cụm 5.4**: FamilyTreeService Layer & Bộ test nghiệp vụ (12/12 test cases PASS).
-- [ ] **Cụm 5.5**: PersonController & Tích hợp kết nối UI Controller.
+- [x] **Cụm 5.4**: FamilyTreeService Layer & Bộ test nghiệp vụ (22/22 test cases PASS).
+- [x] **Cụm 5.5**: PersonController & Bộ test Controller (8/8 test cases PASS).
+- [x] **Cụm 5.6**: Tích hợp toàn diện JavaFX UI với Backend MySQL (kết nối trực tiếp, loại bỏ hoàn toàn SampleData khỏi luồng chạy chính).
+- [x] **Cụm 5.7**: End-to-End Verification, QA tích hợp và kiểm chứng toàn vẹn dữ liệu MySQL.
+- [x] **Cụm 5.8**: Đồng bộ hóa tài liệu (README) và sơ đồ lớp (Class Diagram).

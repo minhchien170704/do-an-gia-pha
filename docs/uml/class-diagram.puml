@@ -30,6 +30,56 @@ class Person {
     - photoPath : String
     - father : Person
     - mother : Person
+    + getId() : int
+    + setId(id : int) : void
+    + getFullName() : String
+    + setFullName(fullName : String) : void
+    + getBirthYear() : int
+    + setBirthYear(birthYear : int) : void
+    + getGender() : Gender
+    + setGender(gender : Gender) : void
+    + getPhotoPath() : String
+    + setPhotoPath(photoPath : String) : void
+    + getFather() : Person
+    + setFather(father : Person) : void
+    + getMother() : Person
+    + setMother(mother : Person) : void
+}
+
+' ============================================================
+' VIEW
+' ============================================================
+
+class PeopleListView {
+    - controller : PersonController
+    + getRoot() : Parent
+    + reloadData() : void
+    + getSelectedPerson() : Person
+}
+
+class PersonFormView {
+    - controller : PersonController
+    - editingPerson : Person
+    + getRoot() : Parent
+    + getEditingPerson() : Person
+    + getFullNameInput() : String
+    + getBirthYearInput() : String
+    + getGenderInput() : Gender
+    + getPhotoPathInput() : String
+    + getSelectedFather() : Person
+    + getSelectedMother() : Person
+}
+
+class PersonDetailView {
+    - controller : PersonController
+    - person : Person
+    + getRoot() : Parent
+}
+
+class FamilyTreeView {
+    - controller : PersonController
+    - focusPerson : Person
+    + getRoot() : Parent
 }
 
 ' ============================================================
@@ -37,16 +87,21 @@ class Person {
 ' ============================================================
 
 class PersonController {
+    - familyTreeService : FamilyTreeService
+    - selectedPerson : Person
+    + getAllPersons() : List<Person>
     + handleAdd() : void
     + handleEdit() : void
     + handleDelete() : void
-    + handleSearch() : void
+    + handleSearch(keyword : String) : void
     + handleViewDetail() : void
-    + handleAssignFather() : void
-    + handleAssignMother() : void
-    + handleClearFather() : void
-    + handleClearMother() : void
+    + handleAssignFather(childId : int, fatherId : int) : void
+    + handleAssignMother(childId : int, motherId : int) : void
+    + handleClearFather(childId : int) : void
+    + handleClearMother(childId : int) : void
     + handleViewTree() : void
+    + getSelectedPerson() : Person
+    + setSelectedPerson(person : Person) : void
 }
 
 ' ============================================================
@@ -54,6 +109,7 @@ class PersonController {
 ' ============================================================
 
 class FamilyTreeService {
+    - personRepository : PersonRepository
     + getAllPersons() : List<Person>
     + getPersonById(id : int) : Person
     + searchPersons(keyword : String) : List<Person>
@@ -100,21 +156,27 @@ class JdbcPersonRepository {
 
 class DatabaseConnection {
     + getConnection() : Connection
+    + getConnection(url : String, user : String, password : String) : Connection
 }
 
 ' ============================================================
 ' RELATIONSHIPS
 ' ============================================================
 
-Person --> "1" Gender
-
-Person "0..*" --> "0..1" Person : father
-Person "0..*" --> "0..1" Person : mother
-
-JdbcPersonRepository ..|> PersonRepository
+PeopleListView --> PersonController
+PersonFormView --> PersonController
+PersonDetailView --> PersonController
+FamilyTreeView --> PersonController
 
 PersonController --> FamilyTreeService
+PersonController --> Person : selectedPerson
+
 FamilyTreeService --> PersonRepository
+JdbcPersonRepository ..|> PersonRepository
 JdbcPersonRepository --> DatabaseConnection
+
+Person --> "1" Gender
+Person "0..*" --> "0..1" Person : father
+Person "0..*" --> "0..1" Person : mother
 
 @enduml
