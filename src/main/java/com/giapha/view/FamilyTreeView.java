@@ -1,5 +1,6 @@
 package com.giapha.view;
 
+import com.giapha.controller.PersonController;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
 import javafx.collections.FXCollections;
@@ -10,25 +11,39 @@ import javafx.scene.layout.*;
 import javafx.util.StringConverter;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Màn hình Cây gia phả — Family Tree View.
- * Thiết kế giao diện cây phả hệ trực quan, tùy biến TreeCell thành các thẻ thành viên
- * phân định rõ ràng giữa Tổ tiên, Người trung tâm và Hậu duệ.
+ * Dữ liệu tổ tiên/hậu duệ lấy từ MySQL thông qua Controller (không còn dùng SampleData).
+ *
+ * Sử dụng controller.getAllPersons() (tương đương findAll()) để có đồ thị liên kết đầy đủ:
+ * person.getFather().getFather()... → tổ tiên nhiều thế hệ đều có đầy đủ trong bộ nhớ.
  */
 public class FamilyTreeView {
 
     private final BorderPane root;
-    private final SampleData data = SampleData.getInstance();
+    private final PersonController controller;
     private final TreeView<TreeNodeItem> treeView;
     private ComboBox<Person> cboFocusPerson;
+
+    /**
+     * Danh sách toàn bộ thành viên từ MySQL — đồ thị liên kết đầy đủ (findAll).
+     * buildAncestorNodes() duyệt person.getFather() đệ quy qua đây.
+     */
+    private List<Person> allPersons;
 
     private Runnable onBack;
     private java.util.function.Consumer<Person> onViewPerson;
 
-    public FamilyTreeView(Person focusPerson) {
+    public FamilyTreeView(PersonController controller, Person focusPerson) {
+        this.controller = controller;
         root = new BorderPane();
         root.getStyleClass().add("content-area");
+
+        // Tải toàn bộ danh sách từ MySQL (đồ thị đầy đủ)
+        allPersons = controller.getAllPersons();
+        if (allPersons == null) allPersons = List.of();
 
         // Top Header
         VBox topHeader = createHeader();
@@ -37,7 +52,7 @@ public class FamilyTreeView {
         // Center Content
         VBox centerContent = new VBox(16);
 
-        // Toolbar: Selector + Legend + Back
+        // Toolbar: Selector + Legend
         HBox toolbar = createToolbar();
 
         // Tree Card Container
@@ -52,7 +67,6 @@ public class FamilyTreeView {
         treeView.getStyleClass().add("tree-view");
         VBox.setVgrow(treeView, Priority.ALWAYS);
 
-        // Configure custom cell factory
         setupTreeCellFactory();
 
         treeCard.getChildren().addAll(cardTitle, treeView);
@@ -63,17 +77,36 @@ public class FamilyTreeView {
 
         root.setCenter(centerContent);
 
-        // Initial setup
-        Person initialPerson = focusPerson;
-        if (initialPerson == null && !data.getPeople().isEmpty()) {
-            // Default to central generation or first person
-            initialPerson = data.findById(5) != null ? data.findById(5) : data.getPeople().get(0);
-        }
-
+        // Chọn người trung tâm ban đầu
+        Person initialPerson = resolveInitialPerson(focusPerson);
         if (initialPerson != null) {
             cboFocusPerson.setValue(initialPerson);
             buildTree(initialPerson);
         }
+    }
+
+    /**
+     * Tìm person phù hợp để hiển thị ban đầu:
+     * - Nếu focusPerson không null → tìm bản tương ứng trong allPersons theo ID
+     *   (đảm bảo person từ đồ thị đầy đủ, không phải object 1-level từ search)
+     * - Nếu null → mặc định chọn người có cha/mẹ đầu tiên hoặc người đầu tiên trong list
+     */
+    private Person resolveInitialPerson(Person focusPerson) {
+        if (allPersons.isEmpty()) return null;
+
+        if (focusPerson != null && focusPerson.getId() > 0) {
+            // Tìm trong allPersons để có đồ thị đầy đủ (ancestor chain)
+            return allPersons.stream()
+                    .filter(p -> p.getId() == focusPerson.getId())
+                    .findFirst()
+                    .orElse(allPersons.get(0));
+        }
+
+        // Default: ưu tiên người có cả cha lẫn mẹ (thế hệ trung tâm)
+        return allPersons.stream()
+                .filter(p -> p.getFather() != null && p.getMother() != null)
+                .findFirst()
+                .orElse(allPersons.get(0));
     }
 
     private VBox createHeader() {
@@ -102,7 +135,7 @@ public class FamilyTreeView {
         lblSelect.getStyleClass().add("form-label");
         lblSelect.setStyle("-fx-font-size: 13px; -fx-padding: 6 0 0 0;");
 
-        cboFocusPerson = new ComboBox<>(FXCollections.observableArrayList(data.getPeople()));
+        cboFocusPerson = new ComboBox<>(FXCollections.observableArrayList(allPersons));
         cboFocusPerson.getStyleClass().add("form-field");
         cboFocusPerson.setPrefWidth(300);
         cboFocusPerson.setPromptText("Chọn thành viên để xem phả hệ");
@@ -117,7 +150,6 @@ public class FamilyTreeView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Legend pills
         HBox legend = createLegendPills();
 
         toolbar.getChildren().addAll(lblSelect, cboFocusPerson, spacer, legend);
@@ -199,6 +231,11 @@ public class FamilyTreeView {
         treeView.setRoot(rootItem);
     }
 
+    /**
+     * Xây dựng cây tổ tiên bằng cách duyệt đệ quy qua person.getFather() và person.getMother().
+     * Hoạt động chính xác vì allPersons được tải bằng findAll() — đồ thị liên kết đầy đủ:
+     * person.getFather() trỏ tới object cha, object cha cũng có father/mother của nó, v.v.
+     */
     private void buildAncestorNodes(Person person, TreeItem<TreeNodeItem> parentNode) {
         Person father = person.getFather();
         Person mother = person.getMother();
@@ -219,8 +256,16 @@ public class FamilyTreeView {
         }
     }
 
+    /**
+     * Xây dựng cây hậu duệ bằng cách tìm những người có father.id hoặc mother.id trùng với person.
+     * Tìm trong allPersons (từ MySQL) — không dùng SampleData.
+     */
     private void buildDescendantNodes(Person person, TreeItem<TreeNodeItem> parentNode) {
-        List<Person> children = data.getChildren(person);
+        List<Person> children = allPersons.stream()
+                .filter(p -> (p.getFather() != null && p.getFather().getId() == person.getId())
+                        || (p.getMother() != null && p.getMother().getId() == person.getId()))
+                .collect(Collectors.toList());
+
         for (Person child : children) {
             TreeNodeItem cData = new TreeNodeItem(TreeNodeItem.Type.DESCENDANT, child, "Con", null);
             TreeItem<TreeNodeItem> cItem = new TreeItem<>(cData);

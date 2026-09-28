@@ -374,6 +374,21 @@ public class PersonController {
     }
 
     /**
+     * Lấy toàn bộ danh sách thành viên từ Service (dùng findAll — đồ thị liên kết đầy đủ).
+     * Được gọi bởi các View để nạp dữ liệu từ MySQL thay cho SampleData.
+     *
+     * @return danh sách tất cả Person đã liên kết cha/mẹ, hoặc danh sách rỗng nếu lỗi
+     */
+    public List<Person> getAllPersons() {
+        try {
+            return familyTreeService.getAllPersons();
+        } catch (Exception e) {
+            showErrorAlert("Lỗi tải dữ liệu", "Không thể tải danh sách thành viên: " + e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
      * Xử lý xem chi tiết hồ sơ thành viên (UC06).
      */
     public void handleViewDetail() {

@@ -1,5 +1,6 @@
 package com.giapha.view;
 
+import com.giapha.controller.PersonController;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
 import javafx.collections.FXCollections;
@@ -9,46 +10,48 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.util.StringConverter;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Màn hình Thêm / Chỉnh sửa thành viên — Add/Edit Person Form.
- * Tuân thủ cấu trúc tối giản, phân cấp rõ ràng, khoảng cách thoáng đãng.
+ * Form Thêm/Sửa thành viên — Person Form View.
+ * Nạp danh sách cha/mẹ từ MySQL thông qua PersonController.
+ * Thao tác lưu gọi controller.handleAdd() hoặc controller.handleEdit(),
+ * controller xử lý validation nghiệp vụ và điều hướng sau khi thành công.
  */
 public class PersonFormView {
 
     private final BorderPane root;
-    private final TextField txtFullName;
-    private final TextField txtBirthYear;
-    private final ComboBox<Gender> cboGender;
-    private TextField txtPhotoPath;
-    private final ComboBox<Person> cboFather;
-    private final ComboBox<Person> cboMother;
 
-    // Avatar preview
+    private TextField txtFullName;
+    private TextField txtBirthYear;
+    private ComboBox<Gender> cboGender;
+    private TextField txtPhotoPath;
+    private ComboBox<Person> cboFather;
+    private ComboBox<Person> cboMother;
+
     private StackPane avatarPreview;
     private Label avatarLetter;
 
-    private final SampleData data = SampleData.getInstance();
+    private final PersonController controller;
     private final Person editingPerson;
 
-    private Runnable onSave;
     private Runnable onCancel;
 
-    public PersonFormView() {
-        this(null);
+    public PersonFormView(PersonController controller) {
+        this(controller, null);
     }
 
-    public PersonFormView(Person personToEdit) {
+    public PersonFormView(PersonController controller, Person personToEdit) {
+        this.controller = controller;
         this.editingPerson = personToEdit;
         root = new BorderPane();
         root.getStyleClass().add("content-area");
 
-        // Top Header
         VBox topHeader = createHeader();
         root.setTop(topHeader);
 
-        // Center Content ScrollPane
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
@@ -58,28 +61,46 @@ public class PersonFormView {
         formContainer.setAlignment(Pos.TOP_CENTER);
         formContainer.setPadding(new Insets(10, 0, 32, 0));
 
+        VBox formCard = buildFormCard();
+        formContainer.getChildren().add(formCard);
+
+        HBox centerWrapper = new HBox(formContainer);
+        centerWrapper.setAlignment(Pos.TOP_CENTER);
+        scrollPane.setContent(centerWrapper);
+
+        root.setCenter(scrollPane);
+
+        // Nạp danh sách cha/mẹ từ MySQL
+        refreshComboBoxes();
+
+        // Nếu là chế độ sửa, điền dữ liệu hiện tại vào form
+        if (editingPerson != null) {
+            fillFormData();
+        }
+
+        updateAvatarPreview();
+    }
+
+    private VBox buildFormCard() {
         VBox formCard = new VBox(16);
         formCard.getStyleClass().add("card");
         formCard.setPadding(new Insets(24, 28, 28, 28));
 
-        // ================= SECTION 1: THÔNG TIN CÁ NHÂN =================
+        // --- Thông tin cá nhân ---
         Label secPersonal = new Label("Thông tin cá nhân");
         secPersonal.getStyleClass().add("section-title");
 
-        // Avatar preview + Photo Path
         HBox photoSection = createPhotoSection();
 
-        // Họ và tên
         VBox nameGroup = new VBox(4);
         Label lblName = new Label("Họ và tên *");
         lblName.getStyleClass().add("form-label");
         txtFullName = new TextField();
         txtFullName.getStyleClass().add("form-field");
         txtFullName.setPromptText("Nhập họ và tên đầy đủ");
-        txtFullName.textProperty().addListener((obs, oldVal, newVal) -> updateAvatarPreview());
+        txtFullName.textProperty().addListener((obs, o, n) -> updateAvatarPreview());
         nameGroup.getChildren().addAll(lblName, txtFullName);
 
-        // Năm sinh & Giới tính đặt cạnh nhau cân đối
         HBox birthAndGender = new HBox(16);
 
         VBox yearGroup = new VBox(4);
@@ -99,28 +120,19 @@ public class PersonFormView {
         cboGender.setMaxWidth(Double.MAX_VALUE);
         cboGender.setPromptText("Chọn giới tính");
         cboGender.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Gender gender) {
-                if (gender == null) return "";
-                return gender == Gender.MALE ? "Nam" : "Nữ";
-            }
-
-            @Override
-            public Gender fromString(String string) {
-                return "Nam".equals(string) ? Gender.MALE : Gender.FEMALE;
-            }
+            @Override public String toString(Gender g) { return g == null ? "" : g == Gender.MALE ? "Nam" : "Nữ"; }
+            @Override public Gender fromString(String s) { return "Nam".equals(s) ? Gender.MALE : Gender.FEMALE; }
         });
-        cboGender.valueProperty().addListener((obs, oldVal, newVal) -> updateAvatarPreview());
+        cboGender.valueProperty().addListener((obs, o, n) -> updateAvatarPreview());
         genderGroup.getChildren().addAll(lblGender, cboGender);
         HBox.setHgrow(genderGroup, Priority.ALWAYS);
 
         birthAndGender.getChildren().addAll(yearGroup, genderGroup);
 
-        // Separator
+        // --- Quan hệ gia đình ---
         Separator sep = new Separator();
         sep.getStyleClass().add("form-separator");
 
-        // ================= SECTION 2: QUAN HỆ GIA ĐÌNH =================
         Label secFamily = new Label("Quan hệ gia đình");
         secFamily.getStyleClass().add("section-title");
 
@@ -144,16 +156,14 @@ public class PersonFormView {
         setupPersonComboBox(cboMother);
         motherGroup.getChildren().addAll(lblMother, cboMother);
 
-        // Nút hành động
+        // --- Buttons ---
         HBox buttonBar = new HBox(12);
         buttonBar.setAlignment(Pos.CENTER_RIGHT);
         buttonBar.setPadding(new Insets(12, 0, 0, 0));
 
         Button btnCancel = new Button("Hủy");
         btnCancel.getStyleClass().add("btn-secondary");
-        btnCancel.setOnAction(e -> {
-            if (onCancel != null) onCancel.run();
-        });
+        btnCancel.setOnAction(e -> { if (onCancel != null) onCancel.run(); });
 
         String saveText = editingPerson != null ? "Lưu thay đổi" : "Lưu thành viên";
         Button btnSave = new Button(saveText);
@@ -162,44 +172,19 @@ public class PersonFormView {
 
         buttonBar.getChildren().addAll(btnCancel, btnSave);
 
-        // Gom toàn bộ vào card
         formCard.getChildren().addAll(
-                secPersonal,
-                photoSection,
-                nameGroup,
-                birthAndGender,
-                sep,
-                secFamily,
-                fatherGroup,
-                motherGroup,
+                secPersonal, photoSection, nameGroup, birthAndGender,
+                sep, secFamily, fatherGroup, motherGroup,
                 buttonBar
         );
 
-        formContainer.getChildren().add(formCard);
-
-        HBox centerWrapper = new HBox(formContainer);
-        centerWrapper.setAlignment(Pos.TOP_CENTER);
-        scrollPane.setContent(centerWrapper);
-
-        root.setCenter(scrollPane);
-
-        // Load ComboBoxes
-        refreshComboBoxes();
-
-        // Fill existing data if editing
-        if (editingPerson != null) {
-            fillFormData();
-        }
-
-        updateAvatarPreview();
+        return formCard;
     }
 
     private VBox createHeader() {
         Button btnBack = new Button("← Quay lại");
         btnBack.getStyleClass().add("back-link");
-        btnBack.setOnAction(e -> {
-            if (onCancel != null) onCancel.run();
-        });
+        btnBack.setOnAction(e -> { if (onCancel != null) onCancel.run(); });
 
         String titleText = editingPerson != null ? "Chỉnh sửa thành viên" : "Thêm thành viên";
         Label title = new Label(titleText);
@@ -217,7 +202,6 @@ public class PersonFormView {
         HBox box = new HBox(16);
         box.setAlignment(Pos.CENTER_LEFT);
 
-        // Avatar placeholder preview (64x64)
         avatarPreview = new StackPane();
         avatarPreview.setPrefSize(60, 60);
         avatarPreview.setMinSize(60, 60);
@@ -235,7 +219,7 @@ public class PersonFormView {
 
         txtPhotoPath = new TextField();
         txtPhotoPath.getStyleClass().add("form-field");
-        txtPhotoPath.setPromptText("Đường dẫn ảnh (VD: avatar.jpg — tùy chọn)");
+        txtPhotoPath.setPromptText("Đường dẫn ảnh (tùy chọn)");
 
         photoInputBox.getChildren().addAll(lblPhoto, txtPhotoPath);
         HBox.setHgrow(photoInputBox, Priority.ALWAYS);
@@ -276,7 +260,7 @@ public class PersonFormView {
         comboBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(Person person) {
-                if (person == null) return "";
+                if (person == null) return "— Không có —";
                 String genderStr = person.getGender() == Gender.MALE ? "Nam" : "Nữ";
                 return person.getFullName() + " (" + person.getBirthYear() + ", " + genderStr + ")";
             }
@@ -288,30 +272,82 @@ public class PersonFormView {
         });
     }
 
+    /**
+     * Nạp danh sách cha/mẹ từ MySQL thông qua Controller.
+     * Lọc đúng giới tính và loại bỏ bản thân khỏi danh sách.
+     * Thêm option null ("— Không có —") ở đầu mỗi danh sách để cho phép bỏ chọn.
+     */
     private void refreshComboBoxes() {
-        List<Person> males = data.getMales();
-        List<Person> females = data.getFemales();
+        List<Person> allPersons = controller.getAllPersons();
+        if (allPersons == null) allPersons = List.of();
 
-        if (editingPerson != null) {
-            males.removeIf(p -> p.getId() == editingPerson.getId());
-            females.removeIf(p -> p.getId() == editingPerson.getId());
-        }
+        final int editingId = editingPerson != null ? editingPerson.getId() : -1;
 
-        cboFather.setItems(FXCollections.observableArrayList(males));
-        cboMother.setItems(FXCollections.observableArrayList(females));
+        List<Person> males = allPersons.stream()
+                .filter(p -> p.getGender() == Gender.MALE && p.getId() != editingId)
+                .collect(Collectors.toList());
+
+        List<Person> females = allPersons.stream()
+                .filter(p -> p.getGender() == Gender.FEMALE && p.getId() != editingId)
+                .collect(Collectors.toList());
+
+        List<Person> fatherOptions = new ArrayList<>();
+        fatherOptions.add(null);     // "— Không có —"
+        fatherOptions.addAll(males);
+
+        List<Person> motherOptions = new ArrayList<>();
+        motherOptions.add(null);     // "— Không có —"
+        motherOptions.addAll(females);
+
+        cboFather.setItems(FXCollections.observableArrayList(fatherOptions));
+        cboMother.setItems(FXCollections.observableArrayList(motherOptions));
     }
 
+    /**
+     * Điền dữ liệu hiện tại vào form khi chỉnh sửa.
+     * Khớp theo ID (không phải object identity) vì Person từ ComboBox và từ DB
+     * là các instance khác nhau.
+     */
     private void fillFormData() {
         if (editingPerson == null) return;
         txtFullName.setText(editingPerson.getFullName());
         txtBirthYear.setText(String.valueOf(editingPerson.getBirthYear()));
         cboGender.setValue(editingPerson.getGender());
-        txtPhotoPath.setText(editingPerson.getPhotoPath() != null ? editingPerson.getPhotoPath() : "");
-        cboFather.setValue(editingPerson.getFather());
-        cboMother.setValue(editingPerson.getMother());
+        if (txtPhotoPath != null) {
+            txtPhotoPath.setText(editingPerson.getPhotoPath() != null ? editingPerson.getPhotoPath() : "");
+        }
+
+        // Khớp cha theo ID
+        if (editingPerson.getFather() != null) {
+            int fatherId = editingPerson.getFather().getId();
+            cboFather.getItems().stream()
+                    .filter(p -> p != null && p.getId() == fatherId)
+                    .findFirst()
+                    .ifPresent(cboFather::setValue);
+        }
+
+        // Khớp mẹ theo ID
+        if (editingPerson.getMother() != null) {
+            int motherId = editingPerson.getMother().getId();
+            cboMother.getItems().stream()
+                    .filter(p -> p != null && p.getId() == motherId)
+                    .findFirst()
+                    .ifPresent(cboMother::setValue);
+        }
     }
 
+    /**
+     * Xử lý lưu: validate input ở View, sau đó gọi Controller để lưu vào MySQL.
+     *
+     * Chế độ thêm: controller.handleAdd(Person) → Service → Repository → MySQL
+     * Chế độ sửa: controller.handleEdit(Person, newFather, newMother) → so sánh, assignFather/clearFather nếu cần
+     *
+     * Điều hướng sau khi thành công do Controller xử lý qua navigateToPeopleList callback.
+     * Nếu có lỗi nghiệp vụ (SelfParentException, CycleDetectedException, v.v.),
+     * Controller hiện Alert và User ở lại form để sửa.
+     */
     private void handleSave() {
+        // --- Validation View-layer ---
         String name = txtFullName.getText();
         String yearStr = txtBirthYear.getText();
         Gender gender = cboGender.getValue();
@@ -333,30 +369,35 @@ public class PersonFormView {
         try {
             birthYear = Integer.parseInt(yearStr.trim());
         } catch (NumberFormatException e) {
-            showAlert("Năm sinh phải là số nguyên hợp lệ.");
+            showAlert("Năm sinh phải là số nguyên hợp lệ (VD: 1990).");
             return;
         }
 
+        String photoPath = (txtPhotoPath != null && txtPhotoPath.getText() != null
+                && !txtPhotoPath.getText().trim().isEmpty())
+                ? txtPhotoPath.getText().trim() : null;
+
+        Person newFather = cboFather.getValue();    // null = chọn "— Không có —"
+        Person newMother = cboMother.getValue();    // null = chọn "— Không có —"
+
         if (editingPerson != null) {
-            editingPerson.setFullName(name.trim());
-            editingPerson.setBirthYear(birthYear);
-            editingPerson.setGender(gender);
-            editingPerson.setPhotoPath(txtPhotoPath.getText().trim().isEmpty() ? null : txtPhotoPath.getText().trim());
-            editingPerson.setFather(cboFather.getValue());
-            editingPerson.setMother(cboMother.getValue());
+            // --- Chế độ sửa ---
+            // Truyền father/mother gốc (từ editingPerson) để Controller so sánh với newFather/newMother
+            // và quyết định cần gọi assignFather / clearFather / assignMother / clearMother
+            Person updated = new Person(name.trim(), birthYear, gender, photoPath);
+            updated.setId(editingPerson.getId());
+            updated.setFather(editingPerson.getFather());    // cha/mẹ gốc từ DB
+            updated.setMother(editingPerson.getMother());   // để controller so sánh
+            controller.handleEdit(updated, newFather, newMother);
         } else {
-            Person newPerson = new Person(
-                    name.trim(),
-                    birthYear,
-                    gender,
-                    txtPhotoPath.getText().trim().isEmpty() ? null : txtPhotoPath.getText().trim()
-            );
-            newPerson.setFather(cboFather.getValue());
-            newPerson.setMother(cboMother.getValue());
-            data.addPerson(newPerson);
+            // --- Chế độ thêm mới ---
+            Person newPerson = new Person(name.trim(), birthYear, gender, photoPath);
+            newPerson.setFather(newFather);
+            newPerson.setMother(newMother);
+            controller.handleAdd(newPerson);
         }
 
-        if (onSave != null) onSave.run();
+        // Navigation sau khi thành công được controller xử lý (không cần gọi onSave ở đây)
     }
 
     private void showAlert(String message) {
@@ -371,39 +412,23 @@ public class PersonFormView {
         return root;
     }
 
-    public void setOnSave(Runnable handler) {
-        this.onSave = handler;
-    }
-
     public void setOnCancel(Runnable handler) {
         this.onCancel = handler;
     }
 
-    public Person getEditingPerson() {
-        return editingPerson;
+    /**
+     * No-op — Navigation sau save được xử lý bởi PersonController qua navigateToPeopleList.
+     * Giữ lại để tương thích nếu PersonController no-arg version cần.
+     */
+    public void setOnSave(Runnable handler) {
+        // intentionally no-op
     }
 
-    public String getFullNameInput() {
-        return txtFullName != null ? txtFullName.getText() : "";
-    }
-
-    public String getBirthYearInput() {
-        return txtBirthYear != null ? txtBirthYear.getText() : "";
-    }
-
-    public Gender getGenderInput() {
-        return cboGender != null ? cboGender.getValue() : null;
-    }
-
-    public String getPhotoPathInput() {
-        return txtPhotoPath != null ? txtPhotoPath.getText() : null;
-    }
-
-    public Person getSelectedFather() {
-        return cboFather != null ? cboFather.getValue() : null;
-    }
-
-    public Person getSelectedMother() {
-        return cboMother != null ? cboMother.getValue() : null;
-    }
+    public Person getEditingPerson() { return editingPerson; }
+    public String getFullNameInput() { return txtFullName != null ? txtFullName.getText() : ""; }
+    public String getBirthYearInput() { return txtBirthYear != null ? txtBirthYear.getText() : ""; }
+    public Gender getGenderInput() { return cboGender != null ? cboGender.getValue() : null; }
+    public String getPhotoPathInput() { return txtPhotoPath != null ? txtPhotoPath.getText() : null; }
+    public Person getSelectedFather() { return cboFather != null ? cboFather.getValue() : null; }
+    public Person getSelectedMother() { return cboMother != null ? cboMother.getValue() : null; }
 }

@@ -1,5 +1,6 @@
 package com.giapha.view;
 
+import com.giapha.controller.PersonController;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
 import javafx.geometry.Insets;
@@ -8,22 +9,24 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Màn hình Chi tiết thành viên — Person Detail Profile View.
- * Bố cục Profile gọn gàng, làm nổi bật Thông tin cá nhân và Quan hệ gia đình.
+ * Lấy danh sách con thực từ MySQL thông qua Controller (không còn dùng SampleData).
  */
 public class PersonDetailView {
 
     private final BorderPane root;
-    private final SampleData data = SampleData.getInstance();
+    private final PersonController controller;
     private final Person person;
 
     private Runnable onBack;
     private java.util.function.Consumer<Person> onEdit;
     private java.util.function.Consumer<Person> onViewTree;
 
-    public PersonDetailView(Person person) {
+    public PersonDetailView(PersonController controller, Person person) {
+        this.controller = controller;
         this.person = person;
         root = new BorderPane();
         root.getStyleClass().add("content-area");
@@ -47,7 +50,7 @@ public class PersonDetailView {
         // 2. Thông tin cá nhân
         VBox infoCard = createPersonalInfoCard();
 
-        // 3. Quan hệ gia đình (Cha, Mẹ, Các con)
+        // 3. Quan hệ gia đình (Cha, Mẹ, Các con từ MySQL)
         VBox familyCard = createFamilyRelationsCard();
 
         contentBox.getChildren().addAll(heroCard, infoCard, familyCard);
@@ -123,7 +126,7 @@ public class PersonDetailView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Actions: Chỉnh sửa (secondary) + Xem cây gia phả (primary)
+        // Actions: Chỉnh sửa + Xem cây gia phả
         HBox actions = new HBox(10);
         actions.setAlignment(Pos.CENTER_RIGHT);
 
@@ -172,6 +175,10 @@ public class PersonDetailView {
         return card;
     }
 
+    /**
+     * Tạo card Quan hệ gia đình.
+     * Lấy danh sách con thực từ MySQL: gọi controller.getAllPersons() và lọc theo father/mother ID.
+     */
     private VBox createFamilyRelationsCard() {
         VBox card = new VBox(16);
         card.getStyleClass().add("card");
@@ -195,8 +202,8 @@ public class PersonDetailView {
         Separator sep = new Separator();
         sep.getStyleClass().add("form-separator");
 
-        // Các con
-        List<Person> children = data.getChildren(person);
+        // Lấy danh sách con từ MySQL qua Controller
+        List<Person> children = getChildrenFromDB();
         Label childrenTitle = new Label("Các con" + (!children.isEmpty() ? " (" + children.size() + ")" : ""));
         childrenTitle.getStyleClass().add("section-title");
         childrenTitle.setStyle("-fx-font-size: 13px;");
@@ -232,6 +239,23 @@ public class PersonDetailView {
 
         card.getChildren().addAll(sectionTitle, parentsRow, sep, childrenTitle, childrenSection);
         return card;
+    }
+
+    /**
+     * Lấy danh sách con trực tiếp của person từ MySQL.
+     * Gọi controller.getAllPersons() (findAll — fully linked graph) rồi lọc theo father_id/mother_id.
+     */
+    private List<Person> getChildrenFromDB() {
+        List<Person> allPersons = controller.getAllPersons();
+        if (allPersons == null || allPersons.isEmpty()) return List.of();
+
+        return allPersons.stream()
+                .filter(p -> {
+                    boolean isFatherOf = p.getFather() != null && p.getFather().getId() == person.getId();
+                    boolean isMotherOf = p.getMother() != null && p.getMother().getId() == person.getId();
+                    return isFatherOf || isMotherOf;
+                })
+                .collect(Collectors.toList());
     }
 
     private VBox createParentCard(String roleTitle, Person parent) {

@@ -1,10 +1,13 @@
 package com.giapha.view;
 
+import com.giapha.controller.PersonController;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -17,15 +20,20 @@ import java.util.Map;
 
 /**
  * Màn hình danh sách thành viên gia phả — People List View.
- * Thiết kế tinh giản, hiện đại, phân cấp rõ ràng theo phong cách Modern Genealogy.
+ * Tải dữ liệu thực từ MySQL thông qua PersonController (không còn dùng SampleData).
+ * FilteredList client-side cho phép tìm kiếm tức thì trên tập đã nạp.
  */
 public class PeopleListView {
 
     private final BorderPane root;
     private final TableView<Person> tableView;
     private TextField searchField;
-    private final SampleData data = SampleData.getInstance();
+
+    /** ObservableList nạp từ MySQL — FilteredList phủ lên để tìm kiếm client-side */
+    private final ObservableList<Person> allData = FXCollections.observableArrayList();
     private final FilteredList<Person> filteredData;
+
+    private final PersonController controller;
 
     // Stat labels to update dynamically
     private Label valTotal;
@@ -38,7 +46,8 @@ public class PeopleListView {
     private java.util.function.Consumer<Person> onViewDetail;
     private java.util.function.Consumer<Person> onViewTree;
 
-    public PeopleListView() {
+    public PeopleListView(PersonController controller) {
+        this.controller = controller;
         root = new BorderPane();
         root.getStyleClass().add("content-area");
 
@@ -57,7 +66,7 @@ public class PeopleListView {
         HBox toolbar = createToolbar();
         tableView = createTable();
 
-        filteredData = new FilteredList<>(data.getPeople(), p -> true);
+        filteredData = new FilteredList<>(allData, p -> true);
         tableView.setItems(filteredData);
 
         VBox tableCard = new VBox(tableView);
@@ -73,8 +82,20 @@ public class PeopleListView {
         HBox footerBar = createFooterBar();
         root.setBottom(footerBar);
 
-        // Listen for list changes to refresh stats
-        data.getPeople().addListener((ListChangeListener<Person>) c -> updateStats());
+        // Cập nhật stats khi dữ liệu thay đổi
+        allData.addListener((ListChangeListener<Person>) c -> updateStats());
+
+        // Tải dữ liệu thực từ MySQL
+        reloadData();
+    }
+
+    /**
+     * Tải lại toàn bộ danh sách thành viên từ MySQL thông qua Controller.
+     * Được gọi sau mỗi thao tác CRUD để đồng bộ UI với database.
+     */
+    public void reloadData() {
+        List<Person> people = controller.getAllPersons();
+        allData.setAll(people != null ? people : List.of());
         updateStats();
     }
 
@@ -129,7 +150,7 @@ public class PeopleListView {
     }
 
     private void updateStats() {
-        List<Person> list = data.getPeople();
+        List<Person> list = allData;
         int total = list.size();
         long males = list.stream().filter(p -> p.getGender() == Gender.MALE).count();
         long females = list.stream().filter(p -> p.getGender() == Gender.FEMALE).count();
@@ -169,11 +190,11 @@ public class PeopleListView {
         searchField.setPromptText("Tìm kiếm theo họ tên...");
         searchField.getStyleClass().add("search-field");
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            String keyword = (newVal == null) ? "" : newVal.trim().toLowerCase();
             filteredData.setPredicate(person -> {
-                if (newVal == null || newVal.trim().isEmpty()) {
-                    return true;
-                }
-                return person.getFullName().toLowerCase().contains(newVal.trim().toLowerCase());
+                if (keyword.isEmpty()) return true;
+                return person.getFullName() != null
+                        && person.getFullName().toLowerCase().contains(keyword);
             });
         });
 
@@ -213,7 +234,7 @@ public class PeopleListView {
         btnTree.setOnAction(e -> {
             Person selected = tableView.getSelectionModel().getSelectedItem();
             if (onViewTree != null) {
-                onViewTree.accept(selected != null ? selected : (!data.getPeople().isEmpty() ? data.getPeople().get(0) : null));
+                onViewTree.accept(selected != null ? selected : (!allData.isEmpty() ? allData.get(0) : null));
             }
         });
 
@@ -228,7 +249,9 @@ public class PeopleListView {
                 confirm.setContentText("Bạn có chắc chắn muốn xóa thành viên này khỏi danh sách gia phả?");
                 confirm.showAndWait().ifPresent(response -> {
                     if (response == ButtonType.OK) {
-                        data.removePerson(selected);
+                        // Xóa qua Controller → Service → MySQL (BR4 PersonInUseException được xử lý trong controller)
+                        controller.handleDelete(selected.getId());
+                        // refresh() được gọi tự động bởi controller.handleDelete() nếu thành công
                     }
                 });
             } else {
@@ -321,8 +344,8 @@ public class PeopleListView {
         countLabel.getStyleClass().add("stat-label");
         countLabel.textProperty().bind(
                 javafx.beans.binding.Bindings.createStringBinding(
-                        () -> "Hiển thị " + filteredData.size() + " trên tổng số " + data.getPeople().size() + " thành viên",
-                        filteredData, data.getPeople()
+                        () -> "Hiển thị " + filteredData.size() + " trên tổng số " + allData.size() + " thành viên",
+                        filteredData, allData
                 )
         );
 
@@ -358,9 +381,12 @@ public class PeopleListView {
         this.onViewTree = handler;
     }
 
+    /**
+     * Làm mới danh sách bằng cách tải lại từ MySQL.
+     * Được gọi bởi PersonController sau thao tác xóa thành công.
+     */
     public void refresh() {
-        tableView.refresh();
-        updateStats();
+        reloadData();
     }
 
     public Person getSelectedPerson() {
