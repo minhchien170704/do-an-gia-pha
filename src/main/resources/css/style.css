@@ -361,6 +361,68 @@
     -fx-border-width: 1.5;
 }
 
+/* ---- SƠ ĐỒ CÂY GIA PHẢ 2D ---- */
+.family-tree-diagram {
+    -fx-background-color: #FAFAF8;
+    -fx-border-color: #E2E0DC;
+    -fx-border-radius: 8;
+}
+
+.tree2d-edge {
+    -fx-stroke: #B8C4D0;
+    -fx-stroke-width: 1.6;
+}
+
+.tree2d-node {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 10;
+    -fx-border-color: #CBD5E1;
+    -fx-border-radius: 10;
+    -fx-border-width: 1.2;
+    -fx-padding: 8 10;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.10), 6, 0.2, 0, 2);
+    -fx-cursor: hand;
+}
+
+.tree2d-node:hover {
+    -fx-border-color: #3D5A80;
+    -fx-border-width: 1.8;
+}
+
+.tree2d-node-focus {
+    -fx-background-color: #EBF0F7;
+    -fx-border-color: #3D5A80;
+    -fx-border-width: 2.2;
+}
+
+.tree2d-node-ancestor {
+    -fx-border-color: #CBD5E1;
+}
+
+.tree2d-node-descendant {
+    -fx-border-color: #D8C9D6;
+}
+
+.tree2d-name {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1F2937;
+}
+
+.tree2d-meta {
+    -fx-font-size: 10px;
+    -fx-text-fill: #64748B;
+}
+
+/* ---- TAB CÂY GIA PHẢ ---- */
+.tree-tab-pane {
+    -fx-background-color: transparent;
+}
+
+.tree-tab {
+    -fx-font-size: 13px;
+}
+
 /* ---- PARENT & MINI CARDS ---- */
 .parent-card {
     -fx-background-color: #FAFAF8;

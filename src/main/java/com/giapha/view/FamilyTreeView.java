@@ -27,6 +27,9 @@ public class FamilyTreeView {
     private final TreeView<TreeNodeItem> treeView;
     private ComboBox<Person> cboFocusPerson;
 
+    /** Sơ đồ cây gia phả 2D (vẽ bằng Pane + Line). */
+    private final FamilyTreeDiagram diagram;
+
     /**
      * Danh sách toàn bộ thành viên từ MySQL — đồ thị liên kết đầy đủ (findAll).
      * buildAncestorNodes() duyệt person.getFather() đệ quy qua đây.
@@ -52,27 +55,45 @@ public class FamilyTreeView {
         // Center Content
         VBox centerContent = new VBox(16);
 
-        // Toolbar: Selector + Legend
+        // Toolbar: Selector + Legend + Zoom
         HBox toolbar = createToolbar();
 
-        // Tree Card Container
-        VBox treeCard = new VBox(14);
-        treeCard.getStyleClass().add("card");
+        // --- Tab 1: Sơ đồ 2D ---
+        diagram = new FamilyTreeDiagram();
+        diagram.setOnViewPerson(p -> {
+            if (onViewPerson != null) onViewPerson.accept(p);
+        });
 
-        Label cardTitle = new Label("Cấu trúc huyết thống dòng họ");
-        cardTitle.getStyleClass().add("section-title");
+        TabPane tabPane = new TabPane();
+        tabPane.getStyleClass().add("tree-tab-pane");
 
+        Tab tabDiagram = new Tab("Sơ đồ 2D", diagram);
+        tabDiagram.setClosable(false);
+        tabDiagram.getStyleClass().add("tree-tab");
+
+        // --- Tab 2: Cây dạng danh sách (TreeView cũ) ---
         treeView = new TreeView<>();
         treeView.setShowRoot(true);
         treeView.getStyleClass().add("tree-view");
         VBox.setVgrow(treeView, Priority.ALWAYS);
-
         setupTreeCellFactory();
 
-        treeCard.getChildren().addAll(cardTitle, treeView);
-        VBox.setVgrow(treeCard, Priority.ALWAYS);
+        Tab tabTree = new Tab("Danh sách phả hệ", treeView);
+        tabTree.setClosable(false);
+        tabTree.getStyleClass().add("tree-tab");
 
-        centerContent.getChildren().addAll(toolbar, treeCard);
+        tabPane.getTabs().addAll(tabDiagram, tabTree);
+
+        // Vẽ sơ đồ 2D sau khi khung cửa sổ đã có kích thước thực
+        javafx.application.Platform.runLater(this::layoutDiagram);
+        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab == tabDiagram) {
+                layoutDiagram();
+            }
+        });
+
+        centerContent.getChildren().addAll(toolbar, tabPane);
+        VBox.setVgrow(tabPane, Priority.ALWAYS);
         VBox.setVgrow(centerContent, Priority.ALWAYS);
 
         root.setCenter(centerContent);
@@ -83,6 +104,16 @@ public class FamilyTreeView {
             cboFocusPerson.setValue(initialPerson);
             buildTree(initialPerson);
         }
+    }
+
+    /**
+     * Cập nhật sơ đồ 2D dựa trên người trung tâm hiện tại.
+     */
+    private void layoutDiagram() {
+        if (diagram == null || cboFocusPerson == null) return;
+        Person focus = cboFocusPerson.getValue();
+        if (focus == null) return;
+        diagram.setData(allPersons, focus);
     }
 
     /**
@@ -150,9 +181,43 @@ public class FamilyTreeView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        // --- Điều khiển zoom sơ đồ 2D ---
+        HBox zoomBox = new HBox(6);
+        zoomBox.setAlignment(Pos.CENTER_RIGHT);
+
+        Button btnZoomOut = new Button("−");
+        btnZoomOut.getStyleClass().add("btn-secondary");
+        btnZoomOut.setPrefWidth(38);
+        btnZoomOut.setTooltip(new javafx.scene.control.Tooltip("Thu nhỏ"));
+        btnZoomOut.setOnAction(e -> diagram.zoomBy(1 / 1.2));
+
+        Label lblZoom = new Label("100%");
+        lblZoom.getStyleClass().add("stat-label");
+        lblZoom.setMinWidth(52);
+        lblZoom.setAlignment(Pos.CENTER);
+
+        Button btnZoomIn = new Button("+");
+        btnZoomIn.getStyleClass().add("btn-secondary");
+        btnZoomIn.setPrefWidth(38);
+        btnZoomIn.setTooltip(new javafx.scene.control.Tooltip("Phóng to"));
+        btnZoomIn.setOnAction(e -> diagram.zoomBy(1.2));
+
+        Button btnZoomReset = new Button("Vừa khung");
+        btnZoomReset.getStyleClass().add("btn-secondary");
+        btnZoomReset.setTooltip(new javafx.scene.control.Tooltip("Đưa toàn bộ sơ đồ vào khung nhìn"));
+        btnZoomReset.setOnAction(e -> diagram.resetZoom());
+
+        zoomBox.getChildren().addAll(new Label("Zoom:"), btnZoomOut, lblZoom, btnZoomIn, btnZoomReset);
+
         HBox legend = createLegendPills();
 
-        toolbar.getChildren().addAll(lblSelect, cboFocusPerson, spacer, legend);
+        toolbar.getChildren().addAll(lblSelect, cboFocusPerson, spacer, zoomBox, legend);
+
+        // Cập nhật nhãn % khi zoom thay đổi
+        diagram.contentScaleProperty().addListener((obs, oldVal, newVal) -> {
+            lblZoom.setText(Math.round(newVal.doubleValue() * 100) + "%");
+        });
+
         return toolbar;
     }
 
@@ -229,6 +294,9 @@ public class FamilyTreeView {
         }
 
         treeView.setRoot(rootItem);
+
+        // Đồng bộ sơ đồ 2D với người trung tâm hiện tại
+        layoutDiagram();
     }
 
     /**

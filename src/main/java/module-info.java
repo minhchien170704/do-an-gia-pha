@@ -1,5 +1,6 @@
 module com.giapha {
     requires javafx.controls;
+    requires javafx.graphics;
     requires javafx.fxml;
     requires java.sql;
 

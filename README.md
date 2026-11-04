@@ -85,6 +85,7 @@ do-an-gia-pha/
         │       ├── util/           # ImageManager (quản lý ảnh đại diện)
         │       └── view/           # JavaFX Views & Design System
         │                           # (PersonAvatar: component ảnh đại diện dùng chung)
+        │                           # (FamilyTreeDiagram: sơ đồ cây gia phả 2D)
         └── resources/
             ├── css/                # style.css
             ├── fxml/               # FXML layouts
@@ -127,6 +128,36 @@ mvn clean compile
 ```bash
 mvn javafx:run
 ```
+
+### Sơ đồ cây gia phả 2D
+
+Màn hình **Cây gia phả** sử dụng `TabPane` với hai tab:
+
+| Tab | Nội dung |
+|-----|----------|
+| **Sơ đồ 2D** | Sơ đồ trực quan vẽ bằng `Pane` + `Line` (class `com.giapha.view.FamilyTreeDiagram`) |
+| **Danh sách phả hệ** | `TreeView` dạng danh sách phân cấp (bản cũ, giữ lại để đối chiếu) |
+
+**Cách bố trí sơ đồ 2D:**
+- Mỗi thế hệ nằm trên một hàng; tổ tiên ở **trên**, hậu duệ ở **dưới** người trung tâm.
+- Mỗi node hiển thị **avatar + họ tên + năm sinh + giới tính**.
+- Cha và mẹ sinh chung một con được gom thành một *khối gia đình* (unit) để hiển thị cạnh nhau;
+  con được canh chính giữa giữa hai vị trí cha/mẹ.
+- Đường kẻ nối **từng cha/mẹ xuống đúng con của họ** (vẽ ở mức cá nhân, không nối nhầm vợ/chồng).
+- Node của người trung tâm được tô viền đậm màu xanh.
+
+**Tương tác:**
+
+| Thao tác | Kết quả |
+|----------|---------|
+| Kéo chuột trái | Di chuyển sơ đồ (pan) |
+| Lăn chuột dọc | Cuộn dọc |
+| Shift + lăn chuột | Cuộn ngang |
+| Ctrl + lăn chuột | Zoom (0.25× – 2.5×) |
+| Nút `−` / `+` / `Vừa khung` | Zoom out / zoom in / tự động vừa khung nhìn |
+| Bấm vào node | Mở hồ sơ cá nhân của thành viên đó |
+
+Combo box **"Người trung tâm"** thay đổi → sơ đồ 2D được vẽ lại tức thì.
 
 ---
 

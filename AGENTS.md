@@ -48,6 +48,9 @@ MySQL / MariaDB
    - Chỉ đảm nhận hiển thị và bắt sự kiện người dùng (UI thuần).
    - Tương tác với logic hệ thống thông qua `Controller`.
    - Sử dụng Java code kết hợp CSS (`resources/css/style.css`), không can thiệp logic dữ liệu.
+   - `FamilyTreeDiagram` (sơ đồ 2D) là component JavaFX thuần: nhận `List<Person>` + người trung tâm,
+     tự dựng bố cục (hàng thế hệ + cột) và vẽ bằng `Pane` + `Line`; **không** gọi xuống Service/Repository.
+   - Module JPMS phải khai báo `requires javafx.graphics` để dùng `javafx.scene.input.ScrollEvent`.
 2. **Controller (`com.giapha.controller`)**:
    - Điều phối giữa View và Service.
    - Không chứa câu lệnh SQL, không gọi trực tiếp Repository hay JDBC.
@@ -99,7 +102,8 @@ com.giapha
 ├── util/
 │   └── ImageManager.java              # Tiện ích ảnh đại diện: kiểm tra định dạng, copy vào ./images/
 └── view/
-    ├── FamilyTreeView.java            # Màn hình cây phả hệ trực quan
+    ├── FamilyTreeView.java            # Màn hình cây phả hệ (Tab: Sơ đồ 2D + Danh sách phả hệ)
+    ├── FamilyTreeDiagram.java         # Sơ đồ cây gia phả 2D (Pane + Line, zoom & pan)
     ├── PeopleListView.java            # Màn hình danh sách thành viên
     ├── PersonAvatar.java              # Component ảnh đại diện dùng chung (bo tròn + fallback)
     ├── PersonDetailView.java          # Màn hình chi tiết hồ sơ cá nhân
