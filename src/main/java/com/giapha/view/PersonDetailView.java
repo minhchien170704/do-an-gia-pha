@@ -82,35 +82,11 @@ public class PersonDetailView {
         HBox hero = new HBox(18);
         hero.setAlignment(Pos.CENTER_LEFT);
 
-        // Avatar placeholder circle (72x72)
-        StackPane avatar = new StackPane();
-        avatar.setPrefSize(70, 70);
-        avatar.setMinSize(70, 70);
-        avatar.setMaxSize(70, 70);
+        // Avatar: hiển thị ảnh thật (bo tròn), tự fallback về chữ cái đầu nếu
+        // không có ảnh hoặc file ảnh không tồn tại / bị hỏng.
+        PersonAvatar avatar = new PersonAvatar(person, 70);
 
         boolean isMale = person.getGender() == Gender.MALE;
-        String bgCol = isMale ? "#EBF0F7" : "#F3EBF0";
-        String borderCol = isMale ? "#3D5A80" : "#7A4D6E";
-
-        avatar.setStyle("-fx-background-color: " + bgCol + "; "
-                + "-fx-background-radius: 35; "
-                + "-fx-border-color: " + borderCol + "; "
-                + "-fx-border-radius: 35; "
-                + "-fx-border-width: 1.5;");
-
-        String initial = "?";
-        if (person.getFullName() != null && !person.getFullName().trim().isEmpty()) {
-            String name = person.getFullName().trim();
-            int lastSpace = name.lastIndexOf(' ');
-            if (lastSpace >= 0 && lastSpace + 1 < name.length()) {
-                initial = name.substring(lastSpace + 1, lastSpace + 2).toUpperCase();
-            } else {
-                initial = name.substring(0, 1).toUpperCase();
-            }
-        }
-        Label initialLabel = new Label(initial);
-        initialLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: " + borderCol + ";");
-        avatar.getChildren().add(initialLabel);
 
         // Tên & Năm sinh · Giới tính
         VBox nameBox = new VBox(5);
@@ -167,8 +143,20 @@ public class PersonDetailView {
         String genderText = person.getGender() == Gender.MALE ? "Nam" : "Nữ";
         addDetailRow(grid, 2, "Giới tính", genderText);
 
-        if (person.getPhotoPath() != null && !person.getPhotoPath().trim().isEmpty()) {
-            addDetailRow(grid, 3, "Ảnh đại diện", person.getPhotoPath().trim());
+        // Ảnh đại diện: hiển thị thumbnail thật thay vì chỉ in đường dẫn.
+        // Nếu không có ảnh / file không tồn tại → hiển thị dòng thông báo.
+        Label lblPhoto = new Label("Ảnh đại diện");
+        lblPhoto.getStyleClass().add("detail-label");
+        lblPhoto.setMinWidth(120);
+        grid.add(lblPhoto, 0, 3);
+
+        PersonAvatar photoAvatar = new PersonAvatar(person, 48);
+        if (photoAvatar.isShowingRealImage()) {
+            grid.add(photoAvatar, 1, 3);
+        } else {
+            Label lblNoPhoto = new Label("Chưa có ảnh");
+            lblNoPhoto.getStyleClass().add("empty-text");
+            grid.add(lblNoPhoto, 1, 3);
         }
 
         card.getChildren().addAll(sectionTitle, grid);

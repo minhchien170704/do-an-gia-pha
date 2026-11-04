@@ -268,6 +268,24 @@ public class PeopleListView {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         table.setPlaceholder(new Label("Không có dữ liệu phù hợp"));
 
+        // Cột ảnh đại diện — hiển thị ảnh thật bo tròn, tự fallback về chữ cái đầu
+        // nếu thành viên chưa có ảnh hoặc file ảnh không tồn tại / bị hỏng.
+        TableColumn<Person, Person> colPhoto = new TableColumn<>("Ảnh");
+        colPhoto.setCellValueFactory(d -> new javafx.beans.property.SimpleObjectProperty<>(d.getValue()));
+        colPhoto.setPrefWidth(60);
+        colPhoto.setMaxWidth(70);
+        colPhoto.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(Person item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                } else {
+                    setGraphic(new PersonAvatar(item, PersonAvatar.SMALL_SIZE));
+                }
+            }
+        });
+
         TableColumn<Person, Number> colId = new TableColumn<>("ID");
         colId.setCellValueFactory(d -> new SimpleIntegerProperty(d.getValue().getId()));
         colId.setPrefWidth(50);
@@ -316,7 +334,7 @@ public class PeopleListView {
         });
         colMother.setPrefWidth(160);
 
-        table.getColumns().addAll(List.of(colId, colName, colYear, colGender, colFather, colMother));
+        table.getColumns().addAll(List.of(colPhoto, colId, colName, colYear, colGender, colFather, colMother));
 
         // Double click row to view detail
         table.setRowFactory(tv -> {

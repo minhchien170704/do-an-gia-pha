@@ -351,6 +351,9 @@ public class FamilyTreeView {
                 card.getStyleClass().add("tree-person-card-focus");
             }
 
+            // Avatar: ảnh thật bo tròn, fallback về chữ cái đầu nếu thiếu ảnh / ảnh hỏng
+            card.getChildren().add(new PersonAvatar(person, PersonAvatar.SMALL_SIZE));
+
             // Role Pill
             if (roleLabel != null) {
                 Label rolePill = new Label(roleLabel.toUpperCase());
