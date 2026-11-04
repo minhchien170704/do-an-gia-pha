@@ -20,22 +20,22 @@ skinparam package {
 }
 skinparam ArrowColor #A80036
 
-package "Presentation Layer" {
+package "Tầng Trình Bày" {
     component "JavaFX UI" as UI
     component "PersonController" as Controller
 }
 
-package "Business Layer" {
+package "Tầng Nghiệp Vụ" {
     component "FamilyTreeService" as Service
 }
 
-package "Persistence Layer" {
+package "Tầng Lưu Trữ" {
     interface "PersonRepository" as RepoInterface
     component "JdbcPersonRepository" as JdbcRepo
     component "DatabaseConnection" as DBConn
 }
 
-package "Database" {
+package "Cơ Sở Dữ Liệu" {
     database "MySQL" as MySQL
 }
 

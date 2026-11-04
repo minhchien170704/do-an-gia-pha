@@ -4,37 +4,37 @@ title Activity Diagram - Gán cha/mẹ
 
 start
 
-:Chọn Child;
+:Chọn Con;
 
-:Chọn Parent (Father hoặc Mother);
+:Chọn Cha hoặc Mẹ;
 
-:Kiểm tra Parent tồn tại;
+:Kiểm tra Cha/Mẹ tồn tại;
 
-if (Parent tồn tại?) then (yes)
+if (Cha/Mẹ tồn tại?) then (yes)
 else (no)
   :PersonNotFoundException;
   stop
 endif
 
-if (Parent == Child?) then (yes)
+if (Cha/Mẹ == Con?) then (yes)
   :SelfParentException;
   stop
 else (no)
 endif
 
-if (Đang gán Father?) then (yes)
-  if (Child đã có Mother?) then (yes)
-    if (FatherId mới == MotherId hiện tại?) then (yes)
-      :Lỗi: Father và Mother\nkhông được trùng nhau;
+if (Đang gán Cha?) then (yes)
+  if (Con đã có Mẹ?) then (yes)
+    if (fatherId mới == motherId hiện tại?) then (yes)
+      :Lỗi: Cha và Mẹ\nkhông được trùng nhau;
       stop
     else (no)
     endif
   else (no)
   endif
-else (đang gán Mother)
-  if (Child đã có Father?) then (yes)
-    if (MotherId mới == FatherId hiện tại?) then (yes)
-      :Lỗi: Father và Mother\nkhông được trùng nhau;
+else (đang gán Mẹ)
+  if (Con đã có Cha?) then (yes)
+    if (motherId mới == fatherId hiện tại?) then (yes)
+      :Lỗi: Cha và Mẹ\nkhông được trùng nhau;
       stop
     else (no)
     endif
@@ -42,10 +42,10 @@ else (đang gán Mother)
   endif
 endif
 
-:Kiểm tra gender theo role;
+:Kiểm tra gender theo vai trò;
 note right
-  Father phải MALE
-  Mother phải FEMALE
+  Cha phải MALE
+  Mẹ phải FEMALE
 end note
 
 if (Gender hợp lệ?) then (yes)
@@ -54,15 +54,15 @@ else (no)
   stop
 endif
 
-:Kiểm tra cycle trong cây gia phả;
+:Kiểm tra chu trình trong cây gia phả;
 
-if (Cycle detected?) then (yes)
+if (Phát hiện chu trình?) then (yes)
   :CycleDetectedException;
   stop
 else (no)
 endif
 
-:Update relationship;
+:Cập nhật quan hệ;
 :Repository lưu vào Database;
 :Gán cha/mẹ thành công;
 
