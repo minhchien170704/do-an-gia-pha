@@ -16,6 +16,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javafx.version>23.0.2</javafx.version>
         <mysql.version>9.2.0</mysql.version>
+        <junit.version>5.10.2</junit.version>
+        <surefire.version>3.2.5</surefire.version>
     </properties>
 
     <dependencies>
@@ -39,6 +41,14 @@
             <artifactId>mysql-connector-j</artifactId>
             <version>${mysql.version}</version>
         </dependency>
+
+        <!-- ===== JUnit 5 (test scope) ===== -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -51,6 +61,50 @@
                 <configuration>
                     <source>25</source>
                     <target>25</target>
+                </configuration>
+                <executions>
+                    <!--
+                        Test compilation chạy trên CLASSPATH (không phải module path).
+                        Lý do: src/main/java có module-info.java (module "com.giapha") nhưng
+                        src/test/java là test thuần JUnit 5 nằm ở "unnamed module".
+                        Nếu ép test compile theo module path, JPMS sẽ chặn việc JUnit 5
+                        dùng reflection để tìm & gọi @Test method → lỗi compile/runtime.
+                        -> useModulePath=false cho default-testCompile.
+                    -->
+                    <execution>
+                        <id>default-testCompile</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                        <configuration>
+                            <useModulePath>false</useModulePath>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Maven Surefire Plugin — chạy bộ test JUnit 5 bằng "mvn test" -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.version}</version>
+                <configuration>
+                    <!--
+                        module-info.java tồn tại trong src/main/java, nhưng src/test/java
+                        là "unnamed module" (test thuần classpath).
+                        -> useModulePath=false để Surefire chạy test trên classpath,
+                           tránh xung đột JPMS với JUnit 5 (cần reflection).
+                    -->
+                    <useModulePath>false</useModulePath>
+                    <systemPropertyVariables>
+                        <java.awt.headless>true</java.awt.headless>
+                    </systemPropertyVariables>
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                    <!-- Mặc định: bỏ qua test JavaFX (tag "javafx") — chạy riêng bằng profile -->
+                    <excludedGroups>javafx</excludedGroups>
                 </configuration>
             </plugin>
 
@@ -65,4 +119,37 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Profile chạy RIÊNG các test cần JavaFX Toolkit.
+            Cách dùng:  mvn test -Pjavafx-tests
+                        mvn test -Pjavafx-tests -Dtest=JavaFxViewTest
+            Yêu cầu: MySQL đang chạy, bảng PERSON có đúng 7 bản ghi mẫu.
+        -->
+        <profile>
+            <id>javafx-tests</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${surefire.version}</version>
+                        <configuration>
+                            <useModulePath>false</useModulePath>
+                            <systemPropertyVariables>
+                                <java.awt.headless>true</java.awt.headless>
+                            </systemPropertyVariables>
+                            <includes>
+                                <include>**/*Test.java</include>
+                            </includes>
+                            <!-- Chỉ chạy test thuộc tag "javafx" -->
+                            <groups>javafx</groups>
+                            <excludedGroups combine.self="override"/>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

@@ -20,6 +20,7 @@ Xây dựng ứng dụng desktop quản lý cây gia phả (Family Tree Manageme
 - **Quản lý dự án / Build Tool**: Apache Maven 3.9.16
 - **Cơ sở dữ liệu**: MySQL / MariaDB (mặc định port `3306`, database `gia_pha`, charset `utf8mb4`)
 - **Kết nối CSDL**: JDBC thuần với `mysql-connector-j` 9.2.0 (KHÔNG dùng ORM/Hibernate/JPA/Spring)
+- **Kiểm thử tự động**: JUnit 5 (`junit-jupiter` 5.10.2) + `maven-surefire-plugin` 3.2.5
 - **Thiết kế & Mô hình hóa**: PlantUML (các file `.puml` và `.png` trong `docs/uml/`)
 
 ---
@@ -101,11 +102,9 @@ com.giapha
 │   ├── PersonRepository.java          # Interface hợp đồng truy xuất dữ liệu
 │   └── JdbcPersonRepository.java      # Cài đặt JDBC CRUD
 ├── database/
-│   ├── DatabaseConnection.java        # Factory lấy JDBC Connection
-│   └── DatabaseConnectionTest.java    # Kiểm tra kết nối CSDL thực tế
+│   └── DatabaseConnection.java        # Factory lấy JDBC Connection
 ├── service/
-│   ├── FamilyTreeService.java         # Business Service Layer
-│   └── FamilyTreeServiceTest.java     # Kiểm thử nghiệp vụ & cô lập dữ liệu
+│   └── FamilyTreeService.java         # Business Service Layer
 ├── util/
 │   ├── ImageManager.java              # Tiện ích ảnh đại diện: kiểm tra định dạng, copy vào ./images/
 │   └── PngWriter.java                 # Ghi WritableImage ra file PNG (thuần java.util.zip, không thêm dependency)
@@ -116,9 +115,39 @@ com.giapha
     ├── PersonAvatar.java              # Component ảnh đại diện dùng chung (bo tròn + fallback)
     ├── PersonDetailView.java          # Màn hình chi tiết hồ sơ cá nhân
     ├── PersonFormView.java            # Form thêm / sửa thành viên
-    ├── AvatarFallbackTest.java        # Kiểm thử PersonAvatar: ảnh thật / thiếu / hỏng / sai định dạng
     └── SampleData.java                # Dữ liệu mẫu phục vụ kiểm thử UI độc lập
 ```
+
+### Cấu trúc kiểm thử (`src/test/java`)
+
+Toàn bộ test nằm trong `src/test/java` và dùng **JUnit 5**. Không còn file test nào trong
+`src/main/java` (các test harness dạng `main()` đã được chuyển đổi sang JUnit 5).
+
+```
+src/test/java/com/giapha
+├── support/
+│   ├── TestDatabase.java              # Tiện ích dùng chung: kiểm tra CSDL, reset dữ liệu mẫu, dọn bản ghi test
+│   └── FxTestSupport.java             # Tiện ích khởi tạo/quản lý JavaFX Toolkit cho test tag "javafx"
+├── database/
+│   └── DatabaseConnectionTest.java    # 6 test — kết nối MySQL, metadata, bảng PERSON
+├── service/
+│   └── FamilyTreeServiceTest.java     # 44 test — BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu
+├── controller/
+│   └── PersonControllerTest.java      # 25 test — điều phối View ↔ Service, xử lý exception
+├── util/
+│   ├── ImageManagerTest.java          # 12 test — định dạng ảnh, copy, dọn file
+│   └── PngWriterTest.java             # 11 test — chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib
+└── view/
+    ├── AvatarFallbackTest.java        # 14 test (tag "javafx") — cơ chế fallback ảnh đại diện
+    └── JavaFxViewTest.java            # 12 test (tag "javafx") — tích hợp UI → MySQL
+```
+
+**Quy tắc bắt buộc cho test:**
+- Test **không** được nằm trong `src/main/java`.
+- Mọi test có thay đổi dữ liệu CSDL **phải** có cleanup để trả bảng `PERSON` về đúng 7 bản ghi mẫu.
+- Test phụ thuộc MySQL dùng `Assumptions.assumeTrue(...)` → nếu CSDL không sẵn sàng thì test được
+  `SKIPPED` kèm thông báo (không tính là `FAILED`).
+- Test cần JavaFX Toolkit **phải** được gắn `@Tag("javafx")` để không chạy trong `mvn test` mặc định.
 
 ---
 
@@ -203,38 +232,52 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Kiểm tra kết nối cơ sở dữ liệu:
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 98 test cases):
 ```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.database.DatabaseConnectionTest"
+mvn clean test
 ```
-
-### Chạy bộ kiểm thử Service Layer (22 test cases):
-```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.service.FamilyTreeServiceTest"
-```
-
-### Chạy bộ kiểm thử Controller Layer (8 test cases):
-```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.controller.PersonControllerTest"
-```
-
-### Chạy bộ kiểm thử View Layer — Native In-Process JavaFX Test (9 test cases):
-```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.view.JavaFxViewTest"
-```
-> **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng 7 bản ghi mẫu. Test sẽ tự block nếu không đủ điều kiện.
+> **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng 7 bản ghi mẫu.
+> Nếu CSDL không sẵn sàng, các test phụ thuộc CSDL sẽ được `SKIPPED` (không tính là `FAILED`).
 >
-> **Lưu ý cho AI agents**: Đây là kiểm thử in-process JavaFX sử dụng `Platform.runLater()` + `CountDownLatch`, không dùng TestFX/JUnit. Bộ test bao phủ luồng UI→Controller→Service→Repository→MySQL (9 kịch bản). Nó **không** kiểm thử trải nghiệm người dùng cuối trên desktop (chuột/bàn phím, hiển thị ảnh) — phần đó cần kiểm thử thủ công qua `mvn javafx:run`.
->
-> **Lưu ý về exit code**: Maven `exec:java` có thể báo exit code 1 dù bộ test PASS hoàn toàn, do plugin bắt `System.exit()`. Hãy đọc output `TỔNG KẾT: 9 PASSED, 0 FAILED` để xác nhận kết quả thực sự.
+> Bộ test mặc định **KHÔNG** chạy các test cần JavaFX Toolkit (tag `javafx`) — xem phần bên dưới.
 
-### Chạy bộ kiểm thử PersonAvatar — Ảnh đại diện & Fallback (16 test cases):
+### Chạy riêng các test cần JavaFX Toolkit (tag `javafx` — 26 test cases):
 ```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.view.AvatarFallbackTest"
+mvn test -Pjavafx-tests
 ```
-> Kiểm tra component `PersonAvatar`: ảnh hợp lệ → hiển thị ảnh thật bo tròn; file thiếu / hỏng / sai định dạng / đường dẫn rỗng / `person = null` → fallback về placeholder, **không ném exception ra giao diện**.
+Chạy riêng một lớp test:
+```bash
+mvn test -Pjavafx-tests -Dtest=JavaFxViewTest
+mvn test -Pjavafx-tests -Dtest=AvatarFallbackTest
+```
+> **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng 7 bản ghi mẫu.
+> Nếu không đủ điều kiện, toàn bộ lớp test được `SKIPPED` kèm thông báo rõ ràng.
 >
-> **Lưu ý kỹ thuật cho AI agents**: ảnh được nạp ở chế độ background. Test **không được** sleep trên JavaFX Application Thread (sẽ chặn tiến trình nạp ảnh), và **không được** gọi `Platform.exit()` trước khi ảnh nạp xong — nếu không, ảnh sẽ không bao giờ được áp dụng.
+> **Lưu ý kỹ thuật cho AI agents**:
+> - Đây là kiểm thử in-process JavaFX sử dụng `Platform.runLater()` + `CountDownLatch` (không dùng TestFX).
+> - Ảnh được nạp ở chế độ background. Test **không được** sleep trên JavaFX Application Thread
+>   (sẽ chặn tiến trình nạp ảnh), và **không được** gọi `Platform.exit()` trước khi ảnh nạp xong.
+> - JavaFX Toolkit **không thể khởi tạo lại** sau khi `Platform.exit()` được gọi. Vì vậy
+>   `FxTestSupport` chỉ đóng Stage giả và đăng ký shutdown hook, thay vì gọi `Platform.exit()`.
+> - Bộ test **không** kiểm thử trải nghiệm người dùng cuối trên desktop (chuột/bàn phím) —
+>   phần đó cần kiểm thử thủ công qua `mvn javafx:run`.
+
+### Xử lý xung đột JPMS ↔ JUnit 5 (đã cấu hình sẵn trong `pom.xml`)
+
+`src/main/java` có `module-info.java` (module `com.giapha`), còn `src/test/java` là test thuần
+JUnit 5 nằm ở "unnamed module". Để tránh lỗi JPMS chặn reflection của JUnit 5, `pom.xml` cấu hình:
+- `maven-compiler-plugin` → execution `default-testCompile` với `<useModulePath>false</useModulePath>`
+  (test compile trên classpath, không phải module path).
+- `maven-surefire-plugin` → `<useModulePath>false</useModulePath>` (test chạy trên classpath).
+
+> **Lưu ý**: `maven-surefire-plugin` với `<useModulePath>false</useModulePath>` sẽ bỏ qua
+> `module-info.class` khi chạy test. Đây là cấu hình **bắt buộc** — không được bỏ đi khi thêm test mới.
+
+### Chạy một lớp test cụ thể:
+```bash
+mvn test -Dtest=FamilyTreeServiceTest
+mvn test -Dtest=PersonControllerTest#handleAddCreatesPerson
+```
 
 ---
 

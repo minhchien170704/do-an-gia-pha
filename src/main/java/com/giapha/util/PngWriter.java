@@ -72,6 +72,30 @@ public final class PngWriter {
         }
 
         byte[] raw = extractRawPixels(image, width, height);
+        return encodePng(width, height, raw);
+    }
+
+    /**
+     * Đóng gói dữ liệu pixel RGBA thô thành file PNG hoàn chỉnh.
+     *
+     * <p>Hàm này thuần túy dựa trên {@code java.base} (không cần JavaFX toolkit),
+     * nên có thể được kiểm thử độc lập trong môi trường headless.
+     *
+     * @param width  chiều rộng ảnh (px)
+     * @param height chiều cao ảnh (px)
+     * @param raw    dữ liệu pixel thô, mỗi dòng gồm 1 byte filter + width*4 byte RGBA
+     * @return mảng byte PNG hoàn chỉnh
+     * @throws IOException nếu kích thước hoặc dữ liệu pixel không hợp lệ
+     */
+    public static byte[] encodePng(int width, int height, byte[] raw) throws IOException {
+        if (width <= 0 || height <= 0) {
+            throw new IOException("Kích thước ảnh không hợp lệ: " + width + "x" + height);
+        }
+        int expectedLength = height * (1 + width * 4);
+        if (raw == null || raw.length != expectedLength) {
+            throw new IOException("Dữ liệu pixel không đúng kích thước mong đợi ("
+                    + (raw == null ? 0 : raw.length) + " thay vì " + expectedLength + ")");
+        }
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.write(PNG_SIGNATURE);

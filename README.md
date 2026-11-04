@@ -31,6 +31,7 @@ Hệ thống hỗ trợ gia đình, dòng tộc lưu trữ, tra cứu và hiển
 - **Build Tool**: Apache Maven 3.9.16
 - **Hệ quản trị CSDL**: MySQL / MariaDB (hỗ trợ `utf8mb4`)
 - **Kết nối CSDL**: JDBC thuần với `mysql-connector-j` 9.2.0
+- **Kiểm thử tự động**: JUnit 5 (`junit-jupiter` 5.10.2) + `maven-surefire-plugin` 3.2.5
 - **Mô hình hóa (Modeling)**: PlantUML
 
 ---
@@ -70,28 +71,37 @@ do-an-gia-pha/
 │   └── schema.sql                  # Định nghĩa bảng PERSON, trigger & 7 bản ghi mẫu
 ├── docs/
 │   └── uml/                        # Toàn bộ PlantUML (.puml) và ảnh sơ đồ (.png)
-└── src/
-    └── main/
-        ├── java/
-        │   ├── module-info.java
-        │   └── com/giapha/
-        │       ├── Main.java
-        │       ├── model/          # Person, Gender
-        │       ├── exception/      # Custom Exceptions
-        │       ├── database/       # DatabaseConnection, DatabaseConnectionTest
-        │       ├── repository/     # PersonRepository, JdbcPersonRepository
-        │       ├── service/        # FamilyTreeService, FamilyTreeServiceTest
-        │       ├── controller/     # PersonController
-        │       ├── util/           # ImageManager (quản lý ảnh đại diện)
-        │       │                   # PngWriter (ghi ảnh PNG thuần java.util.zip)
-        │       └── view/           # JavaFX Views & Design System
-        │                           # (PersonAvatar: component ảnh đại diện dùng chung)
-        │                           # (FamilyTreeDiagram: sơ đồ cây gia phả 2D)
-        └── resources/
-            ├── css/                # style.css
-            ├── fxml/               # FXML layouts
-            └── images/             # Icon & hình ảnh tĩnh
-                                    # (Ảnh đại diện người dùng được copy vào ./images/ lúc runtime)
+├── src/
+    ├── main/
+    │   ├── java/
+    │   │   ├── module-info.java
+    │   │   └── com/giapha/
+    │   │       ├── Main.java
+    │   │       ├── model/          # Person, Gender
+    │   │       ├── exception/      # Custom Exceptions
+    │   │       ├── database/       # DatabaseConnection
+    │   │       ├── repository/     # PersonRepository, JdbcPersonRepository
+    │   │       ├── service/        # FamilyTreeService
+    │   │       ├── controller/     # PersonController
+    │   │       ├── util/           # ImageManager (quản lý ảnh đại diện)
+    │   │       │                   # PngWriter (ghi ảnh PNG thuần java.util.zip)
+    │   │       └── view/           # JavaFX Views & Design System
+    │   │                           # (PersonAvatar: component ảnh đại diện dùng chung)
+    │   │                           # (FamilyTreeDiagram: sơ đồ cây gia phả 2D)
+    │   └── resources/
+    │       ├── css/                # style.css
+    │       ├── fxml/               # FXML layouts
+    │       └── images/             # Icon & hình ảnh tĩnh
+    │                               # (Ảnh đại diện người dùng được copy vào ./images/ lúc runtime)
+    └── test/
+        └── java/
+            └── com/giapha/
+                ├── support/        # TestDatabase, FxTestSupport (tiện ích dùng chung)
+                ├── database/       # DatabaseConnectionTest
+                ├── service/        # FamilyTreeServiceTest
+                ├── controller/     # PersonControllerTest
+                ├── util/           # ImageManagerTest, PngWriterTest
+                └── view/           # AvatarFallbackTest, JavaFxViewTest (tag "javafx")
 ```
 
 ---
@@ -183,73 +193,82 @@ Kết quả thực hiện (thành công / thất bại / không tìm thấy máy
 
 ## 9. Hướng Dẫn Kiểm Thử (Testing)
 
-### 1. Kiểm tra kết nối CSDL:
+Toàn bộ kiểm thử tự động dùng **JUnit 5** và nằm trong `src/test/java`.
+Chạy bằng `maven-surefire-plugin` — lệnh chuẩn là `mvn test`.
+
+> ⚠️ **Điều kiện tiên quyết cho các test phụ thuộc CSDL**: MySQL phải đang chạy và bảng `PERSON`
+> phải chứa đúng **7 bản ghi mẫu**. Nếu CSDL không sẵn sàng, các test đó được đánh dấu
+> `SKIPPED` kèm thông báo rõ ràng (không tính là `FAILED`).
+
+### 1. Chạy toàn bộ kiểm thử (98 test cases):
 ```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.database.DatabaseConnectionTest"
+mvn clean test
+```
+| Lớp kiểm thử | Số test | Phạm vi |
+|---------------|---------|---------|
+| `FamilyTreeServiceTest` | 44 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu |
+| `PersonControllerTest` | 25 | Điều phối View ↔ Service, xử lý exception, callback điều hướng |
+| `DatabaseConnectionTest` | 6 | Kết nối MySQL, metadata, bảng `PERSON` |
+| `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
+| `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
+
+### 2. Chạy riêng các test cần JavaFX Toolkit (tag `javafx` — 26 test cases):
+```bash
+mvn test -Pjavafx-tests
+```
+Chạy riêng một lớp:
+```bash
+mvn test -Pjavafx-tests -Dtest=JavaFxViewTest
+mvn test -Pjavafx-tests -Dtest=AvatarFallbackTest
 ```
 
-### 2. Kiểm thử nghiệp vụ Service Layer (22 Test Cases):
-```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.service.FamilyTreeServiceTest"
-```
-Bộ test bao gồm:
-- Tra cứu thành viên theo ID tồn tại & không tồn tại (`PersonNotFoundException`).
-- Gán cha/mẹ hợp lệ và kiểm tra giới tính vai trò (`InvalidParentGenderException`).
-- Từ chối cha/mẹ là cùng một người (`SameParentException`).
-- Kiểm tra tự gán bản thân (`SelfParentException`).
-- Phát hiện và ngăn chặn chu trình gia phả (`CycleDetectedException`).
-- Ngăn chặn xóa cha/mẹ đang được tham chiếu (`PersonInUseException`).
-- Gỡ quan hệ cha/mẹ (`clearFather`, `clearMother`) và cho phép xóa sau khi gỡ.
-- Kiểm tra hợp lệ năm sinh (`InvalidBirthYearException`).
-- Truy vết tổ tiên đa tầng (`getAncestors`) và hậu duệ (`getDescendants`).
-- Tự động hoàn trả và bảo toàn tuyệt đối 7 bản ghi mẫu (`COUNT(*) = 7`).
+> ⚠️ **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng **7 bản ghi mẫu**
+> trước khi chạy. Nếu không đủ điều kiện, toàn bộ lớp test được `SKIPPED`.
 
-### 3. Kiểm thử Controller Layer (8 Test Cases):
-```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.controller.PersonControllerTest"
-```
-Bộ test bao gồm:
-- Tìm kiếm thành viên theo từ khóa (`handleSearch`).
-- Xem chi tiết thành viên (`handleViewDetail`).
-- Xem cây gia phả (`handleViewTree`).
-- Thêm mới thành viên vào cơ sở dữ liệu (`handleAdd`).
-- Chặn xóa người đang làm cha/mẹ theo quy tắc BR4 (`handleDelete`).
-- Cập nhật thông tin và điều chỉnh cha/mẹ qua quy trình 6 bước (`handleEdit`).
-- Gỡ quan hệ cha/mẹ khi chọn "Không có" qua form (`TC-CLEAR-06`).
-- Tự động hoàn trả và xác minh trạng thái toàn vẹn của dữ liệu mẫu (`COUNT(*) = 7`).
+**`AvatarFallbackTest` (14 test)** — kiểm tra component `PersonAvatar` (ảnh đại diện dùng chung cho
+danh sách / chi tiết / cây gia phả / form):
+- TC-AV-01: ảnh hợp lệ → hiển thị ảnh thật.
+- TC-AV-02/03/07: file ảnh **không tồn tại**, file ảnh **hỏng**, file **không phải ảnh** → fallback về placeholder (chữ cái đầu), **không ném exception**.
+- TC-AV-04/05/06: không có đường dẫn ảnh / đường dẫn rỗng / `person = null` → fallback placeholder.
+- TC-AV-08/09: constructor với file cụ thể (xem trước ảnh trong form) → hiển thị ảnh thật / fallback.
+- TC-AV-10/11: kích thước avatar và `resolveImageFile()` xử lý đường dẫn sai / null / rỗng.
+- TC-AV-12/13/14: `ImageView` khi hiển thị ảnh thật, `Label` khi fallback, clip hình tròn.
 
-### 4. Kiểm thử View Layer — Native In-Process JavaFX Test (9 Test Cases):
-```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.view.JavaFxViewTest"
-```
-> ⚠️ **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng **7 bản ghi mẫu** trước khi chạy. Test sẽ tự block nếu không đủ điều kiện.
-
-Bộ test kiểm thử nội quá trình (in-process), không dùng TestFX/JUnit, bao gồm:
-- TEST 1: `PeopleListView` nạp danh sách 7 thành viên từ MySQL vào `TableView`.
+**`JavaFxViewTest` (12 test)** — kiểm thử tích hợp in-process (không dùng TestFX):
+- TEST 1: `PeopleListView` nạp danh sách thành viên từ MySQL vào `TableView`.
 - TEST 2: Tìm kiếm client-side (`searchField`) và phục hồi danh sách đầy đủ.
 - TEST 3: `PersonFormView` thêm thành viên mới hợp lệ (với cha/mẹ) vào MySQL.
 - TEST 4: Validation từ chối dữ liệu không hợp lệ (tên rỗng, năm sinh sai số).
 - TEST 5: `PersonFormView` sửa tên và gỡ quan hệ cha/mẹ (set NULL) qua form.
-- TEST 6a: Chặn xóa người đang làm cha/mẹ theo BR4 (`PersonInUseException`).
-- TEST 6b: Xóa thành viên thử nghiệm đã gỡ quan hệ thành công.
-- TEST 7a: `PersonDetailView` hiển thị đúng tên cha/mẹ.
-- TEST 7b: `FamilyTreeView` dựng cây gia phả đa thế hệ thành công.
-- Cleanup tự động: Xóa toàn bộ bản ghi test, bảo toàn nguyên vẹn 7 bản ghi mẫu.
+- TEST 6a/6b: Chặn xóa người đang làm cha/mẹ theo BR4; xóa thành viên thử nghiệm đã gỡ quan hệ.
+- TEST 7a/7b: `PersonDetailView` hiển thị đúng cha/mẹ; `FamilyTreeView` dựng cây đa thế hệ.
+- TEST 8: `FamilyTreeView` có sơ đồ 2D (`FamilyTreeDiagram`) đi kèm.
+- TEST 9/10: CSDL giữ đúng 7 bản ghi mẫu sau toàn bộ test; JavaFX Toolkit sẵn sàng.
 
-> **Lưu ý**: Đây là kiểm thử JavaFX event/in-process sử dụng `Platform.runLater()` và `CountDownLatch`. Bộ test xác nhận luồng Controller–Service–Repository–MySQL đúng đắn, nhưng **không thay thế kiểm thử thủ công trên desktop** để xác nhận trải nghiệm người dùng cuối, hiển thị ảnh đại diện và tương tác chuột/bàn phím thực tế.
+> **Lưu ý kỹ thuật**: ảnh được nạp ở chế độ background nên test **không** sleep trên JavaFX
+> Application Thread (sẽ chặn nạp ảnh), và **không** gọi `Platform.exit()` trước khi ảnh nạp xong.
+> JavaFX Toolkit không thể khởi tạo lại sau `Platform.exit()` — `FxTestSupport` chỉ đóng Stage giả
+> và dùng shutdown hook.
 
-### 5. Kiểm thử PersonAvatar — Ảnh đại diện & Fallback (16 Test Cases):
+> **Lưu ý**: Bộ test xác nhận luồng Controller–Service–Repository–MySQL đúng đắn, nhưng **không
+> thay thế kiểm thử thủ công trên desktop** để xác nhận trải nghiệm người dùng cuối, hiển thị
+> ảnh đại diện và tương tác chuột/bàn phím thực tế.
+
+### 3. Chạy một lớp / một phương thức test cụ thể:
 ```bash
-mvn exec:java "-Dexec.mainClass=com.giapha.view.AvatarFallbackTest"
+mvn test -Dtest=FamilyTreeServiceTest
+mvn test -Dtest=PersonControllerTest#handleAddCreatesPerson
 ```
-Bộ test kiểm tra component `PersonAvatar` (ảnh đại diện dùng chung cho danh sách / chi tiết / cây gia phả / form):
-- TC-AV-01: ảnh hợp lệ → hiển thị ảnh thật (có `ImageView` + clip bo tròn).
-- TC-AV-02/03/07: file ảnh **không tồn tại**, file ảnh **hỏng**, file **không phải ảnh** → fallback về placeholder (chữ cái đầu), **không ném exception**.
-- TC-AV-04/05/06: không có đường dẫn ảnh / đường dẫn rỗng / `person = null` → fallback placeholder.
-- TC-AV-08/09: constructor với file cụ thể (dùng cho xem trước ảnh trong form) → hiển thị ảnh thật / fallback.
-- TC-AV-10/11: kiểm tra kích thước avatar và `resolveImageFile()` xử lý đường dẫn sai / null.
 
-> **Lưu ý kỹ thuật**: ảnh được nạp ở chế độ background nên test **không** sleep trên JavaFX Application Thread (sẽ chặn nạp ảnh), và **không** gọi `Platform.exit()` trước khi ảnh nạp xong.
+### 4. Ghi chú về xung đột JPMS ↔ JUnit 5
+
+`src/main/java` có `module-info.java` (module `com.giapha`), còn `src/test/java` là test thuần
+JUnit 5 nằm ở "unnamed module". Để tránh lỗi JPMS chặn reflection của JUnit 5, `pom.xml` cấu hình:
+- `maven-compiler-plugin` → execution `default-testCompile` với `<useModulePath>false</useModulePath>`.
+- `maven-surefire-plugin` → `<useModulePath>false</useModulePath>`.
+
+> ⚠️ **Không được bỏ cấu hình này** khi thêm test mới — nếu không, `mvn test` sẽ báo lỗi compile
+> hoặc lỗi `IllegalAccessError` khi JUnit 5 dùng reflection gọi các `@Test` method.
 
 ---
 
@@ -277,4 +296,10 @@ Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
 - [x] **Cụm 5.7**: End-to-End Verification, QA tích hợp và kiểm chứng toàn vẹn dữ liệu MySQL.
 - [x] **Cụm 5.8**: Đồng bộ hóa tài liệu (README) và sơ đồ lớp (Class Diagram).
 - [x] **Cụm 5.9**: Native In-Process JavaFX Test Harness (`JavaFxViewTest`) — 9/9 test cases PASS, bảo toàn 7 bản ghi mẫu.
-- [x] **Cụm 5.10**: Hiển thị ảnh đại diện thật trên toàn bộ giao diện — component dùng chung `com.giapha.view.PersonAvatar` (ảnh bo tròn, tự fallback về chữ cái đầu khi thiếu ảnh / file ảnh hỏng / sai định dạng, **không ném exception ra UI**), tích hợp vào `PeopleListView` (cột Ảnh), `PersonDetailView` (avatar + thumbnail), `FamilyTreeView` (avatar trên mỗi node) và `PersonFormView` (xem trước). Bộ test `AvatarFallbackTest` — 16/16 PASS.
+- [x] **Cụm 5.10**: Hiển thị ảnh đại diện thật trên toàn bộ giao diện — component dùng chung `com.giapha.view.PersonAvatar` (ảnh bo tròn, tự fallback về chữ cái đầu khi thiếu ảnh / file ảnh hỏng / sai định dạng, **không ném exception ra UI**), tích hợp vào `PeopleListView` (cột Ảnh), `PersonDetailView` (avatar + thumbnail), `FamilyTreeView` (avatar trên mỗi node) và `PersonFormView` (xem trước). Bộ test `AvatarFallbackTest` — 14/14 PASS.
+- [x] **Cụm 6.1**: Sơ đồ cây gia phả 2D (`FamilyTreeDiagram`) — vẽ bằng `Pane` + `Line`, mỗi thế hệ một hàng, node gồm avatar + họ tên + năm sinh + giới tính, đường nối cha/mẹ xuống con, hỗ trợ zoom & pan. Giữ `TreeView` cũ làm tab thứ hai.
+- [x] **Cụm 6.2**: Xuất PNG (`Node.snapshot()` + `PngWriter` thuần `java.util.zip`) và In ấn (`javafx.print.PrinterJob`) — không thêm dependency, kết quả báo bằng `Alert`.
+- [x] **Cụm 6.3**: Nới validate năm sinh xuống `1000 <= birthYear <= Year.now()` (hằng số `FamilyTreeService.MIN_BIRTH_YEAR`).
+- [x] **Cụm 6.4**: Custom exception riêng cho BR2 (`SameParentException`) và BR6 (`InvalidParentGenderException`), thay `IllegalArgumentException`; thứ tự kiểm tra `BR1 → BR2 → BR6 → BR3`.
+- [x] **Cụm 6.5**: Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (98 test mặc định + 26 test tag `javafx`), tạo `src/test/java`, xử lý xung đột `module-info.java` bằng `useModulePath=false`.
+- [ ] **Cụm 6.6**: Bộ dữ liệu mẹ & bảng test case trong `test-data/`.
