@@ -42,3 +42,6 @@ desktop.ini
 # Local environment
 .env
 *.local
+
+# Ảnh đại diện người dùng (được copy vào lúc runtime, không commit)
+images/

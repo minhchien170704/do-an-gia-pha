@@ -61,6 +61,15 @@ MySQL / MariaDB
    - `JdbcPersonRepository`: Lớp cài đặt interface sử dụng JDBC thuần, thao tác với bảng `PERSON`.
 5. **Database Connection (`com.giapha.database`)**:
    - `DatabaseConnection`: Utility class cung cấp Connection mới mỗi khi gọi `getConnection()`. Không dùng static long-lived connection.
+6. **Utility (`com.giapha.util`)**:
+   - `ImageManager`: Tiện ích thuần (không phụ thuộc JavaFX/DB) xử lý ảnh đại diện — kiểm tra định dạng `png`/`jpg`/`jpeg`, copy vào thư mục `images/` cạnh ứng dụng, và dọn file an toàn.
+   - Không được đặt logic nghiệp vụ gia phả vào package này.
+
+### Quy ước ảnh đại diện (photoPath):
+- Người dùng chọn ảnh qua `FileChooser` trong `PersonFormView`; View chỉ giữ đường dẫn nguồn, **không** tự copy file.
+- `PersonController` gọi `ImageManager.copyImageToAppDirectory(...)` **sau khi** thành viên đã có `id`, rồi lưu **đường dẫn tương đối** (`images/person_<id>.<đuôi>`) vào cột `photo_path`.
+- Thư mục `images/` được sinh tự động cạnh ứng dụng và đã được thêm vào `.gitignore` (ảnh người dùng không được commit).
+- Vì đường dẫn là tương đối, ứng dụng phải chạy từ thư mục gốc dự án (hoặc ảnh sẽ không tìm thấy khi mở lại).
 
 ---
 
@@ -87,11 +96,15 @@ com.giapha
 ├── service/
 │   ├── FamilyTreeService.java         # Business Service Layer
 │   └── FamilyTreeServiceTest.java     # Kiểm thử nghiệp vụ & cô lập dữ liệu
+├── util/
+│   └── ImageManager.java              # Tiện ích ảnh đại diện: kiểm tra định dạng, copy vào ./images/
 └── view/
     ├── FamilyTreeView.java            # Màn hình cây phả hệ trực quan
     ├── PeopleListView.java            # Màn hình danh sách thành viên
+    ├── PersonAvatar.java              # Component ảnh đại diện dùng chung (bo tròn + fallback)
     ├── PersonDetailView.java          # Màn hình chi tiết hồ sơ cá nhân
     ├── PersonFormView.java            # Form thêm / sửa thành viên
+    ├── AvatarFallbackTest.java        # Kiểm thử PersonAvatar: ảnh thật / thiếu / hỏng / sai định dạng
     └── SampleData.java                # Dữ liệu mẫu phục vụ kiểm thử UI độc lập
 ```
 
@@ -109,6 +122,7 @@ com.giapha
   - *Xử lý*: Ném `PersonInUseException`. Không cascade delete, không tự ý set NULL quan hệ con cái.
 - **BR5 — PARENT BIRTH YEAR**: Năm sinh của cha/mẹ nên nhỏ hơn năm sinh của con.
   - *Xử lý*: Đây là quy tắc cảnh báo (WARNING), không phải hard validation, không ném exception làm gián đoạn lưu trữ.
+  - *Cơ chế*: Tầng Service cung cấp `checkBirthYearWarning(child, father, mother)` trả về danh sách thông điệp cảnh báo (rỗng = không có vấn đề). Tầng Controller gọi hàm này và hiển thị `Alert` cảnh báo với hai lựa chọn **Tiếp tục** / **Hủy** — chỉ tiếp tục lưu khi người dùng chọn "Tiếp tục".
 - **BR6 — GENDER ROLE**:
   - `father` bắt buộc phải có giới tính `Gender.MALE`.
   - `mother` bắt buộc phải có giới tính `Gender.FEMALE`.
@@ -198,6 +212,14 @@ mvn exec:java "-Dexec.mainClass=com.giapha.view.JavaFxViewTest"
 > **Lưu ý cho AI agents**: Đây là kiểm thử in-process JavaFX sử dụng `Platform.runLater()` + `CountDownLatch`, không dùng TestFX/JUnit. Bộ test bao phủ luồng UI→Controller→Service→Repository→MySQL (9 kịch bản). Nó **không** kiểm thử trải nghiệm người dùng cuối trên desktop (chuột/bàn phím, hiển thị ảnh) — phần đó cần kiểm thử thủ công qua `mvn javafx:run`.
 >
 > **Lưu ý về exit code**: Maven `exec:java` có thể báo exit code 1 dù bộ test PASS hoàn toàn, do plugin bắt `System.exit()`. Hãy đọc output `TỔNG KẾT: 9 PASSED, 0 FAILED` để xác nhận kết quả thực sự.
+
+### Chạy bộ kiểm thử PersonAvatar — Ảnh đại diện & Fallback (16 test cases):
+```bash
+mvn exec:java "-Dexec.mainClass=com.giapha.view.AvatarFallbackTest"
+```
+> Kiểm tra component `PersonAvatar`: ảnh hợp lệ → hiển thị ảnh thật bo tròn; file thiếu / hỏng / sai định dạng / đường dẫn rỗng / `person = null` → fallback về placeholder, **không ném exception ra giao diện**.
+>
+> **Lưu ý kỹ thuật cho AI agents**: ảnh được nạp ở chế độ background. Test **không được** sleep trên JavaFX Application Thread (sẽ chặn tiến trình nạp ảnh), và **không được** gọi `Platform.exit()` trước khi ảnh nạp xong — nếu không, ảnh sẽ không bao giờ được áp dụng.
 
 ---
 

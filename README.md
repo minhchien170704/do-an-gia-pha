@@ -82,11 +82,14 @@ do-an-gia-pha/
         │       ├── repository/     # PersonRepository, JdbcPersonRepository
         │       ├── service/        # FamilyTreeService, FamilyTreeServiceTest
         │       ├── controller/     # PersonController
+        │       ├── util/           # ImageManager (quản lý ảnh đại diện)
         │       └── view/           # JavaFX Views & Design System
+        │                           # (PersonAvatar: component ảnh đại diện dùng chung)
         └── resources/
             ├── css/                # style.css
             ├── fxml/               # FXML layouts
-            └── images/             # Icon & hình ảnh
+            └── images/             # Icon & hình ảnh tĩnh
+                                    # (Ảnh đại diện người dùng được copy vào ./images/ lúc runtime)
 ```
 
 ---
@@ -183,6 +186,19 @@ Bộ test kiểm thử nội quá trình (in-process), không dùng TestFX/JUnit
 
 > **Lưu ý**: Đây là kiểm thử JavaFX event/in-process sử dụng `Platform.runLater()` và `CountDownLatch`. Bộ test xác nhận luồng Controller–Service–Repository–MySQL đúng đắn, nhưng **không thay thế kiểm thử thủ công trên desktop** để xác nhận trải nghiệm người dùng cuối, hiển thị ảnh đại diện và tương tác chuột/bàn phím thực tế.
 
+### 5. Kiểm thử PersonAvatar — Ảnh đại diện & Fallback (16 Test Cases):
+```bash
+mvn exec:java "-Dexec.mainClass=com.giapha.view.AvatarFallbackTest"
+```
+Bộ test kiểm tra component `PersonAvatar` (ảnh đại diện dùng chung cho danh sách / chi tiết / cây gia phả / form):
+- TC-AV-01: ảnh hợp lệ → hiển thị ảnh thật (có `ImageView` + clip bo tròn).
+- TC-AV-02/03/07: file ảnh **không tồn tại**, file ảnh **hỏng**, file **không phải ảnh** → fallback về placeholder (chữ cái đầu), **không ném exception**.
+- TC-AV-04/05/06: không có đường dẫn ảnh / đường dẫn rỗng / `person = null` → fallback placeholder.
+- TC-AV-08/09: constructor với file cụ thể (dùng cho xem trước ảnh trong form) → hiển thị ảnh thật / fallback.
+- TC-AV-10/11: kiểm tra kích thước avatar và `resolveImageFile()` xử lý đường dẫn sai / null.
+
+> **Lưu ý kỹ thuật**: ảnh được nạp ở chế độ background nên test **không** sleep trên JavaFX Application Thread (sẽ chặn nạp ảnh), và **không** gọi `Platform.exit()` trước khi ảnh nạp xong.
+
 ---
 
 ## 10. Tài Liệu UML (UML Documentation)
@@ -201,7 +217,12 @@ Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
 - [x] **Cụm 5.3**: Database Schema, MySQL setup, DatabaseConnection.
 - [x] **Cụm 5.4**: FamilyTreeService Layer & Bộ test nghiệp vụ (22/22 test cases PASS).
 - [x] **Cụm 5.5**: PersonController & Bộ test Controller (8/8 test cases PASS).
+   - `PersonController` là cầu nối duy nhất giữa View JavaFX và `FamilyTreeService` — View **không** gọi trực tiếp Service hay Repository.
+   - Bắt toàn bộ ngoại lệ nghiệp vụ (`SelfParentException`, `CycleDetectedException`, `PersonInUseException`, `InvalidBirthYearException`, `PersonNotFoundException`, `IllegalArgumentException`, `SQLException`…) và hiển thị bằng `Alert` tiếng Việt — không văng stack trace ra giao diện.
+   - **BR5 (cảnh báo năm sinh)** được kiểm tra ở tầng Service qua `FamilyTreeService.checkBirthYearWarning(child, father, mother)`; Controller hiển thị `Alert` cảnh báo với hai lựa chọn **Tiếp tục** / **Hủy**.
+   - **Ảnh đại diện**: nút *Chọn ảnh...* dùng `FileChooser` (chỉ nhận `png` / `jpg` / `jpeg`); ảnh được copy vào thư mục `images/` cạnh ứng dụng và lưu **đường dẫn tương đối** (`images/person_<id>.<đuôi>`) vào DB. Tiện ích nằm ở `com.giapha.util.ImageManager`.
 - [x] **Cụm 5.6**: Tích hợp toàn diện JavaFX UI với Backend MySQL (kết nối trực tiếp, loại bỏ hoàn toàn SampleData khỏi luồng chạy chính).
 - [x] **Cụm 5.7**: End-to-End Verification, QA tích hợp và kiểm chứng toàn vẹn dữ liệu MySQL.
 - [x] **Cụm 5.8**: Đồng bộ hóa tài liệu (README) và sơ đồ lớp (Class Diagram).
 - [x] **Cụm 5.9**: Native In-Process JavaFX Test Harness (`JavaFxViewTest`) — 9/9 test cases PASS, bảo toàn 7 bản ghi mẫu.
+- [x] **Cụm 5.10**: Hiển thị ảnh đại diện thật trên toàn bộ giao diện — component dùng chung `com.giapha.view.PersonAvatar` (ảnh bo tròn, tự fallback về chữ cái đầu khi thiếu ảnh / file ảnh hỏng / sai định dạng, **không ném exception ra UI**), tích hợp vào `PeopleListView` (cột Ảnh), `PersonDetailView` (avatar + thumbnail), `FamilyTreeView` (avatar trên mỗi node) và `PersonFormView` (xem trước). Bộ test `AvatarFallbackTest` — 16/16 PASS.
