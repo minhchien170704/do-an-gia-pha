@@ -3,11 +3,15 @@ package com.giapha.view;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.Label;
+import javafx.scene.SnapshotParameters;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 
@@ -747,6 +751,64 @@ public class FamilyTreeDiagram extends Pane {
      */
     public double getZoom() {
         return content.getScaleX();
+    }
+
+    /**
+     * Kích thước nội dung sơ đồ ở mức zoom 1.0.
+     *
+     * @return chiều rộng nội dung (px)
+     */
+    public double getContentWidth() {
+        return baseWidth;
+    }
+
+    /**
+     * Kích thước nội dung sơ đồ ở mức zoom 1.0.
+     *
+     * @return chiều cao nội dung (px)
+     */
+    public double getContentHeight() {
+        return baseHeight;
+    }
+
+    /**
+     * Chụp toàn bộ sơ đồ (kể cả phần đang bị cuộn/zoom ra ngoài khung nhìn)
+     * thành một ảnh PNG ở mức zoom 1.0.
+     *
+     * <p>Hàm tạm thời đặt lại transform của lớp nội dung về zoom 1.0, chụp ảnh
+     * với viewport đúng bằng kích thước nội dung, rồi khôi phục lại trạng thái
+     * cũ để người dùng không bị mất góc nhìn hiện tại.
+     *
+     * @return ảnh chụp toàn bộ sơ đồ
+     */
+    public WritableImage renderFullImage() {
+        if (baseWidth <= 0 || baseHeight <= 0) {
+            return null;
+        }
+
+        double oldScaleX = content.getScaleX();
+        double oldScaleY = content.getScaleY();
+        double oldTranslateX = content.getTranslateX();
+        double oldTranslateY = content.getTranslateY();
+
+        content.setScaleX(1.0);
+        content.setScaleY(1.0);
+        content.setTranslateX(0);
+        content.setTranslateY(0);
+
+        WritableImage image;
+        try {
+            SnapshotParameters params = new SnapshotParameters();
+            params.setViewport(new Rectangle2D(0, 0, baseWidth, baseHeight));
+            params.setFill(Color.WHITE);
+            image = content.snapshot(params, null);
+        } finally {
+            content.setScaleX(oldScaleX);
+            content.setScaleY(oldScaleY);
+            content.setTranslateX(oldTranslateX);
+            content.setTranslateY(oldTranslateY);
+        }
+        return image;
     }
 
     /**

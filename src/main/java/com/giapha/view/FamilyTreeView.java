@@ -6,10 +6,15 @@ import com.giapha.model.Person;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.print.PageLayout;
+import javafx.print.PrinterJob;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -209,9 +214,25 @@ public class FamilyTreeView {
 
         zoomBox.getChildren().addAll(new Label("Zoom:"), btnZoomOut, lblZoom, btnZoomIn, btnZoomReset);
 
+        // --- Xuất ảnh & in ---
+        HBox exportBox = new HBox(6);
+        exportBox.setAlignment(Pos.CENTER_RIGHT);
+
+        Button btnExportPng = new Button("🖼 Xuất PNG");
+        btnExportPng.getStyleClass().add("btn-secondary");
+        btnExportPng.setTooltip(new javafx.scene.control.Tooltip("Lưu sơ đồ cây gia phả thành file PNG"));
+        btnExportPng.setOnAction(e -> handleExportPng());
+
+        Button btnPrint = new Button("🖨 In");
+        btnPrint.getStyleClass().add("btn-secondary");
+        btnPrint.setTooltip(new javafx.scene.control.Tooltip("In sơ đồ cây gia phả qua máy in"));
+        btnPrint.setOnAction(e -> handlePrint());
+
+        exportBox.getChildren().addAll(btnExportPng, btnPrint);
+
         HBox legend = createLegendPills();
 
-        toolbar.getChildren().addAll(lblSelect, cboFocusPerson, spacer, zoomBox, legend);
+        toolbar.getChildren().addAll(lblSelect, cboFocusPerson, spacer, zoomBox, exportBox, legend);
 
         // Cập nhật nhãn % khi zoom thay đổi
         diagram.contentScaleProperty().addListener((obs, oldVal, newVal) -> {
@@ -221,8 +242,196 @@ public class FamilyTreeView {
         return toolbar;
     }
 
-    private HBox createLegendPills() {
-        HBox box = new HBox(12);
+    /**
+     * Xuất sơ đồ cây gia phả ra file PNG.
+     *
+     * <p>Dùng {@code Node.snapshot()} trên lớp nội dung của sơ đồ (với viewport
+     * bằng đúng kích thước nội dung nên ảnh không bị cắt), rồi ghi file PNG bằng
+     * {@link com.giapha.util.PngWriter}.
+     */
+    private void handleExportPng() {
+        javafx.scene.image.WritableImage image = diagram.renderFullImage();
+        if (image == null) {
+            showAlert(Alert.AlertType.WARNING, "Không thể xuất ảnh",
+                    "Sơ đồ cây gia phả hiện đang trống — không có dữ liệu để xuất.");
+            return;
+        }
+
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Xuất sơ đồ cây gia phả");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Ảnh PNG (*.png)", "*.png"));
+        chooser.setInitialFileName(defaultExportFileName());
+
+        File file = chooser.showSaveDialog(root.getScene() == null ? null : root.getScene().getWindow());
+        if (file == null) {
+            return; // Người dùng đã hủy
+        }
+
+        // Đảm bảo đuôi file là .png
+        if (!file.getName().toLowerCase().endsWith(".png")) {
+            file = new File(file.getParentFile(), file.getName() + ".png");
+        }
+
+        try {
+            com.giapha.util.PngWriter.write(image, file);
+            showAlert(Alert.AlertType.INFORMATION, "Xuất PNG thành công",
+                    "Đã lưu sơ đồ cây gia phả tại:\n" + file.getAbsolutePath());
+        } catch (IOException ex) {
+            showAlert(Alert.AlertType.ERROR, "Xuất PNG thất bại",
+                    "Không thể ghi file PNG:\n" + ex.getMessage());
+        }
+    }
+
+    /**
+     * In sơ đồ cây gia phả bằng {@link PrinterJob} của JavaFX (không thêm dependency).
+     *
+     * <p>Sơ đồ được đưa vào một {@code Group} với kích thước bằng kích thước
+     * nội dung, sau đó in trang đầu tiên qua {@code PrinterJob}.
+     */
+    private void handlePrint() {
+        javafx.scene.image.WritableImage image = diagram.renderFullImage();
+        if (image == null) {
+            showAlert(Alert.AlertType.WARNING, "Không thể in",
+                    "Sơ đồ cây gia phả hiện đang trống — không có dữ liệu để in.");
+            return;
+        }
+
+        PrinterJob job = PrinterJob.createPrinterJob();
+        if (job == null) {
+            showAlert(Alert.AlertType.ERROR, "Không tìm thấy máy in",
+                    "Không phát hiện được máy in nào trên hệ thống. "
+                            + "Vui lòng cài đặt máy in hoặc dùng chức năng Xuất PNG.");
+            return;
+        }
+
+        if (!confirmPrint(job)) {
+            return; // Người dùng đã hủy
+        }
+
+        try {
+            // Đóng gói sơ đồ dưới dạng một Node có thể in được
+            javafx.scene.Node printable = buildPrintableNode(job);
+            boolean printed = job.printPage(printable);
+            if (printed) {
+                showAlert(Alert.AlertType.INFORMATION, "Đã gửi lệnh in",
+                        "Sơ đồ cây gia phả đã được gửi tới máy in.");
+            } else {
+                showAlert(Alert.AlertType.WARNING, "Không in được",
+                        "Máy in từ chối yêu cầu in. Vui lòng kiểm tra lại cài đặt máy in.");
+            }
+        } catch (RuntimeException ex) {
+            showAlert(Alert.AlertType.ERROR, "In thất bại",
+                    "Không thể in sơ đồ cây gia phả:\n" + ex.getMessage());
+        }
+    }
+
+    /**
+     * Dựng Node in được từ ảnh đã chụp của sơ đồ.
+     *
+     * <p>Ảnh được đặt trong một {@code Group} có kích thước vừa khung giấy A4 ngang,
+     * canh giữa, để bản in không bị cắt.
+     */
+    private javafx.scene.Node buildPrintableNode(PrinterJob job) {
+        javafx.scene.image.WritableImage image = diagram.renderFullImage();
+        javafx.scene.image.ImageView imageView = new javafx.scene.image.ImageView(image);
+        imageView.setPreserveRatio(true);
+
+        PageLayout pageLayout = job.getJobSettings() != null
+                ? job.getJobSettings().getPageLayout()
+                : null;
+        double pageWidth = pageLayout != null ? pageLayout.getPrintableWidth() : 794.0;  // A4 ngang (pt)
+        double pageHeight = pageLayout != null ? pageLayout.getPrintableHeight() : 561.0;
+        double margin = 24;
+
+        double maxW = Math.max(100, pageWidth - margin * 2);
+        double maxH = Math.max(100, pageHeight - margin * 2);
+
+        imageView.setFitWidth(maxW);
+        imageView.setFitHeight(maxH);
+
+        // Bọc ảnh trong một StackPane để đặt được kích thước trang
+        javafx.scene.layout.StackPane page = new javafx.scene.layout.StackPane(imageView);
+        page.setPadding(new Insets(margin));
+        page.setPrefWidth(pageWidth);
+        page.setPrefHeight(pageHeight);
+        page.setMinWidth(pageWidth);
+        page.setMinHeight(pageHeight);
+        page.setBackground(new javafx.scene.layout.Background(
+                new javafx.scene.layout.BackgroundFill(
+                        javafx.scene.paint.Color.WHITE, null, null)));
+
+        return page;
+    }
+
+    /**
+     * Hiển thị hộp thoại xác nhận in.
+     *
+     * <p>Trước tiên thử mở hộp thoại cấu hình in chuẩn của JavaFX
+     * ({@code PrinterJob.showPrintDialog}). Nếu hệ thống không hỗ trợ (không có máy in
+     * hoặc nền tảng không cung cấp hộp thoại), hiển thị hộp thoại xác nhận đơn giản
+     * của ứng dụng.
+     *
+     * @param job lệnh in
+     * @return {@code true} nếu người dùng xác nhận in
+     */
+    private boolean confirmPrint(PrinterJob job) {
+        try {
+            if (job.showPrintDialog(root.getScene() == null ? null : root.getScene().getWindow())) {
+                return true;
+            }
+            // Hộp thoại hệ thống bị đóng bằng nút Hủy → hủy luôn
+            return false;
+        } catch (Throwable unsupported) {
+            // Nền tảng không hỗ trợ hộp thoại in → dùng hộp thoại nội bộ
+        }
+
+        final boolean[] confirmed = {false};
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Xác nhận in sơ đồ cây gia phả");
+        dialog.setHeaderText("In sơ đồ cây gia phả?");
+        dialog.setContentText("Sơ đồ sẽ được gửi tới máy in mặc định của hệ thống.");
+        dialog.initOwner(root.getScene() == null ? null : root.getScene().getWindow());
+
+        ButtonType btnPrint = new ButtonType("In", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(btnPrint, ButtonType.CANCEL);
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton != null && dialogButton.getButtonData() == ButtonBar.ButtonData.OK_DONE) {
+                confirmed[0] = true;
+                return ButtonType.OK;
+            }
+            return null;
+        });
+
+        dialog.showAndWait();
+        return confirmed[0];
+    }
+
+    /**
+     * Tên file mặc định khi xuất PNG, dựa trên tên người trung tâm.
+     */
+    private String defaultExportFileName() {
+        Person focus = cboFocusPerson != null ? cboFocusPerson.getValue() : null;
+        String base = focus != null ? focus.getFullName() : "gia_pha";
+        base = base.replaceAll("[^\\p{L}\\p{N}]+", "_").replaceAll("^_+|_+$", "");
+        if (base.isEmpty()) base = "gia_pha";
+        return "gia_pha_" + base + ".png";
+    }
+
+    /**
+     * Hiển thị hộp thoại thông báo.
+     */
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.initOwner(root.getScene() == null ? null : root.getScene().getWindow());
+        alert.showAndWait();
+    }
+
+    private HBox createLegendPills() {        HBox box = new HBox(12);
         box.setAlignment(Pos.CENTER_RIGHT);
 
         Label legFocus = new Label("★ Trọng tâm");

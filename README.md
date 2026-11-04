@@ -83,6 +83,7 @@ do-an-gia-pha/
         │       ├── service/        # FamilyTreeService, FamilyTreeServiceTest
         │       ├── controller/     # PersonController
         │       ├── util/           # ImageManager (quản lý ảnh đại diện)
+        │       │                   # PngWriter (ghi ảnh PNG thuần java.util.zip)
         │       └── view/           # JavaFX Views & Design System
         │                           # (PersonAvatar: component ảnh đại diện dùng chung)
         │                           # (FamilyTreeDiagram: sơ đồ cây gia phả 2D)
@@ -158,6 +159,17 @@ Màn hình **Cây gia phả** sử dụng `TabPane` với hai tab:
 | Bấm vào node | Mở hồ sơ cá nhân của thành viên đó |
 
 Combo box **"Người trung tâm"** thay đổi → sơ đồ 2D được vẽ lại tức thì.
+
+### Xuất PNG & In ấn
+
+| Nút | Cơ chế | Ghi chú |
+|-----|--------|---------|
+| **🖼 Xuất PNG** | `Node.snapshot()` với `SnapshotParameters.setViewport(...)` đúng bằng kích thước nội dung sơ đồ, sau đó ghi file PNG bằng `com.giapha.util.PngWriter` | Ảnh chụp **toàn bộ** sơ đồ ở mức zoom 1.0, không bị cắt theo khung nhìn hiện tại. Hộp thoại chọn file do `FileChooser` cung cấp |
+| **🖨 In** | `javafx.print.PrinterJob` + `PrinterJob.printPage(node)` | Dùng `JobSettings.getPageLayout()` để lấy khổ giấy; ảnh được bọc trong `StackPane` kích thước trang và canh giữa |
+
+> **Không thêm dependency mới.** `PngWriter` hiện thực thuần bằng `java.util.zip` (`Deflater` + `CRC32`) nên module `com.giapha` không cần khai báo thêm `java.desktop` hay `javafx.swing`.
+
+Kết quả thực hiện (thành công / thất bại / không tìm thấy máy in) đều được báo bằng `Alert`.
 
 ---
 

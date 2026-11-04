@@ -51,6 +51,10 @@ MySQL / MariaDB
    - `FamilyTreeDiagram` (sơ đồ 2D) là component JavaFX thuần: nhận `List<Person>` + người trung tâm,
      tự dựng bố cục (hàng thế hệ + cột) và vẽ bằng `Pane` + `Line`; **không** gọi xuống Service/Repository.
    - Module JPMS phải khai báo `requires javafx.graphics` để dùng `javafx.scene.input.ScrollEvent`.
+   - Xuất ảnh & in ấn:
+     - **Xuất PNG**: `FamilyTreeDiagram.renderFullImage()` chụp toàn bộ sơ đồ (viewport = kích thước nội dung, zoom 1.0), `PngWriter` ghi file, `FileChooser` để chọn nơi lưu. Kết quả báo bằng `Alert`.
+     - **In**: `javafx.print.PrinterJob` + `PrinterJob.printPage(node)` — **không** thêm dependency. Dùng `JobSettings.getPageLayout()` để lấy khổ giấy.
+     - Nút bấm đặt trong `FamilyTreeView`; mọi lỗi (không tìm thấy máy in, ghi file lỗi, sơ đồ rỗng) đều phải báo bằng `Alert` thay vì ném exception ra UI.
 2. **Controller (`com.giapha.controller`)**:
    - Điều phối giữa View và Service.
    - Không chứa câu lệnh SQL, không gọi trực tiếp Repository hay JDBC.
@@ -66,6 +70,7 @@ MySQL / MariaDB
    - `DatabaseConnection`: Utility class cung cấp Connection mới mỗi khi gọi `getConnection()`. Không dùng static long-lived connection.
 6. **Utility (`com.giapha.util`)**:
    - `ImageManager`: Tiện ích thuần (không phụ thuộc JavaFX/DB) xử lý ảnh đại diện — kiểm tra định dạng `png`/`jpg`/`jpeg`, copy vào thư mục `images/` cạnh ứng dụng, và dọn file an toàn.
+   - `PngWriter`: Tiện ích ghi `WritableImage` ra file PNG — hiện thực **thuần** bằng `java.util.zip` (`Deflater` + `CRC32`), **không** dùng `javax.imageio` hay `javafx.swing` để tránh phải khai báo thêm module `java.desktop` / `javafx.swing`.
    - Không được đặt logic nghiệp vụ gia phả vào package này.
 
 ### Quy ước ảnh đại diện (photoPath):
@@ -100,7 +105,8 @@ com.giapha
 │   ├── FamilyTreeService.java         # Business Service Layer
 │   └── FamilyTreeServiceTest.java     # Kiểm thử nghiệp vụ & cô lập dữ liệu
 ├── util/
-│   └── ImageManager.java              # Tiện ích ảnh đại diện: kiểm tra định dạng, copy vào ./images/
+│   ├── ImageManager.java              # Tiện ích ảnh đại diện: kiểm tra định dạng, copy vào ./images/
+│   └── PngWriter.java                 # Ghi WritableImage ra file PNG (thuần java.util.zip, không thêm dependency)
 └── view/
     ├── FamilyTreeView.java            # Màn hình cây phả hệ (Tab: Sơ đồ 2D + Danh sách phả hệ)
     ├── FamilyTreeDiagram.java         # Sơ đồ cây gia phả 2D (Pane + Line, zoom & pan)
