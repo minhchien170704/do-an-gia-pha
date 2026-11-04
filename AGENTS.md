@@ -189,6 +189,16 @@ mvn exec:java "-Dexec.mainClass=com.giapha.service.FamilyTreeServiceTest"
 mvn exec:java "-Dexec.mainClass=com.giapha.controller.PersonControllerTest"
 ```
 
+### Chạy bộ kiểm thử View Layer — Native In-Process JavaFX Test (9 test cases):
+```bash
+mvn exec:java "-Dexec.mainClass=com.giapha.view.JavaFxViewTest"
+```
+> **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng 7 bản ghi mẫu. Test sẽ tự block nếu không đủ điều kiện.
+>
+> **Lưu ý cho AI agents**: Đây là kiểm thử in-process JavaFX sử dụng `Platform.runLater()` + `CountDownLatch`, không dùng TestFX/JUnit. Bộ test bao phủ luồng UI→Controller→Service→Repository→MySQL (9 kịch bản). Nó **không** kiểm thử trải nghiệm người dùng cuối trên desktop (chuột/bàn phím, hiển thị ảnh) — phần đó cần kiểm thử thủ công qua `mvn javafx:run`.
+>
+> **Lưu ý về exit code**: Maven `exec:java` có thể báo exit code 1 dù bộ test PASS hoàn toàn, do plugin bắt `System.exit()`. Hãy đọc output `TỔNG KẾT: 9 PASSED, 0 FAILED` để xác nhận kết quả thực sự.
+
 ---
 
 ## 10. NGUYÊN TẮC BẮT BUỘC DÀNH CHO AI AGENTS
