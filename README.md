@@ -71,6 +71,9 @@ do-an-gia-pha/
 │   └── schema.sql                  # Định nghĩa bảng PERSON, trigger & 7 bản ghi mẫu
 ├── docs/
 │   └── uml/                        # Toàn bộ PlantUML (.puml) và ảnh sơ đồ (.png)
+├── test-data/
+│   ├── sample-data.sql             # Bộ dữ liệu mẫu 30 người / 5 thế hệ
+│   └── test-cases.md               # Bảng test case (mã, mô tả, dữ liệu vào, KQ mong đợi, KQ thực tế)
 ├── src/
     ├── main/
     │   ├── java/
@@ -101,6 +104,7 @@ do-an-gia-pha/
                 ├── service/        # FamilyTreeServiceTest
                 ├── controller/     # PersonControllerTest
                 ├── util/           # ImageManagerTest, PngWriterTest
+                ├── testdata/       # LargeSampleDataTest (bộ dữ liệu 30 người / 5 thế hệ)
                 └── view/           # AvatarFallbackTest, JavaFxViewTest (tag "javafx")
 ```
 
@@ -200,7 +204,7 @@ Chạy bằng `maven-surefire-plugin` — lệnh chuẩn là `mvn test`.
 > phải chứa đúng **7 bản ghi mẫu**. Nếu CSDL không sẵn sàng, các test đó được đánh dấu
 > `SKIPPED` kèm thông báo rõ ràng (không tính là `FAILED`).
 
-### 1. Chạy toàn bộ kiểm thử (98 test cases):
+### 1. Chạy toàn bộ kiểm thử (119 test cases):
 ```bash
 mvn clean test
 ```
@@ -208,6 +212,7 @@ mvn clean test
 |---------------|---------|---------|
 | `FamilyTreeServiceTest` | 44 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu |
 | `PersonControllerTest` | 25 | Điều phối View ↔ Service, xử lý exception, callback điều hướng |
+| `LargeSampleDataTest` | 21 | Bộ dữ liệu mẫu 30 người / 5 thế hệ (BR1–BR6, validation, ràng buộc CSDL) |
 | `DatabaseConnectionTest` | 6 | Kết nối MySQL, metadata, bảng `PERSON` |
 | `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
 | `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
@@ -258,9 +263,33 @@ danh sách / chi tiết / cây gia phả / form):
 ```bash
 mvn test -Dtest=FamilyTreeServiceTest
 mvn test -Dtest=PersonControllerTest#handleAddCreatesPerson
+mvn test -Dtest=LargeSampleDataTest
 ```
 
-### 4. Ghi chú về xung đột JPMS ↔ JUnit 5
+### 4. Bộ dữ liệu mẫu mở rộng (`test-data/`)
+
+Thư mục `test-data/` chứa **bộ dữ liệu kiểm thử thực tế**: 30 người / 5 thế hệ / 4 nhánh dòng họ.
+
+| File | Nội dung |
+|------|----------|
+| `test-data/sample-data.sql` | Script SQL tạo 30 bản ghi `PERSON` (thế hệ 1 năm 1850 → thế hệ 5 năm 1970) |
+| `test-data/test-cases.md` | Bảng test case đầy đủ: **mã, mô tả, dữ liệu vào, kết quả mong đợi, kết quả thực tế** + ma trận phủ BR1–BR6 |
+
+Bộ test tương ứng là `src/test/java/com/giapha/testdata/LargeSampleDataTest.java` (21 test case),
+tự tạo database riêng `gia_pha_test`, nạp `sample-data.sql` vào đó rồi xóa lại mỗi lần chạy —
+**không ảnh hưởng** dữ liệu mẫu 7 bản ghi của database chính `gia_pha`.
+
+```bash
+# Chạy riêng bộ test dữ liệu mẫu mở rộng
+mvn test -Dtest=LargeSampleDataTest
+
+# Nạp dữ liệu mẫu vào database chính để kiểm thử thủ công trên giao diện
+mysql -u root -p < test-data/sample-data.sql
+```
+> ⚠️ `sample-data.sql` **xoá toàn bộ** dữ liệu đang có trong bảng `PERSON`.
+> Khôi phục lại dữ liệu gốc: `mysql -u root -p < database/schema.sql`.
+
+### 5. Ghi chú về xung đột JPMS ↔ JUnit 5
 
 `src/main/java` có `module-info.java` (module `com.giapha`), còn `src/test/java` là test thuần
 JUnit 5 nằm ở "unnamed module". Để tránh lỗi JPMS chặn reflection của JUnit 5, `pom.xml` cấu hình:
@@ -301,5 +330,5 @@ Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
 - [x] **Cụm 6.2**: Xuất PNG (`Node.snapshot()` + `PngWriter` thuần `java.util.zip`) và In ấn (`javafx.print.PrinterJob`) — không thêm dependency, kết quả báo bằng `Alert`.
 - [x] **Cụm 6.3**: Nới validate năm sinh xuống `1000 <= birthYear <= Year.now()` (hằng số `FamilyTreeService.MIN_BIRTH_YEAR`).
 - [x] **Cụm 6.4**: Custom exception riêng cho BR2 (`SameParentException`) và BR6 (`InvalidParentGenderException`), thay `IllegalArgumentException`; thứ tự kiểm tra `BR1 → BR2 → BR6 → BR3`.
-- [x] **Cụm 6.5**: Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (98 test mặc định + 26 test tag `javafx`), tạo `src/test/java`, xử lý xung đột `module-info.java` bằng `useModulePath=false`.
-- [ ] **Cụm 6.6**: Bộ dữ liệu mẹ & bảng test case trong `test-data/`.
+- [x] **Cụm 6.5**: Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (119 test mặc định + 26 test tag `javafx`), tạo `src/test/java`, xử lý xung đột `module-info.java` bằng `useModulePath=false`.
+- [x] **Cụm 6.6**: Bộ dữ liệu mẹ & bảng test case trong `test-data/` — `sample-data.sql` (30 người / 5 thế hệ) + `test-cases.md` (21 test case có kết quả thực tế) + `LargeSampleDataTest` (21 test PASS).

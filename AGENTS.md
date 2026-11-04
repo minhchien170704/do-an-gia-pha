@@ -137,6 +137,8 @@ src/test/java/com/giapha
 ├── util/
 │   ├── ImageManagerTest.java          # 12 test — định dạng ảnh, copy, dọn file
 │   └── PngWriterTest.java             # 11 test — chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib
+├── testdata/
+│   └── LargeSampleDataTest.java       # 21 test — bộ dữ liệu mẫu 30 người / 5 thế hệ (DB riêng gia_pha_test)
 └── view/
     ├── AvatarFallbackTest.java        # 14 test (tag "javafx") — cơ chế fallback ảnh đại diện
     └── JavaFxViewTest.java            # 12 test (tag "javafx") — tích hợp UI → MySQL
@@ -148,6 +150,19 @@ src/test/java/com/giapha
 - Test phụ thuộc MySQL dùng `Assumptions.assumeTrue(...)` → nếu CSDL không sẵn sàng thì test được
   `SKIPPED` kèm thông báo (không tính là `FAILED`).
 - Test cần JavaFX Toolkit **phải** được gắn `@Tag("javafx")` để không chạy trong `mvn test` mặc định.
+- Bộ test dữ liệu mẫu mở rộng **phải** dùng database riêng `gia_pha_test` (tự tạo/xóa mỗi lần chạy),
+  không bao giờ ghi vào database chính `gia_pha`.
+
+### Bộ dữ liệu kiểm thử (`test-data/`)
+
+| File | Nội dung |
+|------|----------|
+| `test-data/sample-data.sql` | Script SQL tạo **30 bản ghi** `PERSON` — 5 thế hệ (1850 → 1970), 4 nhánh dòng họ |
+| `test-data/test-cases.md` | Bảng test case: **mã, mô tả, dữ liệu vào, kết quả mong đợi, kết quả thực tế** + ma trận phủ BR1–BR6 |
+
+Bộ test tương ứng: `src/test/java/com/giapha/testdata/LargeSampleDataTest.java` — nạp trực tiếp
+`test-data/sample-data.sql` vào database `gia_pha_test` nên dữ liệu mẫu và bảng test case
+luôn đồng bộ.
 
 ---
 
@@ -232,7 +247,7 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 98 test cases):
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 119 test cases):
 ```bash
 mvn clean test
 ```
@@ -278,6 +293,20 @@ JUnit 5 nằm ở "unnamed module". Để tránh lỗi JPMS chặn reflection c�
 mvn test -Dtest=FamilyTreeServiceTest
 mvn test -Dtest=PersonControllerTest#handleAddCreatesPerson
 ```
+
+### Bộ dữ liệu mẫu mở rộng (`test-data/`)
+```bash
+# Chạy bộ test trên bộ dữ liệu 30 người / 5 thế hệ (tự tạo DB riêng gia_pha_test)
+mvn test -Dtest=LargeSampleDataTest
+
+# Nạp dữ liệu mẫu vào database chính để kiểm thử thủ công trên giao diện
+mysql -u root -p < test-data/sample-data.sql
+```
+> ⚠️ `sample-data.sql` **xoá toàn bộ** dữ liệu đang có trong bảng `PERSON` (kể cả 7 bản ghi mẫu
+> nguyên bản của `database/schema.sql`). Khôi phục: `mysql -u root -p < database/schema.sql`.
+>
+> Bảng test case đầy đủ (mã / mô tả / dữ liệu vào / kết quả mong đợi / kết quả thực tế) nằm trong
+> `test-data/test-cases.md`.
 
 ---
 
