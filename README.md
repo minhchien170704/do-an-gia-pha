@@ -200,11 +200,13 @@ Kết quả thực hiện (thành công / thất bại / không tìm thấy máy
 Toàn bộ kiểm thử tự động dùng **JUnit 5** và nằm trong `src/test/java`.
 Chạy bằng `maven-surefire-plugin` — lệnh chuẩn là `mvn test`.
 
-> ⚠️ **Điều kiện tiên quyết cho các test phụ thuộc CSDL**: MySQL phải đang chạy và bảng `PERSON`
-> phải chứa đúng **7 bản ghi mẫu**. Nếu CSDL không sẵn sàng, các test đó được đánh dấu
-> `SKIPPED` kèm thông báo rõ ràng (không tính là `FAILED`).
+> ⚠️ **Điều kiện tiên quyết cho các test phụ thuộc CSDL**: MySQL phải đang chạy. Các test dùng
+> database **riêng** (tên kết thúc bằng `_test`) được **tự động tạo ở `@BeforeAll`** và
+> **tự động xóa ở `@AfterAll`** — database chính `gia_pha` **không bao giờ** bị test ghi vào.
+> Nếu CSDL không sẵn sàng, các test đó được đánh dấu `SKIPPED` kèm thông báo rõ ràng
+> (không tính là `FAILED`).
 
-### 1. Chạy toàn bộ kiểm thử (120 test cases):
+### 1. Chạy toàn bộ kiểm thử (121 test cases):
 ```bash
 mvn clean test
 ```
@@ -213,9 +215,36 @@ mvn clean test
 | `FamilyTreeServiceTest` | 44 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu |
 | `PersonControllerTest` | 25 | Điều phối View ↔ Service, xử lý exception, callback điều hướng |
 | `LargeSampleDataTest` | 22 | Bộ dữ liệu mẫu 30 người / 5 thế hệ (BR1–BR6, validation, ràng buộc CSDL, an toàn DROP DB) |
-| `DatabaseConnectionTest` | 6 | Kết nối MySQL, metadata, bảng `PERSON` |
+| `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
 | `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
 | `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
+
+> **Giải thích lệch số liệu "142" vs "121":** nếu bạn cộng tay từng dòng log Surefire
+> (25 + 7 + 44 + 0 + 22 + 12 + 11) thì ra **121**, không phải 142. Con số 142 xuất hiện
+> khi **báo cáo cũ** tự cộng thêm một dòng "22 test — FamilyTreeServiceTest (phần lồng)"
+> *cùng* với dòng `FamilyTreeServiceTest$DataIsolation` đã chứa 44 test — tức là cộng
+> trùng các test của lớp lồng `@Nested`.
+>
+> Cơ chế thật (đã kiểm chứng bằng file `target/surefire-reports/TEST-*.xml`):
+> - `FamilyTreeServiceTest` khai báo **43** `@Test` ở thân lớp + **1** `@Test` trong
+>   lớp lồng `@Nested DataIsolation` → **44** test thực thi.
+> - Surefire ghi **hai** dòng log cho cùng một lớp:
+>   `... -- in com.giapha.service.FamilyTreeServiceTest$DataIsolation` (44 test, chứa
+>   cả 43 test thân lớp lẫn 1 test lồng — kiểm chứng qua `classname` trong XML),
+>   và `... -- in com.giapha.service.FamilyTreeServiceTest` (0 test, vì mọi test đã
+>   được gán cho container lồng).
+> - Dòng `Tests run: 0 ... FamilyTreeServiceTest` là **vỏ rỗng**, không phải test bị mất.
+>
+> Vì vậy **chỉ dòng tổng cuối cùng** mới là con số chuẩn xác, và đó là những gì
+> Surefire thực sự thực thi (không đếm trùng):
+>
+> ```
+> [INFO] Results:
+> [INFO] Tests run: 121, Failures: 0, Errors: 0, Skipped: 0
+> [INFO] BUILD SUCCESS
+> ```
+>
+> Dòng tổng này **không** bao gồm 26 test tag `javafx` (chạy riêng qua `mvn test -Pjavafx-tests`).
 
 ### 2. Chạy riêng các test cần JavaFX Toolkit (tag `javafx` — 26 test cases):
 ```bash
@@ -227,8 +256,8 @@ mvn test -Pjavafx-tests -Dtest=JavaFxViewTest
 mvn test -Pjavafx-tests -Dtest=AvatarFallbackTest
 ```
 
-> ⚠️ **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng **7 bản ghi mẫu**
-> trước khi chạy. Nếu không đủ điều kiện, toàn bộ lớp test được `SKIPPED`.
+> ⚠️ **Điều kiện tiên quyết**: MySQL phải đang chạy. Database test riêng `gia_pha_javafx_test`
+> được tự động tạo/xóa. Nếu không đủ điều kiện, toàn bộ lớp test được `SKIPPED`.
 
 **`AvatarFallbackTest` (14 test)** — kiểm tra component `PersonAvatar` (ảnh đại diện dùng chung cho
 danh sách / chi tiết / cây gia phả / form):
