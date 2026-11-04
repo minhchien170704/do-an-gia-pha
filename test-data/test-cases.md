@@ -8,9 +8,10 @@ gia phả có quy mô thực tế (30 người, 5 thế hệ, 4 nhánh dòng h�
 |---|---|
 | File dữ liệu SQL | [`sample-data.sql`](./sample-data.sql) |
 | Bộ test JUnit 5 tương ứng | `src/test/java/com/giapha/testdata/LargeSampleDataTest.java` |
-| Database riêng dùng cho test | `gia_pha_test` (tự động tạo & xóa lại mỗi lần chạy) |
+| Database riêng dùng cho test | `gia_pha_test` (tự động tạo ở đầu, tự động DROP ở cuối) |
 | Lệnh chạy | `mvn test -Dtest=LargeSampleDataTest` |
-| Kết quả | **21/21 test case PASS** |
+| Giữ lại DB test để debug | `mvn test -Dtest=LargeSampleDataTest -Dkeep.test.db=true` |
+| Kết quả | **22/22 test case PASS** |
 
 ---
 
@@ -124,8 +125,12 @@ Thế hệ 5 (1960 – 1970)                8 người
 | TC-18 | Gỡ quan hệ cha/mẹ rồi mới xóa được | `clearFather(23)`, `clearFather(24)` → `deletePerson(15)` | Xóa thành công | Đã xóa khỏi DB | PASS |
 | TC-19 | Ràng buộc CHECK của CSDL chặn năm sinh không hợp lệ | `INSERT ... birth_year = 500` (bỏ qua tầng Service) | CSDL từ chối (SQLException) | `SQLException`: CONSTRAINT `chk_birth_year` failed for `gia_pha_test`.`person` | PASS |
 | TC-20 | Trigger CSDL chặn tự làm cha/mẹ chính mình | `UPDATE PERSON SET father_id = id WHERE id = 23` | CSDL từ chối (SQLException) | `SQLException`: Một người không thể là cha hoặc mẹ của chính mình | PASS |
+| TC-21a | **An toàn DROP** — assertSafeToDrop("gia_pha_test") | Tên DB kết thúc bằng `_test` | Không ném exception | Không ném exception | PASS |
+| TC-21b | **An toàn DROP** — assertSafeToDrop("gia_pha") | Tên database CHÍNH | Ném `IllegalStateException` | "Từ chối DROP database \"gia_pha\": tên database bắt buộc phải kết thúc bằng \"_test\" để bảo đảm không xóa nhầm dữ liệu chính." | PASS |
+| TC-21c | **An toàn DROP** — assertSafeToDrop("") và (null) | Tên rỗng / null | Ném `IllegalStateException` | Cả hai đều ném IllegalStateException | PASS |
+| TC-21d | **An toàn DROP** — assertSafeToDrop("test_gia_pha") | Chứa `_test` ở giữa nhưng không kết thúc | Ném `IllegalStateException` | Ném IllegalStateException | PASS |
 
-**Tổng kết: 21 test case — 21 PASS, 0 FAIL.**
+**Tổng kết: 22 test case — 22 PASS, 0 FAIL.**
 
 ---
 
@@ -144,6 +149,7 @@ Thế hệ 5 (1960 – 1970)                8 người
 | **Truy vấn** | Tổ tiên / hậu duệ / tìm kiếm | TC-03, TC-04, TC-14, TC-14b | PASS |
 | **CRUD** | Thêm / xóa / gỡ quan hệ | TC-11, TC-17, TC-18 | PASS |
 | **CSDL** | CHECK constraint + Trigger bảo vệ ở tầng DB | TC-19, TC-20 | PASS |
+| **An toàn** | Ràng buộc DROP chỉ database kết thúc bằng `_test` | TC-21a…TC-21d | PASS |
 
 ---
 
@@ -171,13 +177,23 @@ mysql -u root -p < test-data/sample-data.sql
 # Chỉ bộ test dữ liệu mẫu mở rộng
 mvn test -Dtest=LargeSampleDataTest
 
+# Giữ lại database test (gia_pha_test) sau khi chạy để debug trực tiếp
+mvn test -Dtest=LargeSampleDataTest -Dkeep.test.db=true
+
 # Toàn bộ bộ test mặc định (gồm cả LargeSampleDataTest)
 mvn clean test
 ```
 
-Bộ test này **tự tạo database riêng `gia_pha_test`** (schema giống hệt
-`database/schema.sql`), nạp `sample-data.sql` vào đó, rồi **xoá database đó**
-ở đầu mỗi lần chạy. Nhờ vậy dữ liệu mẫu 7 bản ghi của database chính `gia_pha`
+**Vòng đời database test:**
+1. `@BeforeAll` → `DROP DATABASE IF EXISTS` + `CREATE DATABASE gia_pha_test` (làm mới hoàn toàn mỗi lần chạy).
+2. `@AfterAll` → mặc định **DROP** database test; nếu truyền `-Dkeep.test.db=true` thì **giữ lại**.
+
+**Ràng buộc an toàn:** trước khi DROP, hàm `assertSafeToDrop()` kiểm tra tên database
+bắt buộc phải **kết thúc bằng `_test`**. Nếu không khớp (ví dụ `gia_pha`), hàm ném
+`IllegalStateException` và **không** thực hiện DROP — đảm bảo không bao giờ xóa nhầm
+database chính `gia_pha`.
+
+Nhờ các ràng buộc trên, dữ liệu mẫu 7 bản ghi của database chính `gia_pha`
 **không bị ảnh hưởng**.
 
 ### 4.3. Quy ước khi thêm test case mới

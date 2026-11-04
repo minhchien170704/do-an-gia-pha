@@ -138,7 +138,7 @@ src/test/java/com/giapha
 │   ├── ImageManagerTest.java          # 12 test — định dạng ảnh, copy, dọn file
 │   └── PngWriterTest.java             # 11 test — chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib
 ├── testdata/
-│   └── LargeSampleDataTest.java       # 21 test — bộ dữ liệu mẫu 30 người / 5 thế hệ (DB riêng gia_pha_test)
+│   └── LargeSampleDataTest.java       # 22 test — bộ dữ liệu mẫu 30 người / 5 thế hệ (DB riêng gia_pha_test)
 └── view/
     ├── AvatarFallbackTest.java        # 14 test (tag "javafx") — cơ chế fallback ảnh đại diện
     └── JavaFxViewTest.java            # 12 test (tag "javafx") — tích hợp UI → MySQL
@@ -152,6 +152,9 @@ src/test/java/com/giapha
 - Test cần JavaFX Toolkit **phải** được gắn `@Tag("javafx")` để không chạy trong `mvn test` mặc định.
 - Bộ test dữ liệu mẫu mở rộng **phải** dùng database riêng `gia_pha_test` (tự tạo/xóa mỗi lần chạy),
   không bao giờ ghi vào database chính `gia_pha`.
+- **Ràng buộc an toàn khi DROP database test**: tên database bắt buộc phải **kết thúc bằng `_test`**.
+  Hàm `assertSafeToDrop()` trong `LargeSampleDataTest` kiểm tra điều này và **ném `IllegalStateException`
+  + không DROP** nếu tên không khớp. Được phép giữ lại DB test bằng cờ `-Dkeep.test.db=true`.
 
 ### Bộ dữ liệu kiểm thử (`test-data/`)
 
@@ -247,7 +250,7 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 119 test cases):
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 120 test cases):
 ```bash
 mvn clean test
 ```
@@ -298,6 +301,9 @@ mvn test -Dtest=PersonControllerTest#handleAddCreatesPerson
 ```bash
 # Chạy bộ test trên bộ dữ liệu 30 người / 5 thế hệ (tự tạo DB riêng gia_pha_test)
 mvn test -Dtest=LargeSampleDataTest
+
+# Giữ lại DB test để debug trực tiếp (mặc định là tự DROP sau khi chạy)
+mvn test -Dtest=LargeSampleDataTest -Dkeep.test.db=true
 
 # Nạp dữ liệu mẫu vào database chính để kiểm thử thủ công trên giao diện
 mysql -u root -p < test-data/sample-data.sql

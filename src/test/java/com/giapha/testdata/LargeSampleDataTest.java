@@ -12,6 +12,7 @@ import com.giapha.model.Person;
 import com.giapha.repository.JdbcPersonRepository;
 import com.giapha.service.FamilyTreeService;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.MethodOrderer;
@@ -33,7 +34,9 @@ import java.time.Year;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -59,6 +62,20 @@ public class LargeSampleDataTest {
     /** Tên database riêng dùng cho bộ test này. */
     private static final String TEST_DB_NAME = "gia_pha_test";
 
+    /**
+     * Hậu tố bắt buộc của database test.
+     * <p>Ràng buộc an toàn: chỉ database có tên KẾT THÚC bằng hậu tố này mới được
+     * phép DROP. Mọi tên khác bị từ chối và báo lỗi — để không bao giờ xóa nhầm
+     * database chính {@code gia_pha}.
+     */
+    private static final String REQUIRED_DB_SUFFIX = "_test";
+
+    /**
+     * System property cho phép giữ lại database test sau khi chạy xong.
+     * <p>Đặt bằng {@code -Dkeep.test.db=true} (mặc định là {@code false} → tự DROP).
+     */
+    private static final String KEEP_DB_PROPERTY = "keep.test.db";
+
     private static final String TEST_DB_URL =
             "jdbc:mysql://localhost:3306/" + TEST_DB_NAME
                     + "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
@@ -76,7 +93,7 @@ public class LargeSampleDataTest {
     // ============================================================
 
     /**
-     * Repository trỏ tới database riêng của bộ test, mỗi lần gọi tạo Connection mới.
+     * Repository trừ tới database riêng của bộ test, mỗi lần gọi tạo Connection mới.
      * Việc ghi đè {@code getConnection()} tránh việc dùng chung database chính.
      */
     private static final class TestRepo extends JdbcPersonRepository {
@@ -87,9 +104,46 @@ public class LargeSampleDataTest {
         }
     }
 
+    /**
+     * Kiểm tra an toàn trước khi DROP bất kỳ database nào.
+     *
+     * <p>Chỉ chấp nhận tên database KẾT THÚC bằng {@value #REQUIRED_DB_SUFFIX}
+     * (ví dụ {@code gia_pha_test}). Nếu không khớp → ném {@link IllegalStateException}
+     * và KHÔNG thực hiện DROP.
+     *
+     * @param dbName tên database cần kiểm tra
+     * @throws IllegalStateException nếu tên database không kết thúc bằng hậu tố bắt buộc
+     */
+    private static void assertSafeToDrop(String dbName) {
+        if (dbName == null || dbName.trim().isEmpty()) {
+            throw new IllegalStateException(
+                    "Từ chối DROP database: tên database rỗng. "
+                            + "Chỉ được DROP database có tên kết thúc bằng \"" + REQUIRED_DB_SUFFIX + "\".");
+        }
+
+        String normalized = dbName.trim();
+        if (!normalized.toLowerCase(Locale.ROOT).endsWith(REQUIRED_DB_SUFFIX)) {
+            throw new IllegalStateException(
+                    "Từ chối DROP database \"" + normalized + "\": tên database bắt buộc phải kết thúc bằng \""
+                            + REQUIRED_DB_SUFFIX + "\" để bảo đảm không xóa nhầm dữ liệu chính.");
+        }
+    }
+
+    /**
+     * Kiểm tra người dùng có yêu cầu giữ lại database test hay không.
+     *
+     * @return true nếu cần giữ lại (không DROP)
+     */
+    private static boolean shouldKeepTestDatabase() {
+        return Boolean.parseBoolean(System.getProperty(KEEP_DB_PROPERTY, "false"));
+    }
+
     @BeforeAll
     static void setup() throws Exception {
-        // 1. Tạo database riêng
+        // 0. Kiểm tra an toàn TRƯỚC khi DROP (ràng buộc bắt buộc)
+        assertSafeToDrop(TEST_DB_NAME);
+
+        // 1. Tạo database riêng — DROP + CREATE ở đầu mỗi lần chạy
         String rootUrl = "jdbc:mysql://localhost:3306/?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
         try (Connection conn = DriverManager.getConnection(rootUrl,
                 DatabaseConnection.getUser(), DatabaseConnection.getPassword());
@@ -173,6 +227,48 @@ public class LargeSampleDataTest {
                 }
                 stmt.execute(sql);
             }
+        }
+    }
+
+    /**
+     * Dọn dẹp sau khi toàn bộ test case đã chạy xong.
+     *
+     * <p>Hành vi:
+     * <ul>
+     *     <li>Nếu {@code -Dkeep.test.db=true} → GIỮ LẠI database test, chỉ in thông báo.</li>
+     *     <li>Nếu không → kiểm tra an toàn {@link #assertSafeToDrop(String)} rồi DROP database test.</li>
+     * </ul>
+     *
+     * <p>Việc kiểm tra an toàn được thực hiện LẠI ở đây (không chỉ ở {@code @BeforeAll})
+     * để bảo đảm không có đường nào gây DROP nhầm database chính {@code gia_pha},
+     * kể cả khi {@code TEST_DB_NAME} bị thay đổi trong tương lai.
+     */
+    @AfterAll
+    static void tearDown() {
+        if (shouldKeepTestDatabase()) {
+            System.out.println("[LargeSampleDataTest] Giữ lại database test \"" + TEST_DB_NAME
+                    + "\" (do -D" + KEEP_DB_PROPERTY + "=true).");
+            return;
+        }
+
+        try {
+            // Kiểm tra an toàn — ném IllegalStateException nếu tên DB không kết thúc bằng "_test"
+            assertSafeToDrop(TEST_DB_NAME);
+
+            String rootUrl = "jdbc:mysql://localhost:3306/?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+            try (Connection conn = DriverManager.getConnection(rootUrl,
+                    DatabaseConnection.getUser(), DatabaseConnection.getPassword());
+                 Statement stmt = conn.createStatement()) {
+                stmt.executeUpdate("DROP DATABASE IF EXISTS " + TEST_DB_NAME);
+            }
+            System.out.println("[LargeSampleDataTest] Đã DROP database test \"" + TEST_DB_NAME + "\".");
+        } catch (IllegalStateException e) {
+            // Tên DB không an toàn → báo lỗi rõ ràng, KHÔNG DROP
+            System.err.println("[LargeSampleDataTest] LỖI AN TOÀN: " + e.getMessage());
+            throw e;
+        } catch (SQLException e) {
+            System.err.println("[LargeSampleDataTest] Không thể DROP database test \"" + TEST_DB_NAME
+                    + "\": " + e.getMessage());
         }
     }
 
@@ -487,6 +583,33 @@ public class LargeSampleDataTest {
         RESULTS.add(new String[]{code, description, expected, actual, passed ? "PASS" : "FAIL"});
         System.out.printf("| %s | %s | %s | %s | %s |%n",
                 code, description, expected, actual, passed ? "PASS" : "FAIL");
+    }
+
+    @Test
+    @Order(21)
+    @DisplayName("TC-21: An toàn DROP — chỉ chấp nhận tên DB kết thúc bằng \"_test\"")
+    void tc21_safeDropGuard() {
+        // 1. Tên hợp lệ → không ném exception
+        assertDoesNotThrow(() -> assertSafeToDrop("gia_pha_test"));
+        record("TC-21a", "assertSafeToDrop(\"gia_pha_test\") — tên hợp lệ",
+                "Không ném exception", "Không ném exception", true);
+
+        // 2. Tên database CHÍNH → phải bị từ chối
+        String message = assertThrows(IllegalStateException.class,
+                () -> assertSafeToDrop("gia_pha")).getMessage();
+        record("TC-21b", "assertSafeToDrop(\"gia_pha\") — tên database chính",
+                "Ném IllegalStateException", message, true);
+
+        // 3. Tên rỗng / null → phải bị từ chối
+        assertThrows(IllegalStateException.class, () -> assertSafeToDrop(""));
+        assertThrows(IllegalStateException.class, () -> assertSafeToDrop(null));
+        record("TC-21c", "assertSafeToDrop(\"\") và assertSafeToDrop(null)",
+                "Ném IllegalStateException", "Cả hai đều ném IllegalStateException", true);
+
+        // 4. Tên chứa "_test" ở giữa nhưng không kết thúc → vẫn phải bị từ chối
+        assertThrows(IllegalStateException.class, () -> assertSafeToDrop("test_gia_pha"));
+        record("TC-21d", "assertSafeToDrop(\"test_gia_pha\") — chứa \"_test\" nhưng không kết thúc",
+                "Ném IllegalStateException", "Ném IllegalStateException", true);
     }
 
     /**

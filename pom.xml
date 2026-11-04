@@ -18,6 +18,11 @@
         <mysql.version>9.2.0</mysql.version>
         <junit.version>5.10.2</junit.version>
         <surefire.version>3.2.5</surefire.version>
+        <!--
+            keep.test.db: giữ lại database test tạm (gia_pha_test) sau khi chạy xong,
+            thay vì tự động DROP. Chạy: mvn test -Dkeep.test.db=true
+        -->
+        <keep.test.db>false</keep.test.db>
     </properties>
 
     <dependencies>
@@ -99,6 +104,8 @@
                     <useModulePath>false</useModulePath>
                     <systemPropertyVariables>
                         <java.awt.headless>true</java.awt.headless>
+                        <!-- Cho phép giữ lại DB test tạm: mvn test -Dkeep.test.db=true -->
+                        <keep.test.db>${keep.test.db}</keep.test.db>
                     </systemPropertyVariables>
                     <includes>
                         <include>**/*Test.java</include>
@@ -139,6 +146,7 @@
                             <useModulePath>false</useModulePath>
                             <systemPropertyVariables>
                                 <java.awt.headless>true</java.awt.headless>
+                                <keep.test.db>${keep.test.db}</keep.test.db>
                             </systemPropertyVariables>
                             <includes>
                                 <include>**/*Test.java</include>
