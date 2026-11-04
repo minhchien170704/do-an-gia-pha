@@ -242,15 +242,15 @@ public class FamilyTreeServiceTest {
         }
 
         // ----------------------------------------------------
-        // TC03 & TC04: addPerson với birthYear sai (<= 1900 và > năm hiện tại) -> InvalidBirthYearException
+        // TC03 & TC04: addPerson với birthYear sai (< 1000 và > năm hiện tại) -> InvalidBirthYearException
         // ----------------------------------------------------
         try {
-            boolean caught1800 = false;
+            boolean caughtTooOld = false;
             try {
-                Person pPast = new Person("Test Năm Sinh Cũ", 1800, com.giapha.model.Gender.MALE, null);
+                Person pPast = new Person("Test Năm Sinh Quá Cũ", 999, com.giapha.model.Gender.MALE, null);
                 service.addPerson(pPast);
             } catch (InvalidBirthYearException e) {
-                caught1800 = true;
+                caughtTooOld = true;
             }
 
             boolean caughtFuture = false;
@@ -262,13 +262,47 @@ public class FamilyTreeServiceTest {
                 caughtFuture = true;
             }
 
-            if (caught1800 && caughtFuture) {
-                pass("TC03 - TC04: addPerson với birthYear sai", "Bắt đúng InvalidBirthYearException khi birthYear = 1800 và birthYear = " + nextYear);
+            if (caughtTooOld && caughtFuture) {
+                pass("TC03 - TC04: addPerson với birthYear sai", "Bắt đúng InvalidBirthYearException khi birthYear = 999 và birthYear = " + nextYear);
             } else {
-                fail("TC03 - TC04: addPerson với birthYear sai", "Không bắt đủ InvalidBirthYearException: 1800=" + caught1800 + ", future=" + caughtFuture);
+                fail("TC03 - TC04: addPerson với birthYear sai", "Không bắt đủ InvalidBirthYearException: 999=" + caughtTooOld + ", future=" + caughtFuture);
             }
         } catch (Exception e) {
             fail("TC03 - TC04: addPerson với birthYear sai", "Ném sai loại ngoại lệ: " + e.getClass().getName());
+        }
+
+        // ----------------------------------------------------
+        // TC03B: birthYear hợp lệ ở biên dưới (1000) và biên trên (năm hiện tại) -> SUCCESS
+        // ----------------------------------------------------
+        Person boundaryLower = null;
+        Person boundaryUpper = null;
+        try {
+            int currentYear = java.time.Year.now().getValue();
+            boundaryLower = service.addPerson(
+                    new Person("Test Năm Sinh Biên Dưới", 1000, com.giapha.model.Gender.MALE, null));
+            boundaryUpper = service.addPerson(
+                    new Person("Test Năm Sinh Biên Trên", currentYear, com.giapha.model.Gender.FEMALE, null));
+
+            pass("TC03B: addPerson với birthYear ở biên hợp lệ",
+                    "Chấp nhận birthYear = 1000 và birthYear = " + currentYear);
+        } catch (Exception e) {
+            fail("TC03B: addPerson với birthYear ở biên hợp lệ", "Không chấp nhận năm sinh hợp lệ: " + e.getMessage());
+        } finally {
+            // Cleanup: xóa 2 bản ghi thử nghiệm để giữ nguyên trạng thái 7 bản ghi mẫu
+            if (boundaryUpper != null && boundaryUpper.getId() > 0) {
+                try {
+                    service.deletePerson(boundaryUpper.getId());
+                } catch (Exception cleanupEx) {
+                    System.err.println("[CLEANUP WARNING] Không thể xóa person test TC03B (biên trên): " + cleanupEx.getMessage());
+                }
+            }
+            if (boundaryLower != null && boundaryLower.getId() > 0) {
+                try {
+                    service.deletePerson(boundaryLower.getId());
+                } catch (Exception cleanupEx) {
+                    System.err.println("[CLEANUP WARNING] Không thể xóa person test TC03B (biên dưới): " + cleanupEx.getMessage());
+                }
+            }
         }
 
         // ----------------------------------------------------

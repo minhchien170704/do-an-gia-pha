@@ -15,6 +15,14 @@ import java.util.*;
  */
 public class FamilyTreeService {
 
+    /**
+     * Năm sinh tối thiểu được chấp nhận.
+     *
+     * <p>Được nới lỏng từ 1900 xuống 1000 để phục vụ các bộ dữ liệu gia phả
+     * lịch sử (ví dụ dữ liệu mẫu 4–5 thế hệ trong {@code test-data/}).
+     */
+    public static final int MIN_BIRTH_YEAR = 1000;
+
     private final PersonRepository personRepository;
 
     /**
@@ -372,9 +380,9 @@ public class FamilyTreeService {
         }
 
         int currentYear = Year.now().getValue();
-        if (person.getBirthYear() <= 1900 || person.getBirthYear() > currentYear) {
+        if (person.getBirthYear() < MIN_BIRTH_YEAR || person.getBirthYear() > currentYear) {
             throw new InvalidBirthYearException("Năm sinh không hợp lệ: " + person.getBirthYear()
-                    + " (phải > 1900 và <= " + currentYear + ")");
+                    + " (phải >= " + MIN_BIRTH_YEAR + " và <= " + currentYear + ")");
         }
 
         if (person.getGender() == null) {

@@ -145,7 +145,7 @@ com.giapha
 Mỗi khi tạo mới (`addPerson`) hoặc cập nhật (`updatePerson`), đối tượng `Person` phải vượt qua các điều kiện:
 1. `person != null`
 2. `fullName != null`, `fullName.trim()` không rỗng, độ dài từ 1 đến 100 ký tự.
-3. `birthYear > 1900` và `birthYear <= Year.now().getValue()` (nếu vi phạm ném `InvalidBirthYearException`).
+3. `birthYear >= 1000` và `birthYear <= Year.now().getValue()` (nếu vi phạm ném `InvalidBirthYearException`). Hằng số `FamilyTreeService.MIN_BIRTH_YEAR = 1000` là nguồn sự thật duy nhất — không hard-code `1900`/`1000` ở nơi khác.
 4. `gender != null`.
 5. `photoPath`: tùy chọn, cho phép `null` hoặc chuỗi rỗng.
 
@@ -161,7 +161,7 @@ Mỗi khi tạo mới (`addPerson`) hoặc cập nhật (`updatePerson`), đối
   - `photo_path VARCHAR(255) NULL`
   - `father_id INT NULL` (FK tới `PERSON(id)` ON DELETE RESTRICT)
   - `mother_id INT NULL` (FK tới `PERSON(id)` ON DELETE RESTRICT)
-  - CHECK `chk_birth_year`: `birth_year > 1900 AND birth_year <= 2100`
+  - CHECK `chk_birth_year`: `birth_year >= 1000 AND birth_year <= 2100`
   - CHECK `chk_father_not_mother`: `father_id IS NULL OR mother_id IS NULL OR father_id <> mother_id`
   - TRIGGER `trg_check_not_self_parent_update`: Ngăn chặn `father_id = id` hoặc `mother_id = id` ở tầng DB.
 - **Dữ liệu mẫu**: Gồm 7 bản ghi đại diện cho 4 thế hệ (`Nguyễn Văn Tổ`, `Trần Thị Tổ` $\rightarrow$ `Nguyễn Văn Cha`, `Lê Thị Mẹ` $\rightarrow$ `Nguyễn Văn Con`, `Phạm Thị Dâu` $\rightarrow$ `Nguyễn Văn Cháu`).

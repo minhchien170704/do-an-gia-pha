@@ -31,7 +31,7 @@ CREATE TABLE PERSON (
     -- MySQL/MariaDB yêu cầu biểu thức CHECK phải mang tính xác định (deterministic),
     -- do đó không được dùng hàm CURDATE()/NOW() trong CHECK.
     CONSTRAINT chk_birth_year
-        CHECK (birth_year > 1900 AND birth_year <= 2100),
+        CHECK (birth_year >= 1000 AND birth_year <= 2100),
 
     CONSTRAINT chk_father_not_mother
         CHECK (

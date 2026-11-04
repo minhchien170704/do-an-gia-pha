@@ -104,6 +104,11 @@ do-an-gia-pha/
 5. **BR5 — Parent Birth Year**: Cảnh báo nếu năm sinh cha/mẹ lớn hơn hoặc bằng năm sinh con (Warning only).
 6. **BR6 — Gender Role**: Cha bắt buộc là `Gender.MALE`, Mẹ bắt buộc là `Gender.FEMALE` (`IllegalArgumentException`).
 
+**Ràng buộc năm sinh**: `1000 <= birthYear <= Year.now().getValue()`.
+Hằng số `FamilyTreeService.MIN_BIRTH_YEAR = 1000` là nguồn sự thật duy nhất ở tầng Service;
+ràng buộc tương ứng ở tầng CSDL là `CHECK (birth_year >= 1000 AND birth_year <= 2100)`.
+Việc nới lỏng này nhằm phục vụ các bộ dữ liệu gia phả lịch sử nhiều thế hệ (xem `test-data/`).
+
 ---
 
 ## 7. Cài Đặt Cơ Sở Dữ Liệu (Database Setup)
