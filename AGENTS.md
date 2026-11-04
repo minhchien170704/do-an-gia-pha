@@ -115,7 +115,6 @@ com.giapha
     ├── PersonAvatar.java              # Component ảnh đại diện dùng chung (bo tròn + fallback)
     ├── PersonDetailView.java          # Màn hình chi tiết hồ sơ cá nhân
     ├── PersonFormView.java            # Form thêm / sửa thành viên
-    └── SampleData.java                # Dữ liệu mẫu phục vụ kiểm thử UI độc lập
 ```
 
 ### Cấu trúc kiểm thử (`src/test/java`)

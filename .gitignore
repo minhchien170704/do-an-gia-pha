@@ -1,15 +1,30 @@
-# Target build output
+# ===== Build output =====
 target/
 *.class
 *.jar
 *.war
 *.ear
 
-# Logs and runtime files
+# ===== Log & runtime files =====
 *.log
+run.log
+run.err
+run.out
 hs_err_pid*
 replay_pid*
 
+# ===== Local environment / secrets =====
+.env
+.env.*
+*.local
+!.env.example
+
+# Ảnh đại diện người dùng (được copy vào lúc runtime, không commit)
+# Dùng "/images/" để chỉ áp dụng cho thư mục gốc, KHÔNG ảnh hưởng
+# src/main/resources/images/ (chứa icon tĩnh + .gitkeep).
+/images/
+
+# ===== IDE =====
 # IntelliJ IDEA
 .idea/
 *.iml
@@ -34,18 +49,14 @@ nbbuild/
 dist/
 nbdist/
 
-# OS specific files
+# ===== OS specific files =====
 .DS_Store
 Thumbs.db
+ehthumbs.db
 desktop.ini
+$RECYCLE.BIN/
 
-# Local environment
-.env
-*.local
-
-# Ảnh đại diện người dùng (được copy vào lúc runtime, không commit)
-images/
-
-# Log runtime khi chạy ứng dụng (mvn javafx:run)
-run.log
-run.err
+# ===== Editor / temp files =====
+*.tmp
+*.swp
+*~
