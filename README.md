@@ -339,23 +339,61 @@ PersonRepository  ← interface (Data Access)
        ↓
 JdbcPersonRepository (Data Access Implementation)
        ↓
-DatabaseConnection (JDBC Factory)
+DatabaseConnection (Static Factory)
        ↓
 MySQL / MariaDB
 ```
 
 ### 6.2. Các hình mẫu thiết kế đã dùng
 
-| Hình mẫu | Thể hiện ở đâu | Chi tiết |
-|---|---|---|
-| **Layered Architecture / MVC** | Toàn bộ package `com.giapha.*` | View → Controller → Service → Repository → Database. Mỗi tầng chỉ biết tầng ngay dưới nó. |
-| **Separation of Concerns** | Tách `view` / `controller` / `service` / `repository` / `database` | View chỉ hiển thị & bắt sự kiện; Service chỉ chứa quy tắc nghiệp vụ; Repository chỉ lo truy cập dữ liệu. |
-| **Dependency Inversion (SOLID)** | `FamilyTreeService` phụ thuộc `PersonRepository` (interface) | Service **không** import `JdbcPersonRepository`, `DatabaseConnection`, `Connection`, `PreparedStatement`, `ResultSet` hay bất kỳ JDBC API nào. Thay thế triển khai CSDL không cần sửa Service. |
-| **Repository Pattern** | `PersonRepository` + `JdbcPersonRepository` | Ẩn hoàn toàn SQL sau abstraction `findById` / `findAll` / `search` / `save` / `update` / `delete`. |
-| **Factory (JDBC Factory)** | `DatabaseConnection.getConnection()` | Trả về **Connection mới** mỗi lần gọi; không dùng static connection dài hạn. Caller đóng kết nối bằng try-with-resources. |
-| **Strategy cấu hình** | `DatabaseConnection.getUrl/getUser/getPassword` | Thứ tự ưu tiên System property → Environment variable → mặc định. Không hard-code mật khẩu. |
-| **Custom Exception** | `com.giapha.exception.*` | Mỗi BR có exception riêng → tầng Controller bắt và hiển thị thông báo tiếng Việt rõ ràng, không văng stack trace ra UI. |
-| **Data Access Object mở rộng (test)** | `TestPersonRepository` (chỉ trong test) | Ghi đè `getConnection()` để trỏ database test — cô lập dữ liệu tuyệt đối. |
+Bảng dưới liệt kê **chỉ những mẫu có bằng chứng trực tiếp trong mã nguồn** — mỗi dòng đều
+trỏ tới file cụ thể, tên lớp cụ thể và vai trò đóng vai trò nào trong mẫu.
+Cột "Loại" phân biệt rõ: **Kiến trúc** (mô hình tổ chức hệ thống), **Mẫu thiết kế**
+(GoF / enterprise pattern), **Idiom** (kỹ thuật lập trình quy ước, không phải mẫu GoF),
+**Nguyên tắc** (SOLID & nguyên tắc thiết kế).
+
+| Hình mẫu / Nguyên tắc | Loại | File & Lớp | Vai trò trong mẫu | Bằng chứng trong code |
+|---|---|---|---|---|
+| **Layered Architecture (Kiến trúc phân tầng)** | Kiến trúc | `com.giapha.view.*`, `com.giapha.controller.PersonController`, `com.giapha.service.FamilyTreeService`, `com.giapha.repository.PersonRepository` + `JdbcPersonRepository`, `com.giapha.database.DatabaseConnection` | Mỗi tầng là một vai trò riêng biệt: **View** (hiển thị) → **Controller** (điều phối) → **Service** (nghiệp vụ) → **Repository** (truy cập dữ liệu) → **Database** (kết nối). Tầng trên chỉ gọi tầng ngay dưới nó. | `view/*.java` chỉ `import com.giapha.controller.*` (không import service/repository/database); `FamilyTreeService` chỉ import `com.giapha.repository.PersonRepository`. |
+| **MVC (Model–View–Controller)** | Kiến trúc | **Model**: `com.giapha.model.Person`, `com.giapha.model.Gender` · **View**: `PeopleListView`, `FamilyTreeView`, `FamilyTreeDiagram`, `PersonDetailView`, `PersonFormView`, `PersonAvatar` · **Controller**: `PersonController` · **Entry point / Composition Root**: `com.giapha.Main` | `Person`/`Gender` là **Model** (thuộc tính dữ liệu thuần + getter/setter, không chứa SQL hay UI); các lớp `*View` là **View** (dựng UI, bắt sự kiện); `PersonController` là **Controller** (nhận sự kiện từ View, gọi Service, trả kết quả về View). `Main` khởi tạo và nối các thành phần. | `PersonController.handleAdd()` đọc dữ liệu từ `personFormView` → gọi `familyTreeService.addPerson()` → `showInfoAlert()`; `Main.initBackend()` lắp ráp `JdbcPersonRepository → FamilyTreeService → PersonController`. |
+| **Dependency Inversion (SOLID – D)** | Nguyên tắc (SOLID) | `com.giapha.service.FamilyTreeService` (trường `private final PersonRepository personRepository`) | Tầng cao (`Service`) phụ thuộc vào **abstraction** (`PersonRepository` interface) thay vì phụ thuộc vào chi tiết (`JdbcPersonRepository`, JDBC API). Đây là hướng phụ thuộc bị đảo so với mặc định. | `FamilyTreeService` **không** import `JdbcPersonRepository`, `DatabaseConnection`, `java.sql.*`; thân hàm chỉ gọi `personRepository.findById/save/update/delete`. |
+| **Constructor Injection (DI)** | Mẫu thiết kế (DI) | `FamilyTreeService(PersonRepository)` · `PersonController(FamilyTreeService)` · `Main.initBackend()` | **Injection point** là constructor; **composition root** là `Main` — nơi duy nhất quyết định dùng triển khai nào (`new JdbcPersonRepository()`). Nhờ đó có thể thay CSDL (hoặc truyền repository test) mà không sửa Service. | `Main.initBackend()`: `new JdbcPersonRepository()` → `new FamilyTreeService(repository)` → `new PersonController(service)`; `Objects.requireNonNull(...)` chặn dependency null. |
+| **Repository Pattern** | Mẫu thiết kế (Enterprise) | **Interface (abstraction)**: `com.giapha.repository.PersonRepository` (`findById`, `findAll`, `search`, `save`, `update`, `delete`) · **Concrete repository**: `com.giapha.repository.JdbcPersonRepository` | Interface đóng vai trò **abstraction của kho lưu trữ**; `JdbcPersonRepository` là **Concrete implementation** gắn SQL vào bảng `PERSON` và map `ResultSet` → đối tượng `Person`. Toàn bộ SQL nằm sau abstraction này. | `JdbcPersonRepository implements PersonRepository`; mọi câu `SELECT/INSERT/UPDATE/DELETE` đều nằm trong class này, không lọt sang tầng trên. |
+| **Static Factory Method (JDBC Factory)** | Idiom (mẫu khởi tạo tập trung) | `com.giapha.database.DatabaseConnection.getConnection()` và `getConnection(url, user, password)` | **Factory** tạo đối tượng `java.sql.Connection` (product) mà không để client tự gọi `DriverManager`. Trả về **Connection mới** mỗi lần — không dùng connection `static` dài hạn; caller đóng bằng try-with-resources. | `DatabaseConnection` có constructor `private` (utility class) và chỉ có phương thức `static`; `JdbcPersonRepository.getConnection()` gọi `DatabaseConnection.getConnection()`. |
+| **Template Method (điểm móc truy cập CSDL)** | Mẫu thiết kế (GoF) | **Base class**: `JdbcPersonRepository.getConnection()` (`protected`) · **Subclass**: `src/test/java/com/giapha/support/TestPersonRepository.getConnection()` (`@Override`) | Base class định nghĩa **bước có thể ghi đè** (lấy kết nối); subclass chỉ thay **bước cụ thể** để trỏ sang database test, còn toàn bộ CRUD kế thừa nguyên vẹn. Đây chính là cơ chế cho **Test Double** cô lập dữ liệu. | `TestPersonRepository extends JdbcPersonRepository` và `@Override protected Connection getConnection()` trả `TestDatabaseManager.openConnection(testDbName)`. |
+| **Custom Exception (hierarchy lỗi nghiệp vụ)** | Mẫu thiết kế (Error handling) | `com.giapha.exception.*`: `SelfParentException`, `SameParentException`, `InvalidParentGenderException`, `CycleDetectedException`, `PersonInUseException`, `PersonNotFoundException`, `InvalidBirthYearException` — tất cả kế thừa `RuntimeException` | Mỗi lớp là **thông điệp có kiểu** cho một quy tắc nghiệp vụ (BR1–BR6). Tầng `Service` **ném** (không trả mã lỗi), tầng `Controller` **bắt** theo kiểu và ánh xạ sang thông báo tiếng Việt — stack trace không bao giờ lọt ra UI. | `FamilyTreeService.assignFather()` ném `SelfParentException` / `SameParentException` / `InvalidParentGenderException` / `CycleDetectedException`; `PersonController` có `catch` riêng cho từng loại và gọi `showErrorAlert(...)`. |
+| **Observer (thuộc tính JavaFX)** | Mẫu thiết kế (GoF — dạng property observer) | **Subject**: `com.giapha.view.FamilyTreeDiagram` — trường `zoomProperty` (`ReadOnlyDoubleWrapper`), expose qua `contentScaleProperty()` · **Observer**: `com.giapha.view.FamilyTreeView` — `diagram.contentScaleProperty().addListener(...)` | `FamilyTreeDiagram` là **Subject** giữ trạng thái zoom và phát thông báo khi trạng thái đổi; `FamilyTreeView` là **Observer** cập nhật nhãn `%` trên toolbar mà không cần sơ đồ biết đến toolbar. | `FamilyTreeDiagram.contentScaleProperty()` trả `ReadOnlyDoubleProperty`; `FamilyTreeView` đăng ký listener để set `lblZoom.setText(... + "%")`. |
+| **Utility Class (lớp tiện ích tĩnh)** | Idiom (tiện ích) | `com.giapha.util.ImageManager` · `com.giapha.util.PngWriter` | Constructor `private` + toàn bộ phương thức `static` → **không có trạng thái, không thể khởi tạo từ bên ngoài**; chỉ cung cấp hành vi dùng chung (copy ảnh, ghi file PNG). | Cả hai class đều có `private ImageManager()` / `private PngWriter()` và không có field instance. |
+
+> **Ghi chú — các mục từng được liệt kê nhưng đã bị loại khỏi bảng** vì **không phải hình mẫu
+> thiết kế theo đúng nghĩa** (không có bằng chứng cấu trúc tương ứng trong code):
+>
+> - ~~"Strategy cấu hình"~~ → `DatabaseConnection.getUrl()/getUser()/getPassword()` chỉ là **chuỗi
+>   ưu tiên System property → Environment variable → giá trị mặc định** (thứ tự cố định,
+>   không có interface/đối tượng chiến lược thay thế nhau) → thuộc loại **cấu hình theo môi trường**,
+>   không phải Strategy Pattern.
+> - ~~"Data Access Object mở rộng (test)"~~ → không phải một mẫu riêng; đã được gộp đúng bản chất
+>   vào dòng **Template Method** (`TestPersonRepository` ghi đè điểm móc `getConnection()`).
+> - ~~"Separation of Concerns"~~ → là **nguyên tắc thiết kế**, không phải hình mẫu cụ thể có
+>   cấu trúc lớp định danh; nội dung của nó đã được mô tả đầy đủ ở mục **6.3 Ranh giới trách nhiệm**
+>   và trong dòng *Layered Architecture* ở trên.
+> - ~~"Singleton"~~ → **không** dùng: `DatabaseConnection` là utility class tĩnh, **không** giữ
+>   instance `static` dài hạn; mỗi lần gọi đều trả `Connection` mới (xem dòng *Static Factory Method*).
+
+#### Đường dẫn file đầy đủ của các lớp được nhắc tới trong bảng
+
+| Lớp | Đường dẫn file |
+|---|---|
+| `Main` | `src/main/java/com/giapha/Main.java` |
+| `Person`, `Gender` | `src/main/java/com/giapha/model/Person.java`, `src/main/java/com/giapha/model/Gender.java` |
+| `PersonController` | `src/main/java/com/giapha/controller/PersonController.java` |
+| `FamilyTreeService` | `src/main/java/com/giapha/service/FamilyTreeService.java` |
+| `PersonRepository`, `JdbcPersonRepository` | `src/main/java/com/giapha/repository/PersonRepository.java`, `src/main/java/com/giapha/repository/JdbcPersonRepository.java` |
+| `DatabaseConnection` | `src/main/java/com/giapha/database/DatabaseConnection.java` |
+| `PeopleListView`, `FamilyTreeView`, `FamilyTreeDiagram`, `PersonDetailView`, `PersonFormView`, `PersonAvatar` | `src/main/java/com/giapha/view/` (mỗi lớp một file cùng tên) |
+| `ImageManager`, `PngWriter` | `src/main/java/com/giapha/util/ImageManager.java`, `src/main/java/com/giapha/util/PngWriter.java` |
+| 7 lớp exception BR1–BR6 | `src/main/java/com/giapha/exception/` (`SelfParentException`, `SameParentException`, `InvalidParentGenderException`, `CycleDetectedException`, `PersonInUseException`, `PersonNotFoundException`, `InvalidBirthYearException`) |
+| `TestPersonRepository` | `src/test/java/com/giapha/support/TestPersonRepository.java` |
 
 ### 6.3. Ranh giới trách nhiệm
 
@@ -423,7 +461,7 @@ do-an-gia-pha/
 │   │   │       ├── Main.java                 # Điểm khởi chạy JavaFX
 │   │   │       ├── model/                    # Person, Gender
 │   │   │       ├── exception/                # Custom exception cho BR1–BR6
-│   │   │       ├── database/                 # DatabaseConnection (JDBC Factory)
+│   │   │       ├── database/                 # DatabaseConnection (Static Factory)
 │   │   │       ├── repository/               # PersonRepository, JdbcPersonRepository
 │   │   │       ├── service/                  # FamilyTreeService
 │   │   │       ├── controller/               # PersonController
