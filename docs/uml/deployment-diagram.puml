@@ -20,16 +20,16 @@ skinparam database {
 }
 skinparam ArrowColor #A80036
 
-node "Client Computer" as Client {
-    node "Java Runtime Environment\n(Java 25)" as JRE {
-        component "JavaFX Application\n(Ứng dụng Quản lý Gia phả)" as App
-        component "MySQL JDBC Driver\n(Connector/J)" as Driver
+node "Máy tính người dùng" as Client {
+    node "Môi trường chạy Java\n(Java 25)" as JRE {
+        component "Ứng dụng JavaFX\n(Quản lý Gia phả)" as App
+        component "Driver MySQL JDBC\n(Connector/J)" as Driver
     }
 }
 
-node "MySQL Server" as Server {
-    node "MySQL Database Server" as DBMS {
-        database "Database: gia_pha" as DB {
+node "Máy chủ MySQL" as Server {
+    node "Máy chủ Cơ sở dữ liệu MySQL" as DBMS {
+        database "Cơ sở dữ liệu: gia_pha" as DB {
             [Bảng PERSON]
         }
     }

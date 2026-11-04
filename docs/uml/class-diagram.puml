@@ -169,14 +169,14 @@ PersonDetailView --> PersonController
 FamilyTreeView --> PersonController
 
 PersonController --> FamilyTreeService
-PersonController --> Person : selectedPerson
+PersonController --> Person : thành viên đang chọn
 
 FamilyTreeService --> PersonRepository
 JdbcPersonRepository ..|> PersonRepository
 JdbcPersonRepository --> DatabaseConnection
 
 Person --> "1" Gender
-Person "0..*" --> "0..1" Person : father
-Person "0..*" --> "0..1" Person : mother
+Person "0..*" --> "0..1" Person : cha
+Person "0..*" --> "0..1" Person : mẹ
 
 @enduml

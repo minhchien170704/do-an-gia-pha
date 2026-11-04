@@ -18,17 +18,17 @@ Repo -> JdbcRepo : findById(focusPersonId)
 JdbcRepo -> DBConn : getConnection()
 DBConn --> JdbcRepo : Connection
 JdbcRepo -> DB : SELECT * FROM person WHERE id = focusPersonId
-DB --> JdbcRepo : row
-JdbcRepo --> Repo : Person (focus)
-Repo --> Service : Person (focus)
+DB --> JdbcRepo : dòng dữ liệu
+JdbcRepo --> Repo : Person (trọng tâm)
+Repo --> Service : Person (trọng tâm)
 
-alt Person không tồn tại (null)
+alt Thành viên không tồn tại (null)
     Service --> Controller : PersonNotFoundException
     Controller --> User : hiển thị lỗi
 
-else Person tồn tại
+else Thành viên tồn tại
 
-    Service --> Controller : Person (focus)
+    Service --> Controller : Person (trọng tâm)
 
     Controller -> Service : getAncestors(focusPersonId)
     Service -> Repo : findById(id)
@@ -41,10 +41,10 @@ else Person tồn tại
     JdbcRepo -> DBConn : getConnection()
     DBConn --> JdbcRepo : Connection
     JdbcRepo -> DB : SELECT ...
-    DB --> JdbcRepo : rows
+    DB --> JdbcRepo : danh sách dòng
     JdbcRepo --> Repo : List<Person>
     Repo --> Service : List<Person>
-    Service --> Controller : List<Person> (ancestors)
+    Service --> Controller : List<Person> (tổ tiên)
 
     Controller -> Service : getDescendants(focusPersonId)
     Service -> Repo : findAll()
@@ -58,12 +58,12 @@ else Person tồn tại
     JdbcRepo -> DBConn : getConnection()
     DBConn --> JdbcRepo : Connection
     JdbcRepo -> DB : SELECT * FROM person
-    DB --> JdbcRepo : rows
+    DB --> JdbcRepo : danh sách dòng
     JdbcRepo --> Repo : List<Person>
     Repo --> Service : List<Person>
-    Service --> Controller : List<Person> (descendants)
+    Service --> Controller : List<Person> (hậu duệ)
 
-    Controller -> Controller : build TreeView\n(focus + ancestors + descendants)
+    Controller -> Controller : dựng TreeView\n(trọng tâm + tổ tiên + hậu duệ)
     Controller --> User : Hiển thị TreeView
 
 end

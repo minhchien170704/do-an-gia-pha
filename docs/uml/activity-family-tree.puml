@@ -6,17 +6,17 @@ start
 
 :Chọn Xem cây gia phả;
 
-:Chọn focus person;
+:Chọn người trung tâm;
 
-:Kiểm tra person tồn tại;
+:Kiểm tra thành viên tồn tại;
 
-if (Person tồn tại?) then (yes)
+if (Thành viên tồn tại?) then (yes)
 else (no)
   :PersonNotFoundException;
   stop
 endif
 
-:Lấy thông tin focus person\n(findById);
+:Lấy thông tin người trung tâm\n(findById);
 
 :Lấy danh sách tổ tiên\n(getAncestors);
 

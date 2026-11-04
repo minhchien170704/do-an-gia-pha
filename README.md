@@ -163,8 +163,25 @@ Bộ test bao gồm:
 - Gỡ quan hệ cha/mẹ khi chọn "Không có" qua form (`TC-CLEAR-06`).
 - Tự động hoàn trả và xác minh trạng thái toàn vẹn của dữ liệu mẫu (`COUNT(*) = 7`).
 
-> **Lưu ý về kiểm thử giao diện (GUI):**
-> Các bộ kiểm thử tự động trên đảm bảo 100% tính đúng đắn của logic nghiệp vụ, ràng buộc quan hệ và thao tác dữ liệu với MySQL. Các thao tác trực quan bằng chuột/bàn phím trên desktop cần được kiểm chứng thủ công qua giao diện người dùng khi khởi chạy ứng dụng (`mvn javafx:run`).
+### 4. Kiểm thử View Layer — Native In-Process JavaFX Test (9 Test Cases):
+```bash
+mvn exec:java "-Dexec.mainClass=com.giapha.view.JavaFxViewTest"
+```
+> ⚠️ **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng **7 bản ghi mẫu** trước khi chạy. Test sẽ tự block nếu không đủ điều kiện.
+
+Bộ test kiểm thử nội quá trình (in-process), không dùng TestFX/JUnit, bao gồm:
+- TEST 1: `PeopleListView` nạp danh sách 7 thành viên từ MySQL vào `TableView`.
+- TEST 2: Tìm kiếm client-side (`searchField`) và phục hồi danh sách đầy đủ.
+- TEST 3: `PersonFormView` thêm thành viên mới hợp lệ (với cha/mẹ) vào MySQL.
+- TEST 4: Validation từ chối dữ liệu không hợp lệ (tên rỗng, năm sinh sai số).
+- TEST 5: `PersonFormView` sửa tên và gỡ quan hệ cha/mẹ (set NULL) qua form.
+- TEST 6a: Chặn xóa người đang làm cha/mẹ theo BR4 (`PersonInUseException`).
+- TEST 6b: Xóa thành viên thử nghiệm đã gỡ quan hệ thành công.
+- TEST 7a: `PersonDetailView` hiển thị đúng tên cha/mẹ.
+- TEST 7b: `FamilyTreeView` dựng cây gia phả đa thế hệ thành công.
+- Cleanup tự động: Xóa toàn bộ bản ghi test, bảo toàn nguyên vẹn 7 bản ghi mẫu.
+
+> **Lưu ý**: Đây là kiểm thử JavaFX event/in-process sử dụng `Platform.runLater()` và `CountDownLatch`. Bộ test xác nhận luồng Controller–Service–Repository–MySQL đúng đắn, nhưng **không thay thế kiểm thử thủ công trên desktop** để xác nhận trải nghiệm người dùng cuối, hiển thị ảnh đại diện và tương tác chuột/bàn phím thực tế.
 
 ---
 
@@ -187,3 +204,4 @@ Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
 - [x] **Cụm 5.6**: Tích hợp toàn diện JavaFX UI với Backend MySQL (kết nối trực tiếp, loại bỏ hoàn toàn SampleData khỏi luồng chạy chính).
 - [x] **Cụm 5.7**: End-to-End Verification, QA tích hợp và kiểm chứng toàn vẹn dữ liệu MySQL.
 - [x] **Cụm 5.8**: Đồng bộ hóa tài liệu (README) và sơ đồ lớp (Class Diagram).
+- [x] **Cụm 5.9**: Native In-Process JavaFX Test Harness (`JavaFxViewTest`) — 9/9 test cases PASS, bảo toàn 7 bản ghi mẫu.
