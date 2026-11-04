@@ -75,8 +75,9 @@ public class FamilyTreeService {
             person.setMother(mother);
         }
 
-        // BR5 is a warning only and does not block the operation.
-
+        // BR5 là quy tắc CẢNH BÁO: không chặn thao tác tại tầng này.
+        // Việc hiển thị Alert cảnh báo (kèm lựa chọn tiếp tục/hủy) do tầng
+        // Controller thực hiện thông qua checkBirthYearWarning().
         int generatedId = personRepository.save(person);
         person.setId(generatedId);
         return person;
@@ -315,6 +316,40 @@ public class FamilyTreeService {
         return personRepository.findAll();
     }
 
+    /**
+     * Kiểm tra BR5 — năm sinh của cha/mẹ có nhỏ hơn năm sinh của con hay không.
+     *
+     * <p>BR5 là quy tắc mức CẢNH BÁO (WARNING) theo đặc tả: hàm này KHÔNG chặn
+     * thao tác và KHÔNG ném ngoại lệ, chỉ trả về danh sách thông điệp cảnh báo
+     * để tầng Controller hiển thị Alert cho phép người dùng chọn tiếp tục hoặc hủy.
+     *
+     * @param child  thành viên con (có thể null — khi đó không có cảnh báo)
+     * @param father cha được gán (có thể null)
+     * @param mother mẹ được gán (có thể null)
+     * @return danh sách thông điệp cảnh báo; danh sách RỖNG nghĩa là không có vấn đề
+     */
+    public List<String> checkBirthYearWarning(Person child, Person father, Person mother) {
+        List<String> warnings = new ArrayList<>();
+
+        if (child == null) {
+            return warnings;
+        }
+
+        if (father != null && father.getBirthYear() >= child.getBirthYear()) {
+            warnings.add("Năm sinh của cha (" + father.getFullName() + ", " + father.getBirthYear()
+                    + ") không nhỏ hơn năm sinh của con (" + child.getFullName() + ", "
+                    + child.getBirthYear() + ").");
+        }
+
+        if (mother != null && mother.getBirthYear() >= child.getBirthYear()) {
+            warnings.add("Năm sinh của mẹ (" + mother.getFullName() + ", " + mother.getBirthYear()
+                    + ") không nhỏ hơn năm sinh của con (" + child.getFullName() + ", "
+                    + child.getBirthYear() + ").");
+        }
+
+        return warnings;
+    }
+
     // ============================================================
     // PRIVATE METHODS THEO SPEC
     // ============================================================
@@ -367,7 +402,9 @@ public class FamilyTreeService {
                     + " nhưng thực tế là " + parent.getGender());
         }
 
-        // BR5 is a warning only and does not block the operation.
+        // BR5 là quy tắc CẢNH BÁO: không chặn thao tác tại tầng này.
+        // Việc hiển thị Alert cảnh báo do tầng Controller thực hiện thông qua
+        // checkBirthYearWarning().
     }
 
     /**
