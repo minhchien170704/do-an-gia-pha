@@ -86,25 +86,25 @@ public class FamilyTreeServiceTest {
         }
 
         // ----------------------------------------------------
-        // TEST 6: assignFather(childId = 5, fatherId = 2) -> IllegalArgumentException (ID 2 = FEMALE)
+        // TEST 6: assignFather(childId = 5, fatherId = 2) -> InvalidParentGenderException (ID 2 = FEMALE)
         // ----------------------------------------------------
         try {
             service.assignFather(5, 2);
             fail("TEST 6: assignFather(5, 2)", "Không ném ngoại lệ khi gán cha có giới tính FEMALE");
-        } catch (IllegalArgumentException e) {
-            pass("TEST 6: assignFather(5, 2)", "Bắt đúng IllegalArgumentException: " + e.getMessage());
+        } catch (InvalidParentGenderException e) {
+            pass("TEST 6: assignFather(5, 2)", "Bắt đúng InvalidParentGenderException (BR6): " + e.getMessage());
         } catch (Exception e) {
             fail("TEST 6: assignFather(5, 2)", "Ném sai loại ngoại lệ: " + e.getClass().getName());
         }
 
         // ----------------------------------------------------
-        // TEST 7: assignMother(childId = 5, motherId = 1) -> IllegalArgumentException (ID 1 = MALE)
+        // TEST 7: assignMother(childId = 5, motherId = 1) -> InvalidParentGenderException (ID 1 = MALE)
         // ----------------------------------------------------
         try {
             service.assignMother(5, 1);
             fail("TEST 7: assignMother(5, 1)", "Không ném ngoại lệ khi gán mẹ có giới tính MALE");
-        } catch (IllegalArgumentException e) {
-            pass("TEST 7: assignMother(5, 1)", "Bắt đúng IllegalArgumentException: " + e.getMessage());
+        } catch (InvalidParentGenderException e) {
+            pass("TEST 7: assignMother(5, 1)", "Bắt đúng InvalidParentGenderException (BR6): " + e.getMessage());
         } catch (Exception e) {
             fail("TEST 7: assignMother(5, 1)", "Ném sai loại ngoại lệ: " + e.getClass().getName());
         }
@@ -173,8 +173,8 @@ public class FamilyTreeServiceTest {
             duplicateParentsPerson.setMother(f); // Cùng một Person (hoặc cùng id)
             service.addPerson(duplicateParentsPerson);
             fail("TEST 12: Father == Mother", "Không reject khi cùng một Person làm cả cha và mẹ");
-        } catch (IllegalArgumentException e) {
-            pass("TEST 12: Father == Mother", "Bắt đúng IllegalArgumentException (BR2): " + e.getMessage());
+        } catch (SameParentException e) {
+            pass("TEST 12: Father == Mother", "Bắt đúng SameParentException (BR2): " + e.getMessage());
         } catch (Exception e) {
             fail("TEST 12: Father == Mother", "Ném sai loại ngoại lệ: " + e.getClass().getName());
         }
@@ -207,6 +207,32 @@ public class FamilyTreeServiceTest {
             }
         } catch (Exception e) {
             fail("TEST 11: assignMother(5, 4)", "Ném ngoại lệ không mong muốn: " + e.getMessage());
+        }
+
+        // ----------------------------------------------------
+        // TEST 12B: assignFather(childId = 5, fatherId = 4) -> SameParentException
+        // (ID 5 đang có mother = 4; gán father = 4 => cha trùng mẹ — vi phạm BR2)
+        // ----------------------------------------------------
+        try {
+            service.assignFather(5, 4);
+            fail("TEST 12B: assignFather(5, 4)", "Không reject khi gán cha trùng với mẹ hiện tại");
+        } catch (SameParentException e) {
+            pass("TEST 12B: assignFather(5, 4)", "Bắt đúng SameParentException (BR2): " + e.getMessage());
+        } catch (Exception e) {
+            fail("TEST 12B: assignFather(5, 4)", "Ném sai loại ngoại lệ: " + e.getClass().getName());
+        }
+
+        // ----------------------------------------------------
+        // TEST 12C: assignMother(childId = 5, motherId = 1) -> SameParentException
+        // (ID 5 đang có father = 1; gán mother = 1 => mẹ trùng cha — vi phạm BR2)
+        // ----------------------------------------------------
+        try {
+            service.assignMother(5, 1);
+            fail("TEST 12C: assignMother(5, 1)", "Không reject khi gán mẹ trùng với cha hiện tại");
+        } catch (SameParentException e) {
+            pass("TEST 12C: assignMother(5, 1)", "Bắt đúng SameParentException (BR2): " + e.getMessage());
+        } catch (Exception e) {
+            fail("TEST 12C: assignMother(5, 1)", "Ném sai loại ngoại lệ: " + e.getClass().getName());
         }
 
         // Reset dữ liệu về chuẩn trước khi chạy nhóm test case mở rộng

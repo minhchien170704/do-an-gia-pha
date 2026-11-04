@@ -2,8 +2,10 @@ package com.giapha.controller;
 
 import com.giapha.exception.CycleDetectedException;
 import com.giapha.exception.InvalidBirthYearException;
+import com.giapha.exception.InvalidParentGenderException;
 import com.giapha.exception.PersonInUseException;
 import com.giapha.exception.PersonNotFoundException;
+import com.giapha.exception.SameParentException;
 import com.giapha.exception.SelfParentException;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
@@ -160,6 +162,10 @@ public class PersonController {
             showErrorAlert("Lỗi quan hệ", "Không thể tự gán mình làm cha hoặc mẹ: " + e.getMessage());
         } catch (CycleDetectedException e) {
             showErrorAlert("Lỗi chu trình", "Thao tác tạo chu trình trong cây gia phả: " + e.getMessage());
+        } catch (SameParentException e) {
+            showErrorAlert("Lỗi quan hệ", "Cha và Mẹ không thể là cùng một người: " + e.getMessage());
+        } catch (InvalidParentGenderException e) {
+            showErrorAlert("Lỗi giới tính vai trò", e.getMessage());
         } catch (IllegalArgumentException e) {
             showErrorAlert("Lỗi dữ liệu", e.getMessage());
         } catch (Exception e) {
@@ -312,6 +318,10 @@ public class PersonController {
                 errorMsg.append("\n• Không thể tự gán mình làm cha: ").append(e.getMessage());
             } catch (CycleDetectedException e) {
                 errorMsg.append("\n• Lỗi chu trình khi gán cha: ").append(e.getMessage());
+            } catch (InvalidParentGenderException e) {
+                errorMsg.append("\n• Lỗi giới tính vai trò cha: ").append(e.getMessage());
+            } catch (SameParentException e) {
+                errorMsg.append("\n• Cha trùng với mẹ hiện tại: ").append(e.getMessage());
             } catch (IllegalArgumentException e) {
                 errorMsg.append("\n• Lỗi giới tính/vai trò cha: ").append(e.getMessage());
             } catch (PersonNotFoundException e) {
@@ -338,6 +348,10 @@ public class PersonController {
                 errorMsg.append("\n• Không thể tự gán mình làm mẹ: ").append(e.getMessage());
             } catch (CycleDetectedException e) {
                 errorMsg.append("\n• Lỗi chu trình khi gán mẹ: ").append(e.getMessage());
+            } catch (InvalidParentGenderException e) {
+                errorMsg.append("\n• Lỗi giới tính vai trò mẹ: ").append(e.getMessage());
+            } catch (SameParentException e) {
+                errorMsg.append("\n• Mẹ trùng với cha hiện tại: ").append(e.getMessage());
             } catch (IllegalArgumentException e) {
                 errorMsg.append("\n• Lỗi giới tính/vai trò mẹ: ").append(e.getMessage());
             } catch (PersonNotFoundException e) {
@@ -507,6 +521,10 @@ public class PersonController {
             showErrorAlert("Lỗi chu trình", "Gán cha tạo chu trình vòng lặp trong cây gia phả: " + e.getMessage());
         } catch (PersonNotFoundException e) {
             showErrorAlert("Không tìm thấy", "Thành viên con hoặc cha không tồn tại: " + e.getMessage());
+        } catch (InvalidParentGenderException e) {
+            showErrorAlert("Lỗi giới tính vai trò", e.getMessage());
+        } catch (SameParentException e) {
+            showErrorAlert("Lỗi quan hệ", "Cha và Mẹ không thể là cùng một người: " + e.getMessage());
         } catch (IllegalArgumentException e) {
             showErrorAlert("Lỗi dữ liệu", e.getMessage());
         } catch (Exception e) {
@@ -542,6 +560,10 @@ public class PersonController {
             showErrorAlert("Lỗi chu trình", "Gán mẹ tạo chu trình vòng lặp trong cây gia phả: " + e.getMessage());
         } catch (PersonNotFoundException e) {
             showErrorAlert("Không tìm thấy", "Thành viên con hoặc mẹ không tồn tại: " + e.getMessage());
+        } catch (InvalidParentGenderException e) {
+            showErrorAlert("Lỗi giới tính vai trò", e.getMessage());
+        } catch (SameParentException e) {
+            showErrorAlert("Lỗi quan hệ", "Cha và Mẹ không thể là cùng một người: " + e.getMessage());
         } catch (IllegalArgumentException e) {
             showErrorAlert("Lỗi dữ liệu", e.getMessage());
         } catch (Exception e) {

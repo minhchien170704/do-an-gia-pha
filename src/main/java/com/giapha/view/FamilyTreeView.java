@@ -60,14 +60,14 @@ public class FamilyTreeView {
         // Center Content
         VBox centerContent = new VBox(16);
 
-        // Toolbar: Selector + Legend + Zoom
-        HBox toolbar = createToolbar();
-
-        // --- Tab 1: Sơ đồ 2D ---
+        // --- Tab 1: Sơ đồ 2D (khởi tạo TRƯỚC toolbar vì toolbar tham chiếu diagram) ---
         diagram = new FamilyTreeDiagram();
         diagram.setOnViewPerson(p -> {
             if (onViewPerson != null) onViewPerson.accept(p);
         });
+
+        // Toolbar: Selector + Legend + Zoom + Xuất/In
+        HBox toolbar = createToolbar();
 
         TabPane tabPane = new TabPane();
         tabPane.getStyleClass().add("tree-tab-pane");

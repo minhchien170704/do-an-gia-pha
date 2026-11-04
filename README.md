@@ -98,11 +98,14 @@ do-an-gia-pha/
 
 ## 6. Quy Tắc Nghiệp Vụ (Business Rules)
 1. **BR1 — Self Parent**: Một người không thể là cha hoặc mẹ của chính mình (`SelfParentException`).
-2. **BR2 — Father != Mother**: Cha và mẹ của cùng một người không được là cùng một người (`IllegalArgumentException`).
+2. **BR2 — Father != Mother**: Cha và mẹ của cùng một người không được là cùng một người (`SameParentException`).
 3. **BR3 — No Cycle**: Cấm chu trình phả hệ; phát hiện qua DFS traversal (`CycleDetectedException`).
 4. **BR4 — Person In Use**: Không cho phép xóa người đang là cha/mẹ của người khác (`PersonInUseException`).
 5. **BR5 — Parent Birth Year**: Cảnh báo nếu năm sinh cha/mẹ lớn hơn hoặc bằng năm sinh con (Warning only).
-6. **BR6 — Gender Role**: Cha bắt buộc là `Gender.MALE`, Mẹ bắt buộc là `Gender.FEMALE` (`IllegalArgumentException`).
+6. **BR6 — Gender Role**: Cha bắt buộc là `Gender.MALE`, Mẹ bắt buộc là `Gender.FEMALE` (`InvalidParentGenderException`).
+
+**Thứ tự ưu tiên kiểm tra** trong `assignFather` / `assignMother`:
+`BR1 (SelfParent)` → `BR2 (SameParent)` → `BR6 (InvalidParentGender)` → `BR3 (Cycle)`.
 
 **Ràng buộc năm sinh**: `1000 <= birthYear <= Year.now().getValue()`.
 Hằng số `FamilyTreeService.MIN_BIRTH_YEAR = 1000` là nguồn sự thật duy nhất ở tầng Service;
@@ -191,7 +194,8 @@ mvn exec:java "-Dexec.mainClass=com.giapha.service.FamilyTreeServiceTest"
 ```
 Bộ test bao gồm:
 - Tra cứu thành viên theo ID tồn tại & không tồn tại (`PersonNotFoundException`).
-- Gán cha/mẹ hợp lệ và kiểm tra giới tính vai trò (`IllegalArgumentException`).
+- Gán cha/mẹ hợp lệ và kiểm tra giới tính vai trò (`InvalidParentGenderException`).
+- Từ chối cha/mẹ là cùng một người (`SameParentException`).
 - Kiểm tra tự gán bản thân (`SelfParentException`).
 - Phát hiện và ngăn chặn chu trình gia phả (`CycleDetectedException`).
 - Ngăn chặn xóa cha/mẹ đang được tham chiếu (`PersonInUseException`).
@@ -266,7 +270,7 @@ Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
 - [x] **Cụm 5.4**: FamilyTreeService Layer & Bộ test nghiệp vụ (22/22 test cases PASS).
 - [x] **Cụm 5.5**: PersonController & Bộ test Controller (8/8 test cases PASS).
    - `PersonController` là cầu nối duy nhất giữa View JavaFX và `FamilyTreeService` — View **không** gọi trực tiếp Service hay Repository.
-   - Bắt toàn bộ ngoại lệ nghiệp vụ (`SelfParentException`, `CycleDetectedException`, `PersonInUseException`, `InvalidBirthYearException`, `PersonNotFoundException`, `IllegalArgumentException`, `SQLException`…) và hiển thị bằng `Alert` tiếng Việt — không văng stack trace ra giao diện.
+   - Bắt toàn bộ ngoại lệ nghiệp vụ (`SelfParentException`, `SameParentException`, `InvalidParentGenderException`, `CycleDetectedException`, `PersonInUseException`, `InvalidBirthYearException`, `PersonNotFoundException`, `IllegalArgumentException`, `SQLException`…) và hiển thị bằng `Alert` tiếng Việt — không văng stack trace ra giao diện.
    - **BR5 (cảnh báo năm sinh)** được kiểm tra ở tầng Service qua `FamilyTreeService.checkBirthYearWarning(child, father, mother)`; Controller hiển thị `Alert` cảnh báo với hai lựa chọn **Tiếp tục** / **Hủy**.
    - **Ảnh đại diện**: nút *Chọn ảnh...* dùng `FileChooser` (chỉ nhận `png` / `jpg` / `jpeg`); ảnh được copy vào thư mục `images/` cạnh ứng dụng và lưu **đường dẫn tương đối** (`images/person_<id>.<đuôi>`) vào DB. Tiện ích nằm ở `com.giapha.util.ImageManager`.
 - [x] **Cụm 5.6**: Tích hợp toàn diện JavaFX UI với Backend MySQL (kết nối trực tiếp, loại bỏ hoàn toàn SampleData khỏi luồng chạy chính).

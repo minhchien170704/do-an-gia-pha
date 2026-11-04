@@ -92,8 +92,10 @@ com.giapha
 ├── exception/
 │   ├── CycleDetectedException.java    # Ném khi phát hiện chu trình gia phả (BR3)
 │   ├── InvalidBirthYearException.java # Ném khi năm sinh không hợp lệ
+│   ├── InvalidParentGenderException.java # Ném khi giới tính cha/mẹ sai vai trò (BR6)
 │   ├── PersonInUseException.java      # Ném khi xóa person đang là cha/mẹ người khác (BR4)
 │   ├── PersonNotFoundException.java   # Ném khi không tìm thấy Person theo ID
+│   ├── SameParentException.java       # Ném khi cha và mẹ là cùng một người (BR2)
 │   └── SelfParentException.java       # Ném khi tự gán làm cha/mẹ chính mình (BR1)
 ├── repository/
 │   ├── PersonRepository.java          # Interface hợp đồng truy xuất dữ liệu
@@ -125,7 +127,7 @@ com.giapha
 - **BR1 — SELF PARENT**: Một người không thể là cha hoặc mẹ của chính mình (`childId == parentId`).
   - *Xử lý*: Ném `SelfParentException`.
 - **BR2 — FATHER != MOTHER**: Cha và mẹ của cùng một người không được là cùng một Person (`father.id == mother.id`).
-  - *Xử lý*: Từ chối bằng `IllegalArgumentException`.
+  - *Xử lý*: Ném `SameParentException` (custom exception riêng, thay cho `IllegalArgumentException`).
 - **BR3 — NO CYCLE**: Không được tạo chu trình vòng lặp trong gia phả (ví dụ: A là cha B, B là cha C thì C không thể là cha/mẹ của A).
   - *Xử lý*: Kiểm tra bằng thuật toán duyệt đồ thị (DFS traversal) từ `candidateParentId` ngược lên các thế hệ tổ tiên với `Set<Integer> visited` chống lặp. Nếu gặp `childId`, ném `CycleDetectedException`.
 - **BR4 — PERSON IN USE**: Không được xóa một `Person` nếu người đó đang được tham chiếu làm `father` hoặc `mother` của bất kỳ ai trong hệ thống.
@@ -136,7 +138,10 @@ com.giapha
 - **BR6 — GENDER ROLE**:
   - `father` bắt buộc phải có giới tính `Gender.MALE`.
   - `mother` bắt buộc phải có giới tính `Gender.FEMALE`.
-  - *Xử lý*: Sai giới tính ném `IllegalArgumentException`.
+  - *Xử lý*: Sai giới tính ném `InvalidParentGenderException` (custom exception riêng, thay cho `IllegalArgumentException`).
+
+**Thứ tự ưu tiên kiểm tra** trong `assignFather` / `assignMother` (quan trọng để thông báo đúng nguyên nhân):
+`BR1 (SelfParent)` → `BR2 (SameParent)` → `BR6 (InvalidParentGender)` → `BR3 (Cycle)`.
 
 ---
 

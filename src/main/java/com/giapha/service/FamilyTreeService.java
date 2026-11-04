@@ -54,23 +54,25 @@ public class FamilyTreeService {
      *
      * @param person thông tin Person cần thêm
      * @return đối tượng Person đã được gán id tự sinh
-     * @throws IllegalArgumentException nếu dữ liệu không hợp lệ hoặc thông tin cha mẹ vi phạm
+     * @throws IllegalArgumentException nếu dữ liệu không hợp lệ
      * @throws InvalidBirthYearException nếu năm sinh không hợp lệ
      * @throws PersonNotFoundException nếu cha hoặc mẹ chỉ định không tồn tại
+     * @throws SameParentException nếu cha và mẹ là cùng một người (BR2)
+     * @throws InvalidParentGenderException nếu giới tính cha/mẹ không đúng vai trò (BR6)
      */
     public Person addPerson(Person person) {
         validatePerson(person);
 
         if (person.getFather() != null && person.getMother() != null) {
             if (person.getFather().getId() == person.getMother().getId()) {
-                throw new IllegalArgumentException("Cha và Mẹ không thể là cùng một người");
+                throw new SameParentException("Cha và Mẹ không thể là cùng một người");
             }
         }
 
         if (person.getFather() != null) {
             Person father = getPersonById(person.getFather().getId());
             if (father.getGender() != Gender.MALE) {
-                throw new IllegalArgumentException("Cha phải có giới tính là MALE");
+                throw InvalidParentGenderException.forRole("Cha", Gender.MALE, father.getGender());
             }
             person.setFather(father);
         }
@@ -78,7 +80,7 @@ public class FamilyTreeService {
         if (person.getMother() != null) {
             Person mother = getPersonById(person.getMother().getId());
             if (mother.getGender() != Gender.FEMALE) {
-                throw new IllegalArgumentException("Mẹ phải có giới tính là FEMALE");
+                throw InvalidParentGenderException.forRole("Mẹ", Gender.FEMALE, mother.getGender());
             }
             person.setMother(mother);
         }
@@ -148,17 +150,28 @@ public class FamilyTreeService {
      * @param fatherId mã định danh của người cha
      * @throws PersonNotFoundException nếu childId hoặc fatherId không tồn tại
      * @throws SelfParentException nếu childId trùng fatherId
-     * @throws IllegalArgumentException nếu giới tính cha không phải MALE hoặc trùng với mẹ hiện tại
+     * @throws InvalidParentGenderException nếu giới tính cha không phải MALE (BR6)
+     * @throws SameParentException nếu cha trùng với mẹ hiện tại của child (BR2)
      * @throws CycleDetectedException nếu việc gán tạo chu trình trong cây gia phả
      */
     public void assignFather(int childId, int fatherId) {
         Person child = getPersonById(childId);
         Person father = getPersonById(fatherId);
 
-        validateParentAssignment(child, father, Gender.MALE);
+        // BR1 — tự gán làm cha/mẹ chính mình (kiểm tra trước mọi quy tắc khác)
+        if (child.getId() == father.getId()) {
+            throw new SelfParentException(
+                    "Một người không thể là cha hoặc mẹ của chính mình (id = " + child.getId() + ")");
+        }
 
+        // BR2 — cha trùng mẹ hiện tại (kiểm tra trước BR6 để thông báo chính xác)
         if (child.getMother() != null && child.getMother().getId() == father.getId()) {
-            throw new IllegalArgumentException("Cha và Mẹ không thể là cùng một người");
+            throw new SameParentException("Cha và Mẹ không thể là cùng một người");
+        }
+
+        // BR6 — giới tính của cha phải là MALE
+        if (father.getGender() != Gender.MALE) {
+            throw InvalidParentGenderException.forRole("Cha", Gender.MALE, father.getGender());
         }
 
         if (checkCycle(childId, fatherId)) {
@@ -176,17 +189,28 @@ public class FamilyTreeService {
      * @param motherId mã định danh của người mẹ
      * @throws PersonNotFoundException nếu childId hoặc motherId không tồn tại
      * @throws SelfParentException nếu childId trùng motherId
-     * @throws IllegalArgumentException nếu giới tính mẹ không phải FEMALE hoặc trùng với cha hiện tại
+     * @throws InvalidParentGenderException nếu giới tính mẹ không phải FEMALE (BR6)
+     * @throws SameParentException nếu mẹ trùng với cha hiện tại của child (BR2)
      * @throws CycleDetectedException nếu việc gán tạo chu trình trong cây gia phả
      */
     public void assignMother(int childId, int motherId) {
         Person child = getPersonById(childId);
         Person mother = getPersonById(motherId);
 
-        validateParentAssignment(child, mother, Gender.FEMALE);
+        // BR1 — tự gán làm cha/mẹ chính mình (kiểm tra trước mọi quy tắc khác)
+        if (child.getId() == mother.getId()) {
+            throw new SelfParentException(
+                    "Một người không thể là cha hoặc mẹ của chính mình (id = " + child.getId() + ")");
+        }
 
+        // BR2 — mẹ trùng cha hiện tại (kiểm tra trước BR6 để thông báo chính xác)
         if (child.getFather() != null && child.getFather().getId() == mother.getId()) {
-            throw new IllegalArgumentException("Cha và Mẹ không thể là cùng một người");
+            throw new SameParentException("Cha và Mẹ không thể là cùng một người");
+        }
+
+        // BR6 — giới tính của mẹ phải là FEMALE
+        if (mother.getGender() != Gender.FEMALE) {
+            throw InvalidParentGenderException.forRole("Mẹ", Gender.FEMALE, mother.getGender());
         }
 
         if (checkCycle(childId, motherId)) {
@@ -392,7 +416,22 @@ public class FamilyTreeService {
 
     /**
      * Xác thực tính hợp lệ khi gán quan hệ cha/mẹ.
+     *
+     * <p><b>Deprecated</b> — logic này đã được tách trực tiếp vào
+     * {@link #assignFather(int, int)} và {@link #assignMother(int, int)} theo đúng
+     * thứ tự ưu tiên quy tắc nghiệp vụ:
+     * <ol>
+     *     <li>BR1 — tự gán làm cha/mẹ chính mình ({@code SelfParentException})</li>
+     *     <li>BR2 — cha trùng mẹ ({@code SameParentException})</li>
+     *     <li>BR6 — giới tính sai vai trò ({@code InvalidParentGenderException})</li>
+     * </ol>
+     * Giữ lại phương thức để tương thích ngược và làm tài liệu cho thứ tự kiểm tra.
+     *
+     * @param child         người con
+     * @param parent        người được gán làm cha/mẹ
+     * @param requiredGender giới tính bắt buộc của vai trò
      */
+    @Deprecated
     private void validateParentAssignment(Person child, Person parent, Gender requiredGender) {
         if (child == null) {
             throw new IllegalArgumentException("Child không được để null");
@@ -406,8 +445,8 @@ public class FamilyTreeService {
         }
 
         if (parent.getGender() != requiredGender) {
-            throw new IllegalArgumentException("Giới tính của phụ huynh phải là " + requiredGender
-                    + " nhưng thực tế là " + parent.getGender());
+            String role = (requiredGender == Gender.MALE) ? "Cha" : "Mẹ";
+            throw InvalidParentGenderException.forRole(role, requiredGender, parent.getGender());
         }
 
         // BR5 là quy tắc CẢNH BÁO: không chặn thao tác tại tầng này.
