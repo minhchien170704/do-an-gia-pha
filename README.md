@@ -1,178 +1,305 @@
 # Hệ Thống Quản Lý Sơ Đồ Gia Phả (Family Tree Management)
 
-Dự án ứng dụng Desktop quản lý phả hệ và cây gia phả xây dựng bằng **Java 25**, **JavaFX 23** và **MySQL/MariaDB**, tuân thủ nghiêm ngặt các nguyên lý lập trình hướng đối tượng (OOP) và kiến trúc phân lớp chuẩn mực.
+Ứng dụng desktop quản lý phả hệ và cây gia phả, xây dựng bằng **Java 25**, **JavaFX 23** và **MySQL/MariaDB**,
+tuân thủ các nguyên lý lập trình hướng đối tượng (OOP) và kiến trúc phân tầng (Layered Architecture).
+
+> Hướng dẫn này viết cho người **vừa clone về** và muốn chạy được ngay. Làm theo thứ tự
+> [Mục 2 → Mục 3 → Mục 4](#2-cài-đặt-nhanh-5-phút) là chạy được ứng dụng.
 
 ---
 
-## 1. Tổng Quan Dự Án (Project Overview)
-Hệ thống hỗ trợ gia đình, dòng tộc lưu trữ, tra cứu và hiển thị trực quan thông tin các thế hệ thành viên trong cây gia phả. Ứng dụng chú trọng vào:
-- Tính toàn vẹn của quan hệ phả hệ (ngăn chặn chu trình vòng lặp, kiểm soát quan hệ huyết thống).
-- Giao diện trực quan hiện đại, thân thiện, đồng bộ theo Design System riêng biệt.
-- Kiến trúc module hóa rõ ràng, dễ dàng mở rộng và bảo trì.
+## Mục lục
+
+1. [Tổng quan dự án](#1-tổng-quan-dự-án)
+2. [Cài đặt nhanh (5 phút)](#2-cài-đặt-nhanh-5-phút)
+3. [Cấu hình cơ sở dữ liệu](#3-cấu-hình-cơ-sở-dữ-liệu)
+4. [Build, chạy ứng dụng và chạy test](#4-build-chạy-ứng-dụng-và-chạy-test)
+5. [Tính năng](#5-tính-năng)
+6. [Kiến trúc & hình mẫu thiết kế](#6-kiến-trúc--hình-mẫu-thiết-kế)
+7. [Quy tắc nghiệp vụ (BR1–BR6)](#7-quy-tắc-nghiệp-vụ-br1br6)
+8. [Cấu trúc thư mục](#8-cấu-trúc-thư-mục)
+9. [Tài liệu UML](#9-tài-liệu-uml)
+10. [Trạng thái phát triển](#10-trạng-thái-phát-triển)
 
 ---
 
-## 2. Tính Năng Chính (Features)
-- **Quản lý thành viên**: Thêm mới, cập nhật hồ sơ, tra cứu thông tin chi tiết (họ tên, năm sinh, giới tính, ảnh đại diện).
-- **Thiết lập quan hệ phả hệ**: Gán cha (`assignFather`), gán mẹ (`assignMother`) với kiểm tra tự động các ràng buộc nghiệp vụ.
-- **Phát hiện chu trình (Cycle Detection)**: Tự động ngăn chặn các quan hệ vòng lặp phi logic trong gia phả bằng thuật toán duyệt đồ thị (DFS).
-- **Truy vấn phả hệ đa thế hệ**:
-  - Truy vết toàn bộ tổ tiên tiền bối (`getAncestors`).
-  - Tìm kiếm toàn bộ các thế hệ con cháu hậu duệ (`getDescendants`).
-- **Xóa an toàn**: Ngăn chặn xóa các thành viên đang đóng vai trò làm cha hoặc mẹ của người khác trong hệ thống.
-- **Trực quan hóa gia phả**: Hiển thị cây gia phả đa tầng với giao diện JavaFX hiện đại.
+## 1. Tổng quan dự án
+
+Hệ thống hỗ trợ gia đình, dòng tộc lưu trữ, tra cứu và hiển thị trực quan thông tin các thế hệ
+thành viên trong cây gia phả. Trọng tâm:
+
+- **Tính toàn vẹn dữ liệu phả hệ** — chặn chu trình vòng lặp, chặn cha = mẹ, chặn sai giới tính vai trò,
+  chặn xóa người đang được tham chiếu.
+- **Giao diện JavaFX hiện đại** — sơ đồ cây gia phả 2D có zoom/pan, xuất PNG, in ấn.
+- **Kiến trúc module hóa (JPMS)** rõ ràng, dễ mở rộng và bảo trì.
+
+**Công nghệ sử dụng**
+
+| Thành phần | Phiên bản / Ghi chú |
+|---|---|
+| Ngôn ngữ | Java 25 (OpenJDK 25) |
+| Module system | Java Platform Module System — `module-info.java`, module `com.giapha` |
+| Giao diện | JavaFX 23.0.2 (`javafx-controls`, `javafx-fxml`) |
+| Build tool | Apache Maven 3.9+ |
+| CSDL | MySQL 8.x hoặc MariaDB 10.x — port `3306`, charset `utf8mb4` |
+| Kết nối CSDL | JDBC thuần, `mysql-connector-j` 9.2.0 (**không** dùng ORM/Hibernate/JPA/Spring) |
+| Kiểm thử | JUnit 5 (`junit-jupiter` 5.10.2) + `maven-surefire-plugin` 3.2.5 |
+| Mô hình hóa | PlantUML (`docs/uml/*.puml` + `*.png`) |
 
 ---
 
-## 3. Công Nghệ Sử Dụng (Technology Stack)
-- **Ngôn ngữ**: Java 25 (OpenJDK 25.0.2)
-- **Hệ thống Module**: Java Platform Module System (`module-info.java`)
-- **UI Framework**: JavaFX 23.0.2 (`javafx-controls`, `javafx-fxml`)
-- **Build Tool**: Apache Maven 3.9.16
-- **Hệ quản trị CSDL**: MySQL / MariaDB (hỗ trợ `utf8mb4`)
-- **Kết nối CSDL**: JDBC thuần với `mysql-connector-j` 9.2.0
-- **Kiểm thử tự động**: JUnit 5 (`junit-jupiter` 5.10.2) + `maven-surefire-plugin` 3.2.5
-- **Mô hình hóa (Modeling)**: PlantUML
+## 2. Cài đặt nhanh (5 phút)
 
----
+### 2.1. Yêu cầu hệ thống
 
-## 4. Kiến Trúc Hệ Thống (Architecture)
-Dự án được tổ chức theo kiến trúc phân tầng (Layered Architecture):
+| Phần mềm | Bắt buộc | Ghi chú |
+|---|---|---|
+| **JDK 25** | ✅ | Kiểm tra: `java -version` → phải hiện `25.x`. Không dùng JDK 17/21 — `pom.xml` đặt `source/target = 25` |
+| **Apache Maven 3.9+** | ✅ | Kiểm tra: `mvn -v` |
+| **MySQL Server 8.x / MariaDB 10.x** | ✅ | Có thể dùng bản đi kèm XAMPP. Chạy ở port `3306` |
+| MySQL Shell / HeidiSQL / phpMyAdmin | ⬜ | Công cụ để nạp file `.sql` — bất kỳ client nào cũng được |
+| Git | ⬜ | Chỉ cần nếu bạn clone từ repository |
 
-```
-JavaFX UI (View Layer)
-       ↓
-PersonController (Controller Layer)
-       ↓
-FamilyTreeService (Business Service Layer)
-       ↓
-PersonRepository (Data Access Interface)
-       ↓
-JdbcPersonRepository (Data Access Implementation)
-       ↓
-DatabaseConnection (JDBC Factory)
-       ↓
-MySQL / MariaDB Database
-```
+> **Mẹo Windows**: nếu dùng XAMPP, mở **XAMPP Control Panel** → bấm **Start** ở dòng **MySQL**,
+> hoặc chạy `net start mysql` trong Command Prompt (cần quyền Administrator).
+> Nếu dùng MySQL Installer / dịch vụ Windows: `net start MySQL80` (tên service có thể khác).
 
-- **Separation of Concerns**: Tách biệt hoàn toàn giữa tầng giao diện, xử lý nghiệp vụ và truy xuất cơ sở dữ liệu.
-- **Dependency Inversion**: `FamilyTreeService` phụ thuộc vào interface `PersonRepository`, không phụ thuộc trực tiếp vào triển khai JDBC hay kết nối cơ sở dữ liệu.
+### 2.2. Clone & biên dịch
 
----
-
-## 5. Cấu Trúc Thư Mục (Project Structure)
-```
-do-an-gia-pha/
-├── pom.xml
-├── README.md
-├── AGENTS.md
-├── .gitignore
-├── database/
-│   └── schema.sql                  # Định nghĩa bảng PERSON, trigger & 7 bản ghi mẫu
-├── docs/
-│   └── uml/                        # Toàn bộ PlantUML (.puml) và ảnh sơ đồ (.png)
-├── test-data/
-│   ├── sample-data.sql             # Bộ dữ liệu mẫu 30 người / 5 thế hệ
-│   └── test-cases.md               # Bảng test case (mã, mô tả, dữ liệu vào, KQ mong đợi, KQ thực tế)
-├── src/
-    ├── main/
-    │   ├── java/
-    │   │   ├── module-info.java
-    │   │   └── com/giapha/
-    │   │       ├── Main.java
-    │   │       ├── model/          # Person, Gender
-    │   │       ├── exception/      # Custom Exceptions
-    │   │       ├── database/       # DatabaseConnection
-    │   │       ├── repository/     # PersonRepository, JdbcPersonRepository
-    │   │       ├── service/        # FamilyTreeService
-    │   │       ├── controller/     # PersonController
-    │   │       ├── util/           # ImageManager (quản lý ảnh đại diện)
-    │   │       │                   # PngWriter (ghi ảnh PNG thuần java.util.zip)
-    │   │       └── view/           # JavaFX Views & Design System
-    │   │                           # (PersonAvatar: component ảnh đại diện dùng chung)
-    │   │                           # (FamilyTreeDiagram: sơ đồ cây gia phả 2D)
-    │   └── resources/
-    │       ├── css/                # style.css
-    │       ├── fxml/               # FXML layouts
-    │       └── images/             # Icon & hình ảnh tĩnh
-    │                               # (Ảnh đại diện người dùng được copy vào ./images/ lúc runtime)
-    └── test/
-        └── java/
-            └── com/giapha/
-                ├── support/        # TestDatabase, FxTestSupport (tiện ích dùng chung)
-                ├── database/       # DatabaseConnectionTest
-                ├── service/        # FamilyTreeServiceTest
-                ├── controller/     # PersonControllerTest
-                ├── util/           # ImageManagerTest, PngWriterTest
-                ├── testdata/       # LargeSampleDataTest (bộ dữ liệu 30 người / 5 thế hệ)
-                └── view/           # AvatarFallbackTest, JavaFxViewTest (tag "javafx")
-```
-
----
-
-## 6. Quy Tắc Nghiệp Vụ (Business Rules)
-1. **BR1 — Self Parent**: Một người không thể là cha hoặc mẹ của chính mình (`SelfParentException`).
-2. **BR2 — Father != Mother**: Cha và mẹ của cùng một người không được là cùng một người (`SameParentException`).
-3. **BR3 — No Cycle**: Cấm chu trình phả hệ; phát hiện qua DFS traversal (`CycleDetectedException`).
-4. **BR4 — Person In Use**: Không cho phép xóa người đang là cha/mẹ của người khác (`PersonInUseException`).
-5. **BR5 — Parent Birth Year**: Cảnh báo nếu năm sinh cha/mẹ lớn hơn hoặc bằng năm sinh con (Warning only).
-6. **BR6 — Gender Role**: Cha bắt buộc là `Gender.MALE`, Mẹ bắt buộc là `Gender.FEMALE` (`InvalidParentGenderException`).
-
-**Thứ tự ưu tiên kiểm tra** trong `assignFather` / `assignMother`:
-`BR1 (SelfParent)` → `BR2 (SameParent)` → `BR6 (InvalidParentGender)` → `BR3 (Cycle)`.
-
-**Ràng buộc năm sinh**: `1000 <= birthYear <= Year.now().getValue()`.
-Hằng số `FamilyTreeService.MIN_BIRTH_YEAR = 1000` là nguồn sự thật duy nhất ở tầng Service;
-ràng buộc tương ứng ở tầng CSDL là `CHECK (birth_year >= 1000 AND birth_year <= 2100)`.
-Việc nới lỏng này nhằm phục vụ các bộ dữ liệu gia phả lịch sử nhiều thế hệ (xem `test-data/`).
-
----
-
-## 7. Cài Đặt Cơ Sở Dữ Liệu (Database Setup)
-Khởi động MySQL Server trên cổng mặc định `3306` và thực thi script khởi tạo:
 ```bash
-mysql -u root --default-character-set=utf8mb4 -e "source database/schema.sql"
-```
-Mặc định kết nối sử dụng `root` không mật khẩu trên `localhost:3306/gia_pha`. Có thể cấu hình lại qua biến môi trường hoặc system properties:
-- `DB_URL`
-- `DB_USER`
-- `DB_PASSWORD`
-
----
-
-## 8. Hướng Dẫn Biên Dịch & Chạy (Build & Run)
-
-### Biên dịch dự án:
-```bash
+git clone <URL_REPO>
+cd do-an-gia-pha
 mvn clean compile
 ```
 
-### Chạy ứng dụng giao diện JavaFX:
+Nếu `mvn` không có trong PATH, hãy cài [Apache Maven](https://maven.apache.org/download.cgi) và
+thêm `mvn\bin` vào biến môi trường `PATH`.
+
+### 2.3. Tạo database & nạp dữ liệu mẫu
+
+Mở terminal tại thư mục gốc dự án và chạy:
+
+```bash
+# Nạp schema + 7 bản ghi mẫu nguyên bản (xoá & tạo lại database `gia_pha`)
+mysql -u root --default-character-set=utf8mb4 -e "source database/schema.sql"
+```
+
+Nếu MySQL của bạn có mật khẩu: `mysql -u root -p --default-character-set=utf8mb4 -e "source database/schema.sql"`.
+
+Kiểm tra kết quả:
+
+```bash
+mysql -u root -e "SELECT COUNT(*) FROM gia_pha.PERSON;"   # → 7
+```
+
+> ⚠️ `database/schema.sql` chứa `DROP DATABASE IF EXISTS gia_pha;` — chạy lại sẽ **xoá sạch**
+> dữ liệu đang có. Chỉ chạy khi mới cài hoặc muốn khôi phục dữ liệu gốc.
+
+### 2.4. Chạy ứng dụng
+
 ```bash
 mvn javafx:run
 ```
 
-### Sơ đồ cây gia phả 2D
+> Ứng dụng dùng **đường dẫn tương đối** cho ảnh đại diện (`images/person_<id>.png`), nên
+> **luôn chạy từ thư mục gốc dự án** (`mvn javafx:run` đã đảm bảo điều này).
+> Nếu mở trực tiếp file JAR từ chỗ khác, ảnh sẽ không hiển thị.
 
-Màn hình **Cây gia phả** sử dụng `TabPane` với hai tab:
+---
+
+## 3. Cấu hình cơ sở dữ liệu
+
+`com.giapha.database.DatabaseConnection` đọc cấu hình theo thứ tự ưu tiên:
+**System property → Environment variable → giá trị mặc định**.
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `DB_URL` | `jdbc:mysql://localhost:3306/gia_pha?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true` | JDBC URL đầy đủ |
+| `DB_USER` | `root` | Tên đăng nhập MySQL |
+| `DB_PASSWORD` | *(rỗng)* | Mật khẩu MySQL |
+
+### Cách đặt bằng Environment variable (Windows PowerShell)
+
+```powershell
+$env:DB_URL    = "jdbc:mysql://localhost:3306/gia_pha?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
+$env:DB_USER   = "root"
+$env:DB_PASSWORD = "mat_khau_cua_ban"
+mvn javafx:run
+```
+
+### Cách đặt bằng System property (khi chạy test / chạy từ IDE)
+
+```bash
+mvn javafx:run -DDB_URL="jdbc:mysql://localhost:3306/gia_pha?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true" -DDB_USER=root -DDB_PASSWORD=secret
+```
+
+> 🔒 **Không** commit mật khẩu thật vào mã nguồn. `.gitignore` đã loại `.env` và `*.local`.
+> Hãy dùng biến môi trường của máy bạn.
+
+---
+
+## 4. Build, chạy ứng dụng và chạy test
+
+### 4.1. Build
+
+```bash
+mvn clean compile        # biên dịch
+mvn clean package        # đóng gói thành target/do-an-gia-pha-1.0-SNAPSHOT.jar
+```
+
+### 4.2. Chạy ứng dụng
+
+```bash
+mvn javafx:run
+```
+
+### 4.3. Chạy toàn bộ kiểm thử (121 test cases)
+
+```bash
+mvn clean test
+```
+
+| Lớp kiểm thử | Số test | Phạm vi |
+|---|---|---|
+| `FamilyTreeServiceTest` | 44 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu |
+| `PersonControllerTest` | 25 | Điều phối View ↔ Service, xử lý exception, callback điều hướng |
+| `LargeSampleDataTest` | 22 | Bộ dữ liệu mẫu 30 người / 5 thế hệ (BR1–BR6, validation, ràng buộc CSDL, an toàn DROP DB) |
+| `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
+| `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
+| `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
+
+**Điều kiện tiên quyết**: MySQL phải đang chạy. Các test dùng database **riêng** (tên kết thúc bằng
+`_test`) được **tự động tạo ở `@BeforeAll`** và **tự động xóa ở `@AfterAll`** — database chính
+`gia_pha` **không bao giờ** bị test ghi vào. Nếu CSDL không sẵn sàng, các test đó được đánh dấu
+`SKIPPED` (không tính là `FAILED`).
+
+### 4.4. Chạy riêng các test cần JavaFX Toolkit (tag `javafx` — 26 test cases)
+
+```bash
+mvn test -Pjavafx-tests
+mvn test -Pjavafx-tests -Dtest=JavaFxViewTest
+mvn test -Pjavafx-tests -Dtest=AvatarFallbackTest
+```
+
+### 4.5. Chạy một lớp / một phương thức test cụ thể
+
+```bash
+mvn test -Dtest=FamilyTreeServiceTest
+mvn test -Dtest=PersonControllerTest#handleAddCreatesPerson
+mvn test -Dtest=LargeSampleDataTest
+```
+
+### 4.6. Giữ lại database test để debug
+
+```bash
+mvn test -Dtest=LargeSampleDataTest -Dkeep.test.db=true
+```
+
+> Chỉ database có tên **kết thúc bằng `_test`** mới được phép `DROP`. Trước khi xóa, hàm
+> `TestDatabaseManager.assertSafeToDrop()` kiểm tra điều này và **ném `IllegalStateException`
+> + không DROP** nếu tên không khớp — không bao giờ xóa nhầm database chính `gia_pha`.
+
+### 4.7. Bộ dữ liệu mẫu mở rộng (`test-data/`)
+
+| File | Nội dung |
+|---|---|
+| `test-data/sample-data.sql` | Script SQL tạo **30 bản ghi** `PERSON` — 5 thế hệ (1850 → 1970), 4 nhánh dòng họ |
+| `test-data/test-cases.md` | Bảng test case: **mã, mô tả, dữ liệu vào, kết quả mong đợi, kết quả thực tế** + ma trận phủ BR1–BR6 |
+
+Bộ test tương ứng là `src/test/java/com/giapha/testdata/LargeSampleDataTest.java` (22 test) — nạp trực tiếp
+`test-data/sample-data.sql` vào database riêng `gia_pha_test`, nên dữ liệu mẫu và bảng test case
+luôn **đồng bộ**.
+
+```bash
+# Nạp dữ liệu mẫu vào database CHÍNH để kiểm thử thủ công trên giao diện
+mysql -u root -p < test-data/sample-data.sql
+
+# Khôi phục lại 7 bản ghi mẫu nguyên bản
+mysql -u root -p < database/schema.sql
+```
+
+> ⚠️ `sample-data.sql` **xoá toàn bộ** dữ liệu đang có trong bảng `PERSON`.
+
+### 4.8. Giải thích lệch số liệu khi đọc log Surefire
+
+Nếu bạn cộng tay từng dòng log Surefire (25 + 7 + 44 + 0 + 22 + 12 + 11) thì ra **121**,
+không phải 142. Con số 142 xuất hiện khi **báo cáo cũ** cộng thêm một dòng
+"22 test — FamilyTreeServiceTest (phần lồng)" *cùng* với dòng `FamilyTreeServiceTest$DataIsolation`
+đã chứa 44 test — tức là **đếm trùng** các test của lớp lồng `@Nested`.
+
+Cơ chế thật (đã kiểm chứng qua `target/surefire-reports/TEST-*.xml`):
+
+- `FamilyTreeServiceTest` khai báo **43** `@Test` ở thân lớp + **1** `@Test` trong lớp lồng
+  `@Nested DataIsolation` → **44** test thực thi.
+- Surefire ghi **hai** dòng log cho cùng một lớp:
+  - `... -- in com.giapha.service.FamilyTreeServiceTest$DataIsolation` → **44 test**
+    (chứa cả 43 test thân lớp lẫn 1 test lồng — xác nhận qua thuộc tính `classname` trong XML);
+  - `... -- in com.giapha.service.FamilyTreeServiceTest` → **0 test**, vì mọi test đã được
+    gán cho container lồng. Đây là *vỏ rỗng*, **không phải** test bị mất.
+- Vì vậy **chỉ dòng tổng cuối cùng** là con số chuẩn xác — đó là những gì Surefire thực sự thực thi:
+
+```
+[INFO] Results:
+[INFO] Tests run: 121, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+
+Dòng tổng này **không** bao gồm 26 test tag `javafx` (chạy riêng qua `mvn test -Pjavafx-tests`).
+
+### 4.9. Ghi chú về xung đột JPMS ↔ JUnit 5
+
+`src/main/java` có `module-info.java` (module `com.giapha`), còn `src/test/java` là test thuần
+JUnit 5 nằm ở "unnamed module". Để tránh lỗi JPMS chặn reflection của JUnit 5, `pom.xml` cấu hình:
+
+- `maven-compiler-plugin` → execution `default-testCompile` với `<useModulePath>false</useModulePath>`.
+- `maven-surefire-plugin` → `<useModulePath>false</useModulePath>`.
+
+> ⚠️ **Không được bỏ cấu hình này** khi thêm test mới — nếu không, `mvn test` sẽ lỗi compile
+> hoặc lỗi `IllegalAccessError` khi JUnit 5 dùng reflection gọi các `@Test` method.
+
+---
+
+## 5. Tính năng
+
+### 5.1. Quản lý thành viên
+
+- Thêm mới, cập nhật hồ sơ, xem chi tiết (họ tên, năm sinh, giới tính, ảnh đại diện).
+- Tìm kiếm theo từ khoá trên danh sách.
+- **Ảnh đại diện**: chọn ảnh qua `FileChooser` (chỉ nhận `png` / `jpg` / `jpeg`), ảnh được copy vào
+  thư mục `images/` cạnh ứng dụng và lưu **đường dẫn tương đối** (`images/person_<id>.<đuôi>`) vào DB.
+- Component `PersonAvatar` hiển thị ảnh bo tròn, **tự fallback** về chữ cái đầu khi thiếu ảnh /
+  file ảnh hỏng / sai định dạng — không bao giờ ném exception ra giao diện.
+
+### 5.2. Quan hệ phả hệ
+
+- Gán / gỡ cha (`assignFather` / `clearFather`) và mẹ (`assignMother` / `clearMother`).
+- Mọi thao tác đều được kiểm tra theo 6 quy tắc nghiệp vụ (xem [Mục 7](#7-quy-tắc-nghiệp-vụ-br1br6)).
+- Tra cứu đa thế hệ: `getAncestors` (tổ tiên) và `getDescendants` (hậu duệ).
+- Phát hiện chu trình phả hệ bằng thuật toán duyệt đồ thị (DFS) với `Set` chống lặp.
+- Xóa an toàn: chặn xóa thành viên đang làm cha/mẹ của người khác (không cascade, không tự set NULL).
+
+### 5.3. Sơ đồ cây gia phả 2D
+
+Màn hình **Cây gia phả** dùng `TabPane` với hai tab:
 
 | Tab | Nội dung |
-|-----|----------|
-| **Sơ đồ 2D** | Sơ đồ trực quan vẽ bằng `Pane` + `Line` (class `com.giapha.view.FamilyTreeDiagram`) |
+|---|---|
+| **Sơ đồ 2D** | `com.giapha.view.FamilyTreeDiagram` — vẽ bằng `Pane` + `Line` |
 | **Danh sách phả hệ** | `TreeView` dạng danh sách phân cấp (bản cũ, giữ lại để đối chiếu) |
 
-**Cách bố trí sơ đồ 2D:**
+**Bố cục sơ đồ 2D**
+
 - Mỗi thế hệ nằm trên một hàng; tổ tiên ở **trên**, hậu duệ ở **dưới** người trung tâm.
 - Mỗi node hiển thị **avatar + họ tên + năm sinh + giới tính**.
-- Cha và mẹ sinh chung một con được gom thành một *khối gia đình* (unit) để hiển thị cạnh nhau;
+- Cha và mẹ sinh chung một con được gom thành một *khối gia đình* để hiển thị cạnh nhau;
   con được canh chính giữa giữa hai vị trí cha/mẹ.
 - Đường kẻ nối **từng cha/mẹ xuống đúng con của họ** (vẽ ở mức cá nhân, không nối nhầm vợ/chồng).
 - Node của người trung tâm được tô viền đậm màu xanh.
 
-**Tương tác:**
+**Tương tác**
 
 | Thao tác | Kết quả |
-|----------|---------|
+|---|---|
 | Kéo chuột trái | Di chuyển sơ đồ (pan) |
 | Lăn chuột dọc | Cuộn dọc |
 | Shift + lăn chuột | Cuộn ngang |
@@ -182,187 +309,188 @@ Màn hình **Cây gia phả** sử dụng `TabPane` với hai tab:
 
 Combo box **"Người trung tâm"** thay đổi → sơ đồ 2D được vẽ lại tức thì.
 
-### Xuất PNG & In ấn
+### 5.4. Xuất PNG & In ấn
 
 | Nút | Cơ chế | Ghi chú |
-|-----|--------|---------|
-| **🖼 Xuất PNG** | `Node.snapshot()` với `SnapshotParameters.setViewport(...)` đúng bằng kích thước nội dung sơ đồ, sau đó ghi file PNG bằng `com.giapha.util.PngWriter` | Ảnh chụp **toàn bộ** sơ đồ ở mức zoom 1.0, không bị cắt theo khung nhìn hiện tại. Hộp thoại chọn file do `FileChooser` cung cấp |
+|---|---|---|
+| **🖼 Xuất PNG** | `Node.snapshot()` với `SnapshotParameters.setViewport(...)` đúng bằng kích thước nội dung sơ đồ, sau đó ghi file bằng `com.giapha.util.PngWriter` | Ảnh chụp **toàn bộ** sơ đồ ở mức zoom 1.0, không bị cắt theo khung nhìn hiện tại. `FileChooser` cho chọn nơi lưu |
 | **🖨 In** | `javafx.print.PrinterJob` + `PrinterJob.printPage(node)` | Dùng `JobSettings.getPageLayout()` để lấy khổ giấy; ảnh được bọc trong `StackPane` kích thước trang và canh giữa |
 
-> **Không thêm dependency mới.** `PngWriter` hiện thực thuần bằng `java.util.zip` (`Deflater` + `CRC32`) nên module `com.giapha` không cần khai báo thêm `java.desktop` hay `javafx.swing`.
+> **Không thêm dependency mới.** `PngWriter` hiện thực thuần bằng `java.util.zip` (`Deflater` + `CRC32`)
+> nên module `com.giapha` không cần khai báo thêm `java.desktop` hay `javafx.swing`.
 
-Kết quả thực hiện (thành công / thất bại / không tìm thấy máy in) đều được báo bằng `Alert`.
-
----
-
-## 9. Hướng Dẫn Kiểm Thử (Testing)
-
-Toàn bộ kiểm thử tự động dùng **JUnit 5** và nằm trong `src/test/java`.
-Chạy bằng `maven-surefire-plugin` — lệnh chuẩn là `mvn test`.
-
-> ⚠️ **Điều kiện tiên quyết cho các test phụ thuộc CSDL**: MySQL phải đang chạy. Các test dùng
-> database **riêng** (tên kết thúc bằng `_test`) được **tự động tạo ở `@BeforeAll`** và
-> **tự động xóa ở `@AfterAll`** — database chính `gia_pha` **không bao giờ** bị test ghi vào.
-> Nếu CSDL không sẵn sàng, các test đó được đánh dấu `SKIPPED` kèm thông báo rõ ràng
-> (không tính là `FAILED`).
-
-### 1. Chạy toàn bộ kiểm thử (121 test cases):
-```bash
-mvn clean test
-```
-| Lớp kiểm thử | Số test | Phạm vi |
-|---------------|---------|---------|
-| `FamilyTreeServiceTest` | 44 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu |
-| `PersonControllerTest` | 25 | Điều phối View ↔ Service, xử lý exception, callback điều hướng |
-| `LargeSampleDataTest` | 22 | Bộ dữ liệu mẫu 30 người / 5 thế hệ (BR1–BR6, validation, ràng buộc CSDL, an toàn DROP DB) |
-| `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
-| `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
-| `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
-
-> **Giải thích lệch số liệu "142" vs "121":** nếu bạn cộng tay từng dòng log Surefire
-> (25 + 7 + 44 + 0 + 22 + 12 + 11) thì ra **121**, không phải 142. Con số 142 xuất hiện
-> khi **báo cáo cũ** tự cộng thêm một dòng "22 test — FamilyTreeServiceTest (phần lồng)"
-> *cùng* với dòng `FamilyTreeServiceTest$DataIsolation` đã chứa 44 test — tức là cộng
-> trùng các test của lớp lồng `@Nested`.
->
-> Cơ chế thật (đã kiểm chứng bằng file `target/surefire-reports/TEST-*.xml`):
-> - `FamilyTreeServiceTest` khai báo **43** `@Test` ở thân lớp + **1** `@Test` trong
->   lớp lồng `@Nested DataIsolation` → **44** test thực thi.
-> - Surefire ghi **hai** dòng log cho cùng một lớp:
->   `... -- in com.giapha.service.FamilyTreeServiceTest$DataIsolation` (44 test, chứa
->   cả 43 test thân lớp lẫn 1 test lồng — kiểm chứng qua `classname` trong XML),
->   và `... -- in com.giapha.service.FamilyTreeServiceTest` (0 test, vì mọi test đã
->   được gán cho container lồng).
-> - Dòng `Tests run: 0 ... FamilyTreeServiceTest` là **vỏ rỗng**, không phải test bị mất.
->
-> Vì vậy **chỉ dòng tổng cuối cùng** mới là con số chuẩn xác, và đó là những gì
-> Surefire thực sự thực thi (không đếm trùng):
->
-> ```
-> [INFO] Results:
-> [INFO] Tests run: 121, Failures: 0, Errors: 0, Skipped: 0
-> [INFO] BUILD SUCCESS
-> ```
->
-> Dòng tổng này **không** bao gồm 26 test tag `javafx` (chạy riêng qua `mvn test -Pjavafx-tests`).
-
-### 2. Chạy riêng các test cần JavaFX Toolkit (tag `javafx` — 26 test cases):
-```bash
-mvn test -Pjavafx-tests
-```
-Chạy riêng một lớp:
-```bash
-mvn test -Pjavafx-tests -Dtest=JavaFxViewTest
-mvn test -Pjavafx-tests -Dtest=AvatarFallbackTest
-```
-
-> ⚠️ **Điều kiện tiên quyết**: MySQL phải đang chạy. Database test riêng `gia_pha_javafx_test`
-> được tự động tạo/xóa. Nếu không đủ điều kiện, toàn bộ lớp test được `SKIPPED`.
-
-**`AvatarFallbackTest` (14 test)** — kiểm tra component `PersonAvatar` (ảnh đại diện dùng chung cho
-danh sách / chi tiết / cây gia phả / form):
-- TC-AV-01: ảnh hợp lệ → hiển thị ảnh thật.
-- TC-AV-02/03/07: file ảnh **không tồn tại**, file ảnh **hỏng**, file **không phải ảnh** → fallback về placeholder (chữ cái đầu), **không ném exception**.
-- TC-AV-04/05/06: không có đường dẫn ảnh / đường dẫn rỗng / `person = null` → fallback placeholder.
-- TC-AV-08/09: constructor với file cụ thể (xem trước ảnh trong form) → hiển thị ảnh thật / fallback.
-- TC-AV-10/11: kích thước avatar và `resolveImageFile()` xử lý đường dẫn sai / null / rỗng.
-- TC-AV-12/13/14: `ImageView` khi hiển thị ảnh thật, `Label` khi fallback, clip hình tròn.
-
-**`JavaFxViewTest` (12 test)** — kiểm thử tích hợp in-process (không dùng TestFX):
-- TEST 1: `PeopleListView` nạp danh sách thành viên từ MySQL vào `TableView`.
-- TEST 2: Tìm kiếm client-side (`searchField`) và phục hồi danh sách đầy đủ.
-- TEST 3: `PersonFormView` thêm thành viên mới hợp lệ (với cha/mẹ) vào MySQL.
-- TEST 4: Validation từ chối dữ liệu không hợp lệ (tên rỗng, năm sinh sai số).
-- TEST 5: `PersonFormView` sửa tên và gỡ quan hệ cha/mẹ (set NULL) qua form.
-- TEST 6a/6b: Chặn xóa người đang làm cha/mẹ theo BR4; xóa thành viên thử nghiệm đã gỡ quan hệ.
-- TEST 7a/7b: `PersonDetailView` hiển thị đúng cha/mẹ; `FamilyTreeView` dựng cây đa thế hệ.
-- TEST 8: `FamilyTreeView` có sơ đồ 2D (`FamilyTreeDiagram`) đi kèm.
-- TEST 9/10: CSDL giữ đúng 7 bản ghi mẫu sau toàn bộ test; JavaFX Toolkit sẵn sàng.
-
-> **Lưu ý kỹ thuật**: ảnh được nạp ở chế độ background nên test **không** sleep trên JavaFX
-> Application Thread (sẽ chặn nạp ảnh), và **không** gọi `Platform.exit()` trước khi ảnh nạp xong.
-> JavaFX Toolkit không thể khởi tạo lại sau `Platform.exit()` — `FxTestSupport` chỉ đóng Stage giả
-> và dùng shutdown hook.
-
-> **Lưu ý**: Bộ test xác nhận luồng Controller–Service–Repository–MySQL đúng đắn, nhưng **không
-> thay thế kiểm thử thủ công trên desktop** để xác nhận trải nghiệm người dùng cuối, hiển thị
-> ảnh đại diện và tương tác chuột/bàn phím thực tế.
-
-### 3. Chạy một lớp / một phương thức test cụ thể:
-```bash
-mvn test -Dtest=FamilyTreeServiceTest
-mvn test -Dtest=PersonControllerTest#handleAddCreatesPerson
-mvn test -Dtest=LargeSampleDataTest
-```
-
-### 4. Bộ dữ liệu mẫu mở rộng (`test-data/`)
-
-Thư mục `test-data/` chứa **bộ dữ liệu kiểm thử thực tế**: 30 người / 5 thế hệ / 4 nhánh dòng họ.
-
-| File | Nội dung |
-|------|----------|
-| `test-data/sample-data.sql` | Script SQL tạo 30 bản ghi `PERSON` (thế hệ 1 năm 1850 → thế hệ 5 năm 1970) |
-| `test-data/test-cases.md` | Bảng test case đầy đủ: **mã, mô tả, dữ liệu vào, kết quả mong đợi, kết quả thực tế** + ma trận phủ BR1–BR6 |
-
-Bộ test tương ứng là `src/test/java/com/giapha/testdata/LargeSampleDataTest.java` (22 test case),
-tự tạo database riêng `gia_pha_test` (schema giống hệt `database/schema.sql`) ở đầu mỗi lần
-chạy, nạp `sample-data.sql` vào đó, rồi **tự động DROP** database test ở cuối.
-Trước khi DROP có kiểm tra an toàn: tên database bắt buộc phải **kết thúc bằng `_test`**,
-nếu không sẽ ném lỗi và **không** DROP — không bao giờ xóa nhầm database chính `gia_pha`.
-
-```bash
-# Chạy riêng bộ test dữ liệu mẫu mở rộng
-mvn test -Dtest=LargeSampleDataTest
-
-# Giữ lại database test (gia_pha_test) sau khi chạy để debug trực tiếp
-mvn test -Dtest=LargeSampleDataTest -Dkeep.test.db=true
-
-# Nạp dữ liệu mẫu vào database chính để kiểm thử thủ công trên giao diện
-mysql -u root -p < test-data/sample-data.sql
-```
-> ⚠️ `sample-data.sql` **xoá toàn bộ** dữ liệu đang có trong bảng `PERSON`.
-> Khôi phục lại dữ liệu gốc: `mysql -u root -p < database/schema.sql`.
-
-### 5. Ghi chú về xung đột JPMS ↔ JUnit 5
-
-`src/main/java` có `module-info.java` (module `com.giapha`), còn `src/test/java` là test thuần
-JUnit 5 nằm ở "unnamed module". Để tránh lỗi JPMS chặn reflection của JUnit 5, `pom.xml` cấu hình:
-- `maven-compiler-plugin` → execution `default-testCompile` với `<useModulePath>false</useModulePath>`.
-- `maven-surefire-plugin` → `<useModulePath>false</useModulePath>`.
-
-> ⚠️ **Không được bỏ cấu hình này** khi thêm test mới — nếu không, `mvn test` sẽ báo lỗi compile
-> hoặc lỗi `IllegalAccessError` khi JUnit 5 dùng reflection gọi các `@Test` method.
+Kết quả thực hiện (thành công / thất bại / không tìm thấy máy in / sơ đồ rỗng) đều được báo bằng `Alert`
+thay vì ném exception ra giao diện.
 
 ---
 
-## 10. Tài Liệu UML (UML Documentation)
+## 6. Kiến trúc & hình mẫu thiết kế
+
+### 6.1. Luồng phụ thuộc một chiều
+
+```
+JavaFX UI (View)
+       ↓
+PersonController (Controller)
+       ↓
+FamilyTreeService (Business Service Layer)
+       ↓
+PersonRepository  ← interface (Data Access)
+       ↓
+JdbcPersonRepository (Data Access Implementation)
+       ↓
+DatabaseConnection (JDBC Factory)
+       ↓
+MySQL / MariaDB
+```
+
+### 6.2. Các hình mẫu thiết kế đã dùng
+
+| Hình mẫu | Thể hiện ở đâu | Chi tiết |
+|---|---|---|
+| **Layered Architecture / MVC** | Toàn bộ package `com.giapha.*` | View → Controller → Service → Repository → Database. Mỗi tầng chỉ biết tầng ngay dưới nó. |
+| **Separation of Concerns** | Tách `view` / `controller` / `service` / `repository` / `database` | View chỉ hiển thị & bắt sự kiện; Service chỉ chứa quy tắc nghiệp vụ; Repository chỉ lo truy cập dữ liệu. |
+| **Dependency Inversion (SOLID)** | `FamilyTreeService` phụ thuộc `PersonRepository` (interface) | Service **không** import `JdbcPersonRepository`, `DatabaseConnection`, `Connection`, `PreparedStatement`, `ResultSet` hay bất kỳ JDBC API nào. Thay thế triển khai CSDL không cần sửa Service. |
+| **Repository Pattern** | `PersonRepository` + `JdbcPersonRepository` | Ẩn hoàn toàn SQL sau abstraction `findById` / `findAll` / `search` / `save` / `update` / `delete`. |
+| **Factory (JDBC Factory)** | `DatabaseConnection.getConnection()` | Trả về **Connection mới** mỗi lần gọi; không dùng static connection dài hạn. Caller đóng kết nối bằng try-with-resources. |
+| **Strategy cấu hình** | `DatabaseConnection.getUrl/getUser/getPassword` | Thứ tự ưu tiên System property → Environment variable → mặc định. Không hard-code mật khẩu. |
+| **Custom Exception** | `com.giapha.exception.*` | Mỗi BR có exception riêng → tầng Controller bắt và hiển thị thông báo tiếng Việt rõ ràng, không văng stack trace ra UI. |
+| **Data Access Object mở rộng (test)** | `TestPersonRepository` (chỉ trong test) | Ghi đè `getConnection()` để trỏ database test — cô lập dữ liệu tuyệt đối. |
+
+### 6.3. Ranh giới trách nhiệm
+
+| Tầng | Trách nhiệm | KHÔNG được làm |
+|---|---|---|
+| **View** | Hiển thị, bắt sự kiện, gọi Controller | Không chứa SQL, không gọi Service/Repository trực tiếp |
+| **Controller** | Điều phối View ↔ Service, chuyển exception thành thông báo | Không viết SQL, không gọi Repository/JDBC |
+| **Service** | Quy tắc nghiệp vụ BR1–BR6, validation, phát hiện chu trình | Không import bất kỳ JDBC API nào |
+| **Repository** | CRUD bảng `PERSON` bằng JDBC thuần | Không chứa quy tắc nghiệp vụ |
+| **Database** | Cấp `Connection` mới | Không giữ connection dài hạn |
+
+---
+
+## 7. Quy tắc nghiệp vụ (BR1–BR6)
+
+| Mã | Tên | Nội dung | Xử lý khi vi phạm |
+|---|---|---|---|
+| **BR1** | Self Parent | Một người không thể là cha hoặc mẹ của chính mình | `SelfParentException` |
+| **BR2** | Father ≠ Mother | Cha và mẹ của cùng một người không được là cùng một người | `SameParentException` |
+| **BR3** | No Cycle | Không được tạo chu trình vòng lặp trong gia phả | `CycleDetectedException` |
+| **BR4** | Person In Use | Không xóa được `Person` đang được tham chiếu làm cha/mẹ của người khác | `PersonInUseException` |
+| **BR5** | Parent Birth Year | Năm sinh của cha/mẹ nên nhỏ hơn năm sinh của con | **Cảnh báo** (không chặn) — `FamilyTreeService.checkBirthYearWarning(...)` trả về danh sách thông điệp; Controller hiện `Alert` với lựa chọn **Tiếp tục** / **Hủy** |
+| **BR6** | Gender Role | `father` bắt buộc là `Gender.MALE`, `mother` bắt buộc là `Gender.FEMALE` | `InvalidParentGenderException` |
+
+**Thứ tự ưu tiên kiểm tra** trong `assignFather` / `assignMother` (để thông báo đúng nguyên nhân):
+
+```
+BR1 (SelfParent) → BR2 (SameParent) → BR6 (InvalidParentGender) → BR3 (Cycle)
+```
+
+**Ràng buộc năm sinh**: `1000 <= birthYear <= Year.now().getValue()`.
+Hằng số `FamilyTreeService.MIN_BIRTH_YEAR = 1000` là nguồn sự thật duy nhất ở tầng Service;
+ràng buộc tương ứng ở tầng CSDL là `CHECK (birth_year >= 1000 AND birth_year <= 2100)`.
+Việc nới lỏng này nhằm phục vụ các bộ dữ liệu gia phả lịch sử nhiều thế hệ (xem `test-data/`).
+
+**Bảo vệ ở tầng CSDL** (`database/schema.sql`):
+
+- `CHECK chk_birth_year` — `birth_year >= 1000 AND birth_year <= 2100`
+- `CHECK chk_father_not_mother` — `father_id IS NULL OR mother_id IS NULL OR father_id <> mother_id`
+- `TRIGGER trg_check_not_self_parent_update` — chặn `father_id = id` / `mother_id = id`
+- `ON DELETE RESTRICT` cho cả hai khóa ngoại `father_id` / `mother_id`
+
+---
+
+## 8. Cấu trúc thư mục
+
+```
+do-an-gia-pha/
+├── pom.xml
+├── README.md
+├── AGENTS.md                       # Hướng dẫn dành cho AI Agent (source of truth kiến trúc)
+├── .gitignore
+├── database/
+│   └── schema.sql                  # Định nghĩa bảng PERSON, index, trigger & 7 bản ghi mẫu
+├── docs/
+│   └── uml/                        # Toàn bộ PlantUML (.puml) và ảnh sơ đồ (.png)
+├── test-data/
+│   ├── sample-data.sql             # Bộ dữ liệu mẫu 30 người / 5 thế hệ
+│   └── test-cases.md               # Bảng test case (mã, mô tả, dữ liệu vào, KQ mong đợi, KQ thực tế)
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   ├── module-info.java
+│   │   │   └── com/giapha/
+│   │   │       ├── Main.java                 # Điểm khởi chạy JavaFX
+│   │   │       ├── model/                    # Person, Gender
+│   │   │       ├── exception/                # Custom exception cho BR1–BR6
+│   │   │       ├── database/                 # DatabaseConnection (JDBC Factory)
+│   │   │       ├── repository/               # PersonRepository, JdbcPersonRepository
+│   │   │       ├── service/                  # FamilyTreeService
+│   │   │       ├── controller/               # PersonController
+│   │   │       ├── util/                     # ImageManager, PngWriter
+│   │   │       └── view/                     # JavaFX Views + FamilyTreeDiagram + PersonAvatar
+│   │   └── resources/
+│   │       ├── css/                          # style.css
+│   │       ├── fxml/                         # FXML layouts
+│   │       └── images/                       # Icon & ảnh tĩnh
+│   │                                       # (ảnh đại diện người dùng copy vào ./images/ lúc runtime)
+│   └── test/
+│       └── java/
+│           └── com/giapha/
+│               ├── support/                  # TestDatabaseManager, TestPersonRepository,
+│               │                             # TestDatabase, FxTestSupport
+│               ├── database/                 # DatabaseConnectionTest
+│               ├── service/                  # FamilyTreeServiceTest
+│               ├── controller/               # PersonControllerTest
+│               ├── util/                     # ImageManagerTest, PngWriterTest
+│               ├── testdata/                 # LargeSampleDataTest (30 người / 5 thế hệ)
+│               └── view/                     # AvatarFallbackTest, JavaFxViewTest (tag "javafx")
+```
+
+---
+
+## 9. Tài liệu UML
+
 Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
-- Sơ đồ lớp: `class-diagram.puml` / `class-diagram.png` (cập nhật đầy đủ các tầng View, Controller, Service, Repository, Database)
-- Sơ đồ thành phần: `component-diagram.puml` / `component-diagram.png`
-- Sơ đồ triển khai: `deployment-diagram.puml` / `deployment-diagram.png`
-- Sơ đồ ca sử dụng: `use-case.puml` / `use-case.png`
-- Sơ đồ tuần tự & hoạt động cho các ca sử dụng: Thêm người, Gán cha mẹ, Xem cây gia phả.
+
+| Sơ đồ | File |
+|---|---|
+| Lớp | `class-diagram.puml` / `class-diagram.png` |
+| Thành phần | `component-diagram.puml` / `component-diagram.png` |
+| Triển khai | `deployment-diagram.puml` / `deployment-diagram.png` |
+| Ca sử dụng | `use-case.puml` / `use-case.png` |
+| Tuần tự | `sequence-add-person.puml`, `sequence-assign-parent.puml`, `sequence-family-tree.puml` |
+| Hoạt động | `activity-add-person.puml`, `activity-assign-parent.puml`, `activity-family-tree.puml` |
 
 ---
 
-## 11. Trạng Thái Phát Triển (Development Status)
-- [x] **Cụm 1–4**: Thiết kế UML, kiến trúc, UI Mockup & Design System JavaFX.
-- [x] **Cụm 5.1–5.2**: Model Layer, Custom Exceptions & Repository Layer (Interface & JDBC Implementation).
-- [x] **Cụm 5.3**: Database Schema, MySQL setup, DatabaseConnection.
-- [x] **Cụm 5.4**: FamilyTreeService Layer & Bộ test nghiệp vụ (22/22 test cases PASS).
-- [x] **Cụm 5.5**: PersonController & Bộ test Controller (8/8 test cases PASS).
-   - `PersonController` là cầu nối duy nhất giữa View JavaFX và `FamilyTreeService` — View **không** gọi trực tiếp Service hay Repository.
-   - Bắt toàn bộ ngoại lệ nghiệp vụ (`SelfParentException`, `SameParentException`, `InvalidParentGenderException`, `CycleDetectedException`, `PersonInUseException`, `InvalidBirthYearException`, `PersonNotFoundException`, `IllegalArgumentException`, `SQLException`…) và hiển thị bằng `Alert` tiếng Việt — không văng stack trace ra giao diện.
-   - **BR5 (cảnh báo năm sinh)** được kiểm tra ở tầng Service qua `FamilyTreeService.checkBirthYearWarning(child, father, mother)`; Controller hiển thị `Alert` cảnh báo với hai lựa chọn **Tiếp tục** / **Hủy**.
-   - **Ảnh đại diện**: nút *Chọn ảnh...* dùng `FileChooser` (chỉ nhận `png` / `jpg` / `jpeg`); ảnh được copy vào thư mục `images/` cạnh ứng dụng và lưu **đường dẫn tương đối** (`images/person_<id>.<đuôi>`) vào DB. Tiện ích nằm ở `com.giapha.util.ImageManager`.
-- [x] **Cụm 5.6**: Tích hợp toàn diện JavaFX UI với Backend MySQL (kết nối trực tiếp, loại bỏ hoàn toàn SampleData khỏi luồng chạy chính).
-- [x] **Cụm 5.7**: End-to-End Verification, QA tích hợp và kiểm chứng toàn vẹn dữ liệu MySQL.
-- [x] **Cụm 5.8**: Đồng bộ hóa tài liệu (README) và sơ đồ lớp (Class Diagram).
-- [x] **Cụm 5.9**: Native In-Process JavaFX Test Harness (`JavaFxViewTest`) — 9/9 test cases PASS, bảo toàn 7 bản ghi mẫu.
-- [x] **Cụm 5.10**: Hiển thị ảnh đại diện thật trên toàn bộ giao diện — component dùng chung `com.giapha.view.PersonAvatar` (ảnh bo tròn, tự fallback về chữ cái đầu khi thiếu ảnh / file ảnh hỏng / sai định dạng, **không ném exception ra UI**), tích hợp vào `PeopleListView` (cột Ảnh), `PersonDetailView` (avatar + thumbnail), `FamilyTreeView` (avatar trên mỗi node) và `PersonFormView` (xem trước). Bộ test `AvatarFallbackTest` — 14/14 PASS.
-- [x] **Cụm 6.1**: Sơ đồ cây gia phả 2D (`FamilyTreeDiagram`) — vẽ bằng `Pane` + `Line`, mỗi thế hệ một hàng, node gồm avatar + họ tên + năm sinh + giới tính, đường nối cha/mẹ xuống con, hỗ trợ zoom & pan. Giữ `TreeView` cũ làm tab thứ hai.
-- [x] **Cụm 6.2**: Xuất PNG (`Node.snapshot()` + `PngWriter` thuần `java.util.zip`) và In ấn (`javafx.print.PrinterJob`) — không thêm dependency, kết quả báo bằng `Alert`.
-- [x] **Cụm 6.3**: Nới validate năm sinh xuống `1000 <= birthYear <= Year.now()` (hằng số `FamilyTreeService.MIN_BIRTH_YEAR`).
-- [x] **Cụm 6.4**: Custom exception riêng cho BR2 (`SameParentException`) và BR6 (`InvalidParentGenderException`), thay `IllegalArgumentException`; thứ tự kiểm tra `BR1 → BR2 → BR6 → BR3`.
-- [x] **Cụm 6.5**: Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (120 test mặc định + 26 test tag `javafx`), tạo `src/test/java`, xử lý xung đột `module-info.java` bằng `useModulePath=false`.
-- [x] **Cụm 6.6**: Bộ dữ liệu mẹ & bảng test case trong `test-data/` — `sample-data.sql` (30 người / 5 thế hệ) + `test-cases.md` (22 test case có kết quả thực tế) + `LargeSampleDataTest` (22 test PASS).
+## 10. Trạng thái phát triển
+
+| Cụm | Nội dung | Trạng thái |
+|---|---|---|
+| **1–4** | Thiết kế UML, kiến trúc, UI Mockup & Design System JavaFX | ✅ Hoàn thành |
+| **5.1–5.2** | Model Layer, Custom Exceptions, Repository Layer (interface + JDBC) | ✅ Hoàn thành |
+| **5.3** | Database Schema, MySQL setup, `DatabaseConnection` | ✅ Hoàn thành |
+| **5.4** | `FamilyTreeService` + bộ test nghiệp vụ | ✅ Hoàn thành |
+| **5.5** | `PersonController` + bộ test Controller (BR5 cảnh báo, ảnh đại diện, xử lý exception đầy đủ) | ✅ Hoàn thành |
+| **5.6** | Tích hợp toàn diện JavaFX UI với MySQL | ✅ Hoàn thành |
+| **5.7** | End-to-End verification, QA tích hợp, kiểm chứng toàn vẹn dữ liệu | ✅ Hoàn thành |
+| **5.8** | Đồng bộ hóa tài liệu (README) và sơ đồ lớp | ✅ Hoàn thành |
+| **5.9** | Native in-process JavaFX test harness (`JavaFxViewTest`) | ✅ Hoàn thành |
+| **5.10** | `PersonAvatar` — component ảnh đại diện dùng chung, fallback an toàn | ✅ Hoàn thành |
+| **6.1** | Sơ đồ cây gia phả 2D (`FamilyTreeDiagram`) — zoom & pan, node avatar, đường nối cha/mẹ–con | ✅ Hoàn thành |
+| **6.2** | Xuất PNG (`PngWriter` thuần `java.util.zip`) và In ấn (`javafx.print.PrinterJob`) | ✅ Hoàn thành |
+| **6.3** | Nới validate năm sinh xuống `1000 <= birthYear <= Year.now()` | ✅ Hoàn thành |
+| **6.4** | Custom exception riêng cho BR2 (`SameParentException`) và BR6 (`InvalidParentGenderException`) | ✅ Hoàn thành |
+| **6.5** | Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (121 test mặc định + 26 test tag `javafx`) | ✅ Hoàn thành |
+| **6.6** | Bộ dữ liệu mẫu & bảng test case trong `test-data/` (`LargeSampleDataTest`, 22 test) | ✅ Hoàn thành |
+| **6.7** | **Cách ly dữ liệu test**: mọi lớp test dùng database riêng `*_test`; `TestDatabaseManager` quản lý vòng đời + `assertSafeToDrop` | ✅ Hoàn thành |
+
+### Hạng mục chưa làm
+
+| Hạng mục | Ghi chú |
+|---|---|
+| Kiểm thử tự động trải nghiệm người dùng cuối (chuột/bàn phím) | Bộ test xác nhận đúng luồng Controller–Service–Repository–MySQL, nhưng phần UX trên desktop cần kiểm thử thủ công qua `mvn javafx:run`. |
+| Đóng gói bản phân phối (.exe / .msi) | Hiện chỉ chạy qua `mvn javafx:run`. |
+| Chức năng xuất/nhập dữ liệu (JSON / CSV / GEDCOM) | Chưa triển khai. |
+| Đăng nhập / phân quyền người dùng | Chưa triển khai. |
