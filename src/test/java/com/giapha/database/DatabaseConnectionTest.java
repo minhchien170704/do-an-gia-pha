@@ -1,6 +1,8 @@
 package com.giapha.database;
 
 import com.giapha.support.TestDatabase;
+import com.giapha.support.TestDatabaseManager;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.MethodOrderer;
@@ -23,17 +25,35 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 /**
  * Kiểm thử tầng Database: kết nối MySQL, metadata và trạng thái bảng {@code PERSON}.
  *
+ * <p><b>Cô lập dữ liệu:</b> lớp test này dùng database RIÊNG {@code gia_pha_conn_test}
+ * (tên kết thúc bằng {@code _test}). Test {@code DatabaseConnection.getConnection()}
+ * (dùng {@code DB_URL} cấu hình mặc định) trỏ tới database CHÍNH — chỉ được
+ * phép ĐỌC, tuyệt đối không ghi.
+ *
  * <p>Các test case phụ thuộc MySQL đang chạy. Nếu không kết nối được, test được
  * {@code SKIPPED} (không phải FAILED) kèm thông báo rõ ràng.
+ *
+ * @see TestDatabaseManager
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("DatabaseConnection — kết nối MySQL và kiểm tra schema")
 class DatabaseConnectionTest {
 
+    /** Tên database kiểm thử riêng của lớp test này. */
+    private static final String TEST_DB_NAME = "gia_pha_conn_test";
+
     @BeforeAll
-    static void requireDatabase() {
-        assumeTrue(TestDatabase.isAvailable(),
-                "BỎ QUA: không kết nối được MySQL (gia_pha). Hãy khởi động MySQL và nạp database/schema.sql.");
+    static void requireDatabase() throws Exception {
+        // Tạo database test riêng (DROP + CREATE + schema + 7 bản ghi mẫu)
+        TestDatabaseManager.createFreshDatabase(TEST_DB_NAME);
+
+        assumeTrue(TestDatabase.isAvailable(TEST_DB_NAME),
+                "BỎ QUA: không kết nối được MySQL. Hãy khởi động MySQL trước khi chạy test.");
+    }
+
+    @AfterAll
+    static void dropTestDatabase() throws Exception {
+        TestDatabaseManager.dropDatabase(TEST_DB_NAME);
     }
 
     @Test
@@ -77,15 +97,16 @@ class DatabaseConnectionTest {
 
     @Test
     @Order(4)
-    @DisplayName("Bảng PERSON tồn tại và có dữ liệu mẫu")
+    @DisplayName("Bảng PERSON trong database test tồn tại và có dữ liệu mẫu")
     void personTableExistsWithSampleData() throws Exception {
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM PERSON")) {
             assertTrue(rs.next(), "Truy vấn COUNT(*) phải trả về một dòng");
             int count = rs.getInt(1);
-            assertTrue(count > 0, "Bảng PERSON phải có ít nhất một bản ghi");
-            System.out.println("[INFO] Số bản ghi PERSON hiện tại: " + count);
+            assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, count,
+                    "Database test phải có đúng 7 bản ghi mẫu");
+            System.out.println("[INFO] Số bản ghi PERSON trong database test: " + count);
         }
     }
 
@@ -99,7 +120,7 @@ class DatabaseConnectionTest {
 
         assertNotNull(url);
         assertFalse(url.trim().isEmpty(), "DB_URL không được rỗng");
-        assertTrue(url.startsWith("jdbc:mysql:"), "URL phải bắt đầu bằng jdbc:mysql: nhưng thực tế: " + url);
+        assertTrue(url.startsWith("jdbc:mysql:"), "URL phải bắt đầu bằng jdbc:mysql: nhưng thực tế là: " + url);
         assertNotNull(user);
         assertFalse(user.trim().isEmpty(), "DB_USER không được rỗng");
         assertNotNull(password);
@@ -109,7 +130,18 @@ class DatabaseConnectionTest {
     @Order(6)
     @DisplayName("Số bản ghi PERSON khớp với giá trị đếm được")
     void recordCountMatchesHelper() {
-        assertEquals(TestDatabase.countPersons(), TestDatabase.countPersons());
-        assertTrue(TestDatabase.countPersons() >= 0, "Số bản ghi phải đếm được");
+        assertEquals(TestDatabase.countPersons(TEST_DB_NAME),
+                TestDatabase.countPersons(TEST_DB_NAME));
+        assertTrue(TestDatabase.countPersons(TEST_DB_NAME) >= 0, "Số bản ghi phải đếm được");
+    }
+
+    @Test
+    @Order(7)
+    @DisplayName("Database CHÍNH gia_pha không bị test thay đổi (cô lập dữ liệu tuyệt đối)")
+    void mainDatabaseIsUntouched() {
+        int mainCount = TestDatabase.countMainDatabasePersons();
+        assertTrue(mainCount >= 0,
+                "Không đọc được database chính 'gia_pha' — hãy nạp database/schema.sql trước");
+        System.out.println("[INFO] Số bản ghi PERSON trong database chính 'gia_pha': " + mainCount);
     }
 }

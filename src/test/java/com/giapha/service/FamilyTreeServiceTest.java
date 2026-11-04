@@ -9,9 +9,10 @@ import com.giapha.exception.SameParentException;
 import com.giapha.exception.SelfParentException;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
-import com.giapha.repository.JdbcPersonRepository;
 import com.giapha.repository.PersonRepository;
 import com.giapha.support.TestDatabase;
+import com.giapha.support.TestDatabaseManager;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,29 +43,45 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * <p>Bao phủ đầy đủ 6 quy tắc nghiệp vụ (BR1 – BR6) và các nhóm kiểm thử mở rộng
  * (TC01 – TC14, TC-CLEAR-01 … TC-CLEAR-05).
  *
- * <p><b>Cô lập dữ liệu:</b> trước và sau mỗi test, bảng {@code PERSON} được đặt lại
- * về đúng 7 bản ghi mẫu nguyên bản.
+ * <p><b>Cô lập dữ liệu:</b> lớp test này dùng database RIÊNG {@code gia_pha_service_test}
+ * (tên kết thúc bằng {@code _test}), được tạo mới ở {@code @BeforeAll} và xóa ở
+ * {@code @AfterAll}. Database chính {@code gia_pha} — dữ liệu thật của người dùng —
+ * <b>không bao giờ</b> bị ghi vào.
+ *
+ * @see TestDatabaseManager
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("FamilyTreeService — quy tắc nghiệp vụ BR1–BR6")
 class FamilyTreeServiceTest {
 
+    /** Tên database kiểm thử riêng của lớp test này. */
+    private static final String TEST_DB_NAME = "gia_pha_service_test";
+
     private static PersonRepository repository;
     private static FamilyTreeService service;
 
     @BeforeAll
-    static void initService() {
-        assumeTrue(TestDatabase.isAvailable(),
-                "BỎ QUA: không kết nối được MySQL (gia_pha). Hãy khởi động MySQL và nạp database/schema.sql.");
-        repository = new JdbcPersonRepository();
+    static void initService() throws Exception {
+        // Tạo database test riêng (DROP + CREATE + schema + 7 bản ghi mẫu)
+        TestDatabaseManager.createFreshDatabase(TEST_DB_NAME);
+
+        assumeTrue(TestDatabase.isAvailable(TEST_DB_NAME),
+                "BỎ QUA: không kết nối được MySQL. Hãy khởi động MySQL trước khi chạy test.");
+
+        repository = TestDatabaseManager.repositoryFor(TEST_DB_NAME);
         service = new FamilyTreeService(repository);
+    }
+
+    @AfterAll
+    static void dropTestDatabase() throws Exception {
+        TestDatabaseManager.dropDatabase(TEST_DB_NAME);
     }
 
     @BeforeEach
     @AfterEach
     void resetDatabase() {
-        if (TestDatabase.isAvailable()) {
-            TestDatabase.resetToSampleState();
+        if (TestDatabase.isAvailable(TEST_DB_NAME)) {
+            TestDatabase.resetToSampleState(TEST_DB_NAME);
         }
     }
 
@@ -616,7 +633,7 @@ class FamilyTreeServiceTest {
         @Test
         @DisplayName("Bảng PERSON luôn có đúng 7 bản ghi mẫu sau mỗi test")
         void databaseIsRestored() {
-            assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(),
+            assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(TEST_DB_NAME),
                     "CSDL phải được trả về đúng 7 bản ghi mẫu sau khi chạy test");
         }
     }

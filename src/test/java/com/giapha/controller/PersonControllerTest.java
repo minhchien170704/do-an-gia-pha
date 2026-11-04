@@ -2,9 +2,10 @@ package com.giapha.controller;
 
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
-import com.giapha.repository.JdbcPersonRepository;
 import com.giapha.service.FamilyTreeService;
 import com.giapha.support.TestDatabase;
+import com.giapha.support.TestDatabaseManager;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,27 +34,45 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  *     <li>Controller bắt đúng các custom exception (BR1 – BR6) mà không làm hỏng dữ liệu.</li>
  *     <li>Controller giữ nguyên tính cô lập dữ liệu.</li>
  * </ul>
+ *
+ * <p><b>Cô lập dữ liệu:</b> lớp test này dùng database RIÊNG {@code gia_pha_controller_test}
+ * (tên kết thúc bằng {@code _test}), được tạo mới ở {@code @BeforeAll} và xóa ở
+ * {@code @AfterAll}. Database chính {@code gia_pha} <b>không bao giờ</b> bị ghi vào.
+ *
+ * @see TestDatabaseManager
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("PersonController — điều phối View ↔ Service")
 class PersonControllerTest {
 
+    /** Tên database kiểm thử riêng của lớp test này. */
+    private static final String TEST_DB_NAME = "gia_pha_controller_test";
+
     private static FamilyTreeService service;
     private static PersonController controller;
 
     @BeforeAll
-    static void initController() {
-        assumeTrue(TestDatabase.isAvailable(),
-                "BỎ QUA: không kết nối được MySQL (gia_pha). Hãy khởi động MySQL và nạp database/schema.sql.");
-        service = new FamilyTreeService(new JdbcPersonRepository());
+    static void initController() throws Exception {
+        // Tạo database test riêng (DROP + CREATE + schema + 7 bản ghi mẫu)
+        TestDatabaseManager.createFreshDatabase(TEST_DB_NAME);
+
+        assumeTrue(TestDatabase.isAvailable(TEST_DB_NAME),
+                "BỎ QUA: không kết nối được MySQL. Hãy khởi động MySQL trước khi chạy test.");
+
+        service = new FamilyTreeService(TestDatabaseManager.repositoryFor(TEST_DB_NAME));
         controller = new PersonController(service);
+    }
+
+    @AfterAll
+    static void dropTestDatabase() throws Exception {
+        TestDatabaseManager.dropDatabase(TEST_DB_NAME);
     }
 
     @BeforeEach
     @AfterEach
     void resetDatabase() {
-        if (TestDatabase.isAvailable()) {
-            TestDatabase.resetToSampleState();
+        if (TestDatabase.isAvailable(TEST_DB_NAME)) {
+            TestDatabase.resetToSampleState(TEST_DB_NAME);
         }
     }
 
@@ -142,7 +161,7 @@ class PersonControllerTest {
     void handleAddWithInvalidPersonReturnsNull() {
         Person invalid = new Person("   ", 1990, Gender.MALE, null);
         assertNull(controller.handleAdd(invalid));
-        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(),
+        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(TEST_DB_NAME),
                 "Không được ghi thêm bản ghi lỗi vào CSDL");
     }
 
@@ -157,7 +176,7 @@ class PersonControllerTest {
         p.setFather(ghostFather);
 
         assertNull(controller.handleAdd(p));
-        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons());
+        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(TEST_DB_NAME));
     }
 
     @Test
@@ -173,7 +192,7 @@ class PersonControllerTest {
     @DisplayName("handleDelete(id không tồn tại) không gây ra lỗi, dữ liệu giữ nguyên")
     void handleDeleteNonExistentKeepsDataIntact() {
         controller.handleDelete(99999);
-        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons());
+        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(TEST_DB_NAME));
     }
 
     @Test
@@ -231,7 +250,7 @@ class PersonControllerTest {
         controller.handleEdit(updated5, service.getPersonById(3), original5.getMother());
 
         assertNotNull(service.getPersonById(5).getFather());
-        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons());
+        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(TEST_DB_NAME));
     }
 
     // ============================================================

@@ -1,6 +1,5 @@
 package com.giapha.testdata;
 
-import com.giapha.database.DatabaseConnection;
 import com.giapha.exception.CycleDetectedException;
 import com.giapha.exception.InvalidBirthYearException;
 import com.giapha.exception.InvalidParentGenderException;
@@ -9,8 +8,9 @@ import com.giapha.exception.SameParentException;
 import com.giapha.exception.SelfParentException;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
-import com.giapha.repository.JdbcPersonRepository;
 import com.giapha.service.FamilyTreeService;
+import com.giapha.support.TestDatabaseManager;
+import com.giapha.support.TestPersonRepository;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,16 +20,9 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,20 +61,13 @@ public class LargeSampleDataTest {
      * phép DROP. Mọi tên khác bị từ chối và báo lỗi — để không bao giờ xóa nhầm
      * database chính {@code gia_pha}.
      */
-    private static final String REQUIRED_DB_SUFFIX = "_test";
+    private static final String REQUIRED_DB_SUFFIX = TestDatabaseManager.REQUIRED_DB_SUFFIX;
 
     /**
      * System property cho phép giữ lại database test sau khi chạy xong.
      * <p>Đặt bằng {@code -Dkeep.test.db=true} (mặc định là {@code false} → tự DROP).
      */
-    private static final String KEEP_DB_PROPERTY = "keep.test.db";
-
-    private static final String TEST_DB_URL =
-            "jdbc:mysql://localhost:3306/" + TEST_DB_NAME
-                    + "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
-
-    /** Đường dẫn tới script SQL dữ liệu mẫu. */
-    private static final Path SAMPLE_SQL = Paths.get("test-data", "sample-data.sql");
+    private static final String KEEP_DB_PROPERTY = TestDatabaseManager.KEEP_DB_PROPERTY;
 
     /** Bảng kết quả từng test case (mã, mô tả, kết quả mong đợi, kết quả thực tế, trạng thái). */
     private static final List<String[]> RESULTS = new ArrayList<>();
@@ -93,14 +79,12 @@ public class LargeSampleDataTest {
     // ============================================================
 
     /**
-     * Repository trừ tới database riêng của bộ test, mỗi lần gọi tạo Connection mới.
+     * Repository trỏ tới database riêng của bộ test, mỗi lần gọi tạo Connection mới.
      * Việc ghi đè {@code getConnection()} tránh việc dùng chung database chính.
      */
-    private static final class TestRepo extends JdbcPersonRepository {
-        @Override
-        protected Connection getConnection() throws SQLException {
-            return DatabaseConnection.getConnection(
-                    TEST_DB_URL, DatabaseConnection.getUser(), DatabaseConnection.getPassword());
+    private static final class TestRepo extends TestPersonRepository {
+        TestRepo() {
+            super(TEST_DB_NAME);
         }
     }
 
@@ -115,18 +99,7 @@ public class LargeSampleDataTest {
      * @throws IllegalStateException nếu tên database không kết thúc bằng hậu tố bắt buộc
      */
     private static void assertSafeToDrop(String dbName) {
-        if (dbName == null || dbName.trim().isEmpty()) {
-            throw new IllegalStateException(
-                    "Từ chối DROP database: tên database rỗng. "
-                            + "Chỉ được DROP database có tên kết thúc bằng \"" + REQUIRED_DB_SUFFIX + "\".");
-        }
-
-        String normalized = dbName.trim();
-        if (!normalized.toLowerCase(Locale.ROOT).endsWith(REQUIRED_DB_SUFFIX)) {
-            throw new IllegalStateException(
-                    "Từ chối DROP database \"" + normalized + "\": tên database bắt buộc phải kết thúc bằng \""
-                            + REQUIRED_DB_SUFFIX + "\" để bảo đảm không xóa nhầm dữ liệu chính.");
-        }
+        TestDatabaseManager.assertSafeToDrop(dbName);
     }
 
     /**
@@ -135,7 +108,7 @@ public class LargeSampleDataTest {
      * @return true nếu cần giữ lại (không DROP)
      */
     private static boolean shouldKeepTestDatabase() {
-        return Boolean.parseBoolean(System.getProperty(KEEP_DB_PROPERTY, "false"));
+        return TestDatabaseManager.shouldKeepTestDatabase();
     }
 
     @BeforeAll
@@ -144,90 +117,12 @@ public class LargeSampleDataTest {
         assertSafeToDrop(TEST_DB_NAME);
 
         // 1. Tạo database riêng — DROP + CREATE ở đầu mỗi lần chạy
-        String rootUrl = "jdbc:mysql://localhost:3306/?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
-        try (Connection conn = DriverManager.getConnection(rootUrl,
-                DatabaseConnection.getUser(), DatabaseConnection.getPassword());
-             Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate("DROP DATABASE IF EXISTS " + TEST_DB_NAME);
-            stmt.executeUpdate("CREATE DATABASE " + TEST_DB_NAME
-                    + " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-        }
+        TestDatabaseManager.createFreshDatabase(TEST_DB_NAME);
 
-        // 2. Tạo bảng PERSON giống hệt database/schema.sql
-        try (Connection conn = DriverManager.getConnection(TEST_DB_URL,
-                DatabaseConnection.getUser(), DatabaseConnection.getPassword());
-             Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate("""
-                    CREATE TABLE PERSON (
-                        id          INT AUTO_INCREMENT PRIMARY KEY,
-                        full_name   VARCHAR(100) NOT NULL,
-                        birth_year  INT NOT NULL,
-                        gender      ENUM('MALE','FEMALE') NOT NULL,
-                        photo_path  VARCHAR(255) NULL,
-                        father_id   INT NULL,
-                        mother_id   INT NULL,
-                        CONSTRAINT fk_father FOREIGN KEY (father_id) REFERENCES PERSON(id) ON DELETE RESTRICT,
-                        CONSTRAINT fk_mother FOREIGN KEY (mother_id) REFERENCES PERSON(id) ON DELETE RESTRICT,
-                        CONSTRAINT chk_birth_year CHECK (birth_year >= 1000 AND birth_year <= 2100),
-                        CONSTRAINT chk_father_not_mother CHECK (
-                            father_id IS NULL OR mother_id IS NULL OR father_id <> mother_id)
-                    )
-                    """);
-            stmt.executeUpdate("CREATE INDEX idx_person_name ON PERSON(full_name)");
-            stmt.executeUpdate("""
-                    CREATE TRIGGER trg_check_not_self_parent_update
-                    BEFORE UPDATE ON PERSON
-                    FOR EACH ROW
-                    BEGIN
-                        IF (NEW.father_id IS NOT NULL AND NEW.father_id = NEW.id) OR
-                           (NEW.mother_id IS NOT NULL AND NEW.mother_id = NEW.id) THEN
-                            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Một người không thể là cha hoặc mẹ của chính mình';
-                        END IF;
-                    END
-                    """);
-        }
-
-        // 3. Nạp script dữ liệu mẫu
-        loadSampleData();
+        // 2. Nạp bộ dữ liệu mẫu mở rộng (30 người / 5 thế hệ) — ghi đè 7 bản ghi mẫu
+        TestDatabaseManager.loadExtendedSampleData(TEST_DB_NAME);
 
         service = new FamilyTreeService(new TestRepo());
-    }
-
-    /**
-     * Đọc và thực thi script {@code test-data/sample-data.sql} vào database riêng.
-     * Câu lệnh {@code USE gia_pha;} trong script được thay bằng database riêng của bộ test.
-     */
-    private static void loadSampleData() throws IOException, SQLException {
-        String script = Files.readString(SAMPLE_SQL, StandardCharsets.UTF_8);
-        script = script.replace("USE gia_pha;", "USE " + TEST_DB_NAME + ";");
-
-        // Bỏ comment dòng để tách câu lệnh
-        StringBuilder cleaned = new StringBuilder();
-        for (String line : script.split("\r?\n")) {
-            String trimmed = line.trim();
-            if (trimmed.startsWith("--")) {
-                cleaned.append('\n');
-            } else {
-                cleaned.append(line).append('\n');
-            }
-        }
-
-        try (Connection conn = DriverManager.getConnection(TEST_DB_URL,
-                DatabaseConnection.getUser(), DatabaseConnection.getPassword());
-             Statement stmt = conn.createStatement()) {
-
-            for (String rawStatement : cleaned.toString().split(";")) {
-                String sql = rawStatement.trim();
-                if (sql.isEmpty()) {
-                    continue;
-                }
-                // Bỏ các lệnh USE (đã trỏ đúng database) và lệnh ALTER AUTO_INCREMENT không cần thiết
-                if (sql.toUpperCase().startsWith("USE ")) {
-                    continue;
-                }
-                stmt.execute(sql);
-            }
-        }
     }
 
     /**
@@ -244,32 +139,8 @@ public class LargeSampleDataTest {
      * kể cả khi {@code TEST_DB_NAME} bị thay đổi trong tương lai.
      */
     @AfterAll
-    static void tearDown() {
-        if (shouldKeepTestDatabase()) {
-            System.out.println("[LargeSampleDataTest] Giữ lại database test \"" + TEST_DB_NAME
-                    + "\" (do -D" + KEEP_DB_PROPERTY + "=true).");
-            return;
-        }
-
-        try {
-            // Kiểm tra an toàn — ném IllegalStateException nếu tên DB không kết thúc bằng "_test"
-            assertSafeToDrop(TEST_DB_NAME);
-
-            String rootUrl = "jdbc:mysql://localhost:3306/?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
-            try (Connection conn = DriverManager.getConnection(rootUrl,
-                    DatabaseConnection.getUser(), DatabaseConnection.getPassword());
-                 Statement stmt = conn.createStatement()) {
-                stmt.executeUpdate("DROP DATABASE IF EXISTS " + TEST_DB_NAME);
-            }
-            System.out.println("[LargeSampleDataTest] Đã DROP database test \"" + TEST_DB_NAME + "\".");
-        } catch (IllegalStateException e) {
-            // Tên DB không an toàn → báo lỗi rõ ràng, KHÔNG DROP
-            System.err.println("[LargeSampleDataTest] LỖI AN TOÀN: " + e.getMessage());
-            throw e;
-        } catch (SQLException e) {
-            System.err.println("[LargeSampleDataTest] Không thể DROP database test \"" + TEST_DB_NAME
-                    + "\": " + e.getMessage());
-        }
+    static void tearDown() throws Exception {
+        TestDatabaseManager.dropDatabase(TEST_DB_NAME);
     }
 
     // ============================================================
@@ -508,8 +379,7 @@ public class LargeSampleDataTest {
     @DisplayName("TC-19: Ràng buộc CHECK của CSDL chặn năm sinh không hợp lệ")
     void tc19_dbCheckConstraint() {
         String error = null;
-        try (Connection conn = DriverManager.getConnection(TEST_DB_URL,
-                DatabaseConnection.getUser(), DatabaseConnection.getPassword());
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
                      "INSERT INTO PERSON (full_name, birth_year, gender) VALUES (?, ?, ?)")) {
             ps.setString(1, "Nguyễn Văn Vi Phạm");
@@ -531,8 +401,7 @@ public class LargeSampleDataTest {
     @DisplayName("TC-20: Trigger CSDL chặn tự làm cha/mẹ chính mình")
     void tc20_dbSelfParentTrigger() {
         String error = null;
-        try (Connection conn = DriverManager.getConnection(TEST_DB_URL,
-                DatabaseConnection.getUser(), DatabaseConnection.getPassword());
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
                      "UPDATE PERSON SET father_id = id WHERE id = 23")) {
             ps.executeUpdate();

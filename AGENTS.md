@@ -126,10 +126,12 @@ Toàn bộ test nằm trong `src/test/java` và dùng **JUnit 5**. Không còn f
 ```
 src/test/java/com/giapha
 ├── support/
-│   ├── TestDatabase.java              # Tiện ích dùng chung: kiểm tra CSDL, reset dữ liệu mẫu, dọn bản ghi test
+│   ├── TestDatabaseManager.java        # QUẢN LÝ VÒNG ĐỜI CSDL TEST: createFreshDatabase / dropDatabase / assertSafeToDrop
+│   ├── TestPersonRepository.java        # Repository ghi đè getConnection() để trỏ database test
+│   ├── TestDatabase.java                # Tiện ích truy vấn: đếm bản ghi, reset dữ liệu mẫu, dọn bản ghi test
 │   └── FxTestSupport.java             # Tiện ích khởi tạo/quản lý JavaFX Toolkit cho test tag "javafx"
 ├── database/
-│   └── DatabaseConnectionTest.java    # 6 test — kết nối MySQL, metadata, bảng PERSON
+│   └── DatabaseConnectionTest.java    # 7 test — kết nối MySQL, metadata, bảng PERSON, DB chính không bị đổi
 ├── service/
 │   └── FamilyTreeServiceTest.java     # 44 test — BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu
 ├── controller/
@@ -147,14 +149,20 @@ src/test/java/com/giapha
 **Quy tắc bắt buộc cho test:**
 - Test **không** được nằm trong `src/main/java`.
 - Mọi test có thay đổi dữ liệu CSDL **phải** có cleanup để trả bảng `PERSON` về đúng 7 bản ghi mẫu.
+- **CÁCH LY DỮ LIỆU (bắt buộc):** **mọi** lớp test đụng tới CSDL **phải** dùng database RIÊNG có tên kết thúc bằng `_test`
+  (`gia_pha_service_test`, `gia_pha_controller_test`, `gia_pha_conn_test`, `gia_pha_javafx_test`, `gia_pha_test`).
+  Tuyệt đối không ghi vào database chính `gia_pha`.
 - Test phụ thuộc MySQL dùng `Assumptions.assumeTrue(...)` → nếu CSDL không sẵn sàng thì test được
   `SKIPPED` kèm thông báo (không tính là `FAILED`).
 - Test cần JavaFX Toolkit **phải** được gắn `@Tag("javafx")` để không chạy trong `mvn test` mặc định.
 - Bộ test dữ liệu mẫu mở rộng **phải** dùng database riêng `gia_pha_test` (tự tạo/xóa mỗi lần chạy),
   không bao giờ ghi vào database chính `gia_pha`.
 - **Ràng buộc an toàn khi DROP database test**: tên database bắt buộc phải **kết thúc bằng `_test`**.
-  Hàm `assertSafeToDrop()` trong `LargeSampleDataTest` kiểm tra điều này và **ném `IllegalStateException`
+  Hàm `TestDatabaseManager.assertSafeToDrop()` kiểm tra điều này và **ném `IllegalStateException`
   + không DROP** nếu tên không khớp. Được phép giữ lại DB test bằng cờ `-Dkeep.test.db=true`.
+- Vòng đời chuẩn: `@BeforeAll` → `TestDatabaseManager.createFreshDatabase(<db>_test)`
+  (DROP + CREATE + schema + 7 bản ghi mẫu); `@AfterAll` → `TestDatabaseManager.dropDatabase(<db>_test)`.
+  Repository dùng trong test **phải** là `TestDatabaseManager.repositoryFor(<db>_test)`.
 
 ### Bộ dữ liệu kiểm thử (`test-data/`)
 
@@ -250,11 +258,11 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 120 test cases):
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 121 test cases):
 ```bash
 mvn clean test
 ```
-> **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng 7 bản ghi mẫu.
+> **Điều kiện tiên quyết**: MySQL phải đang chạy. Các test dùng database riêng `*_test` được tự tạo/xóa.
 > Nếu CSDL không sẵn sàng, các test phụ thuộc CSDL sẽ được `SKIPPED` (không tính là `FAILED`).
 >
 > Bộ test mặc định **KHÔNG** chạy các test cần JavaFX Toolkit (tag `javafx`) — xem phần bên dưới.
@@ -268,7 +276,7 @@ Chạy riêng một lớp test:
 mvn test -Pjavafx-tests -Dtest=JavaFxViewTest
 mvn test -Pjavafx-tests -Dtest=AvatarFallbackTest
 ```
-> **Điều kiện tiên quyết**: MySQL phải đang chạy và bảng `PERSON` phải chứa đúng 7 bản ghi mẫu.
+> **Điều kiện tiên quyết**: MySQL phải đang chạy. Database test riêng `gia_pha_javafx_test` được tự tạo/xóa.
 > Nếu không đủ điều kiện, toàn bộ lớp test được `SKIPPED` kèm thông báo rõ ràng.
 >
 > **Lưu ý kỹ thuật cho AI agents**:

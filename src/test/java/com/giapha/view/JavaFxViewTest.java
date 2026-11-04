@@ -1,13 +1,12 @@
 package com.giapha.view;
 
 import com.giapha.controller.PersonController;
-import com.giapha.database.DatabaseConnection;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
-import com.giapha.repository.JdbcPersonRepository;
 import com.giapha.service.FamilyTreeService;
 import com.giapha.support.FxTestSupport;
 import com.giapha.support.TestDatabase;
+import com.giapha.support.TestDatabaseManager;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -46,10 +45,15 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * Kiểm thử tích hợp các View JavaFX: PeopleListView, PersonFormView, PersonDetailView,
  * FamilyTreeView — đi qua đầy đủ luồng UI → Controller → Service → Repository → MySQL thật.
  *
- * <p><b>Yêu cầu:</b> MySQL phải đang chạy và bảng {@code PERSON} phải có đúng 7 bản ghi mẫu.
- * Nếu không, toàn bộ lớp test được {@code SKIPPED}.
+ * <p><b>Cô lập dữ liệu:</b> lớp test này dùng database RIÊNG {@code gia_pha_javafx_test}
+ * (tên kết thúc bằng {@code _test}), được tạo mới ở {@code @BeforeAll} và xóa ở
+ * {@code @AfterAll}. Database chính {@code gia_pha} <b>không bao giờ</b> bị ghi vào.
+ *
+ * <p><b>Yêu cầu:</b> MySQL phải đang chạy. Nếu không, toàn bộ lớp test được {@code SKIPPED}.
  *
  * <p><b>Cách chạy riêng:</b> {@code mvn test -Pjavafx-tests -Dtest=JavaFxViewTest}
+ *
+ * @see TestDatabaseManager
  */
 @Tag("javafx")
 @DisplayName("JavaFX View — kiểm thử tích hợp giao diện với MySQL thật")
@@ -57,34 +61,41 @@ class JavaFxViewTest {
 
     private static final String TEST_PREFIX = "TEST_AUTO_GUI_JUNIT";
 
+    /** Tên database kiểm thử riêng của lớp test này. */
+    private static final String TEST_DB_NAME = "gia_pha_javafx_test";
+
     private static PersonController controller;
 
     @BeforeAll
-    static void setup() {
-        assumeTrue(TestDatabase.isAvailable(),
-                "BỎ QUA: không kết nối được MySQL (gia_pha). Hãy khởi động MySQL và nạp database/schema.sql.");
-        assumeTrue(TestDatabase.countPersons() == TestDatabase.SAMPLE_RECORD_COUNT,
-                "BỎ QUA: bảng PERSON phải có đúng " + TestDatabase.SAMPLE_RECORD_COUNT
-                        + " bản ghi mẫu (hiện có: " + TestDatabase.countPersons() + ").");
+    static void setup() throws Exception {
+        // Tạo database test riêng (DROP + CREATE + schema + 7 bản ghi mẫu)
+        TestDatabaseManager.createFreshDatabase(TEST_DB_NAME);
+
+        assumeTrue(TestDatabase.isAvailable(TEST_DB_NAME),
+                "BỎ QUA: không kết nối được MySQL. Hãy khởi động MySQL trước khi chạy test.");
+        assumeTrue(TestDatabase.countPersons(TEST_DB_NAME) == TestDatabase.SAMPLE_RECORD_COUNT,
+                "BỎ QUA: database test phải có đúng " + TestDatabase.SAMPLE_RECORD_COUNT
+                        + " bản ghi mẫu (hiện có: " + TestDatabase.countPersons(TEST_DB_NAME) + ").");
 
         FxTestSupport.initToolkit();
 
-        JdbcPersonRepository repository = new JdbcPersonRepository();
-        FamilyTreeService service = new FamilyTreeService(repository);
+        FamilyTreeService service = new FamilyTreeService(
+                TestDatabaseManager.repositoryFor(TEST_DB_NAME));
         controller = new PersonController(service);
     }
 
     @AfterAll
-    static void teardown() {
+    static void teardown() throws Exception {
         cleanupTestData();
         FxTestSupport.shutdownToolkit();
+        TestDatabaseManager.dropDatabase(TEST_DB_NAME);
     }
 
     @BeforeEach
     @AfterEach
     void resetDatabase() {
-        if (TestDatabase.isAvailable()) {
-            TestDatabase.resetToSampleState();
+        if (TestDatabase.isAvailable(TEST_DB_NAME)) {
+            TestDatabase.resetToSampleState(TEST_DB_NAME);
             cleanupTestData();
         }
     }
@@ -182,7 +193,7 @@ class JavaFxViewTest {
         });
 
         int generatedId = -1;
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
                      "SELECT id, birth_year, father_id, mother_id FROM PERSON WHERE full_name = ?")) {
             ps.setString(1, TEST_PREFIX);
@@ -229,7 +240,7 @@ class JavaFxViewTest {
             invokeHandleSave(form);
         });
 
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
                      "SELECT COUNT(*) AS total FROM PERSON WHERE full_name LIKE ? OR TRIM(full_name) = ''")) {
             ps.setString(1, TEST_PREFIX + "_INVALID%");
@@ -274,7 +285,7 @@ class JavaFxViewTest {
             invokeHandleSave(form);
         });
 
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
                      "SELECT full_name, father_id, mother_id FROM PERSON WHERE id = ?")) {
             ps.setInt(1, testPersonId);
@@ -298,7 +309,7 @@ class JavaFxViewTest {
     void safeDeleteBlocksReferencedPerson() throws Exception {
         controller.handleDelete(3);
 
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) AS total FROM PERSON WHERE id = 3")) {
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
@@ -316,7 +327,7 @@ class JavaFxViewTest {
 
         controller.handleDelete(testPersonId);
 
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) AS total FROM PERSON WHERE id = ?")) {
             ps.setInt(1, testPersonId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -460,7 +471,7 @@ class JavaFxViewTest {
     }
 
     private static void cleanupTestData() {
-        try (Connection conn = DatabaseConnection.getConnection();
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement("DELETE FROM PERSON WHERE full_name LIKE ?")) {
             ps.setString(1, TEST_PREFIX + "%");
             int deleted = ps.executeUpdate();
@@ -476,7 +487,7 @@ class JavaFxViewTest {
     @DisplayName("TEST 9 — Dữ liệu thử nghiệm được dọn dẹp, CSDL giữ 7 bản ghi mẫu")
     void databaseIsCleanAfterTests() {
         cleanupTestData();
-        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(),
+        assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(TEST_DB_NAME),
                 "CSDL phải giữ đúng 7 bản ghi mẫu sau khi chạy toàn bộ test JavaFX");
     }
 
