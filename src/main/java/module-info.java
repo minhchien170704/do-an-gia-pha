@@ -12,7 +12,8 @@ module com.giapha {
     exports com.giapha.view;
     exports com.giapha.repository;
     exports com.giapha.database;
-    exports com.giapha.service;
-    exports com.giapha.controller;
-    exports com.giapha.exception;
+exports com.giapha.service;
+exports com.giapha.controller;
+exports com.giapha.exception;
+exports com.giapha.util;
 }

@@ -8,12 +8,16 @@ import com.giapha.exception.SelfParentException;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
 import com.giapha.service.FamilyTreeService;
+import com.giapha.util.ImageManager;
 import com.giapha.view.FamilyTreeView;
 import com.giapha.view.PeopleListView;
 import com.giapha.view.PersonDetailView;
 import com.giapha.view.PersonFormView;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -65,6 +69,9 @@ public class PersonController {
 
     /**
      * Xử lý sự kiện thêm thành viên mới từ giao diện (UC01).
+     *
+     * <p>Đọc dữ liệu từ form, kiểm tra BR5 (năm sinh cha/mẹ) và hiển thị Alert cảnh báo
+     * cho phép người dùng chọn tiếp tục hoặc hủy, sau đó gọi {@link #handleAdd(Person)}.
      */
     public void handleAdd() {
         if (personFormView == null) {
@@ -75,7 +82,6 @@ public class PersonController {
         String fullName = personFormView.getFullNameInput();
         String birthYearStr = personFormView.getBirthYearInput();
         Gender gender = personFormView.getGenderInput();
-        String photoPath = personFormView.getPhotoPathInput();
         Person father = personFormView.getSelectedFather();
         Person mother = personFormView.getSelectedMother();
 
@@ -102,14 +108,21 @@ public class PersonController {
             return;
         }
 
+        // Thành viên mới chưa có ảnh trong DB — ảnh sẽ được copy và sinh đường dẫn
+        // tương đối trong handleAdd(Person) sau khi có id.
         Person newPerson = new Person(
                 fullName.trim(),
                 birthYear,
                 gender,
-                (photoPath != null && !photoPath.trim().isEmpty()) ? photoPath.trim() : null
+                null
         );
         newPerson.setFather(father);
         newPerson.setMother(mother);
+
+        // BR5: cảnh báo nếu năm sinh cha/mẹ không nhỏ hơn năm sinh con
+        if (!confirmBirthYearWarning(newPerson, father, mother)) {
+            return; // Người dùng chọn Hủy
+        }
 
         handleAdd(newPerson);
     }
@@ -118,11 +131,22 @@ public class PersonController {
      * Overloaded: Xử lý thêm đối tượng Person cụ thể vào hệ thống.
      *
      * @param person đối tượng thành viên cần thêm
-     * @return đối tượng Person đã được gán id
+     * @return đối tượng Person đã được gán id, hoặc null nếu thao tác thất bại
      */
     public Person handleAdd(Person person) {
         try {
             Person added = familyTreeService.addPerson(person);
+
+            // Copy ảnh đại diện vào thư mục images (sau khi có id để đặt tên file)
+            if (personFormView != null) {
+                String newPhotoPath = persistSelectedImage(
+                        personFormView.getSelectedPhotoSourcePath(), added.getId());
+                if (newPhotoPath != null) {
+                    added.setPhotoPath(newPhotoPath);
+                    familyTreeService.updatePerson(added);
+                }
+            }
+
             showInfoAlert("Thành công", "Đã thêm thành viên \"" + added.getFullName() + "\" vào gia phả thành công.");
             if (navigateToPeopleList != null) {
                 navigateToPeopleList.run();
@@ -132,6 +156,10 @@ public class PersonController {
             showErrorAlert("Lỗi năm sinh", e.getMessage());
         } catch (PersonNotFoundException e) {
             showErrorAlert("Không tìm thấy", "Phụ huynh chỉ định không tồn tại: " + e.getMessage());
+        } catch (SelfParentException e) {
+            showErrorAlert("Lỗi quan hệ", "Không thể tự gán mình làm cha hoặc mẹ: " + e.getMessage());
+        } catch (CycleDetectedException e) {
+            showErrorAlert("Lỗi chu trình", "Thao tác tạo chu trình trong cây gia phả: " + e.getMessage());
         } catch (IllegalArgumentException e) {
             showErrorAlert("Lỗi dữ liệu", e.getMessage());
         } catch (Exception e) {
@@ -177,7 +205,12 @@ public class PersonController {
         String newFullName = personFormView != null ? personFormView.getFullNameInput() : target.getFullName();
         String newBirthYearStr = personFormView != null ? personFormView.getBirthYearInput() : String.valueOf(target.getBirthYear());
         Gender newGender = personFormView != null ? personFormView.getGenderInput() : target.getGender();
-        String newPhotoPath = personFormView != null ? personFormView.getPhotoPathInput() : target.getPhotoPath();
+        // Ảnh đại diện: luôn giữ đường dẫn TƯƠNG ĐỐI đã lưu trong DB.
+        // Nếu người dùng chọn ảnh mới, ảnh đó được copy + sinh đường dẫn mới trong
+        // handleEdit(Person, Person, Person) trước khi ghi xuống DB.
+        String newPhotoPath = personFormView != null
+                ? personFormView.getExistingPhotoPath()
+                : target.getPhotoPath();
         Person newFather = personFormView != null ? personFormView.getSelectedFather() : target.getFather();
         Person newMother = personFormView != null ? personFormView.getSelectedMother() : target.getMother();
 
@@ -210,6 +243,14 @@ public class PersonController {
         basicUpdatePerson.setFather(originalFather);
         basicUpdatePerson.setMother(originalMother);
 
+        // BR5: cảnh báo nếu năm sinh cha/mẹ không nhỏ hơn năm sinh con.
+        // Chỉ kiểm tra khi quan hệ cha/mẹ thực sự thay đổi so với bản gốc.
+        if (fatherChanged(originalFather, newFather) || motherChanged(originalMother, newMother)) {
+            if (!confirmBirthYearWarning(basicUpdatePerson, newFather, newMother)) {
+                return; // Người dùng chọn Hủy
+            }
+        }
+
         handleEdit(basicUpdatePerson, newFather, newMother);
     }
 
@@ -225,7 +266,22 @@ public class PersonController {
         Person originalFather = personToUpdate.getFather();
         Person originalMother = personToUpdate.getMother();
 
-        // Bước 3: Cập nhật thông tin cơ bản qua updatePerson()
+        StringBuilder successMsg = new StringBuilder("Đã cập nhật thành công thông tin thành viên.");
+        StringBuilder errorMsg = new StringBuilder();
+
+        // Bước 3: Copy ảnh đại diện mới (nếu người dùng đã chọn ảnh khác).
+        // Thực hiện TRƯỚC khi updatePerson() để đường dẫn tương đối của ảnh mới
+        // được ghi vào DB ngay trong lần lưu đó (không lưu 2 lần).
+        if (personFormView != null) {
+            String sourcePhoto = personFormView.getSelectedPhotoSourcePath();
+            String newPhotoPath = persistSelectedImage(sourcePhoto, personId);
+            if (newPhotoPath != null) {
+                personToUpdate.setPhotoPath(newPhotoPath);
+                successMsg.append("\n• Đã cập nhật ảnh đại diện thành công.");
+            }
+        }
+
+        // Bước 4: Cập nhật thông tin cơ bản qua updatePerson()
         try {
             familyTreeService.updatePerson(personToUpdate);
         } catch (InvalidBirthYearException e) {
@@ -238,9 +294,6 @@ public class PersonController {
             showErrorAlert("Lỗi cập nhật", "Không thể cập nhật thông tin cơ bản: " + e.getMessage());
             return;
         }
-
-        StringBuilder successMsg = new StringBuilder("Đã cập nhật thành công thông tin thành viên.");
-        StringBuilder errorMsg = new StringBuilder();
 
         // Bước 4: Kiểm tra và gán/gỡ cha nếu có thay đổi qua assignFather() / clearFather()
         boolean fatherChanged =
@@ -600,6 +653,115 @@ public class PersonController {
     // ============================================================
     // CÁC HÀM TIỆN ÍCH HỖ TRỢ CONTEXT & GIAO DIỆN
     // ============================================================
+
+    /**
+     * Kiểm tra BR5 và hiển thị Alert cảnh báo cho phép người dùng chọn
+     * tiếp tục hoặc hủy thao tác.
+     *
+     * <p>BR5 là quy tắc mức CẢNH BÁO: nếu năm sinh của cha/mẹ không nhỏ hơn
+     * năm sinh của con, ứng dụng KHÔNG chặn thao tác — chỉ hỏi lại người dùng.
+     *
+     * @param child  thành viên con (dùng để lấy năm sinh và họ tên)
+     * @param father cha được gán (có thể null)
+     * @param mother mẹ được gán (có thể null)
+     * @return true nếu nên tiếp tục (không có cảnh báo, hoặc người dùng chọn Tiếp tục);
+     *         false nếu người dùng chọn Hủy
+     */
+    private boolean confirmBirthYearWarning(Person child, Person father, Person mother) {
+        List<String> warnings = familyTreeService.checkBirthYearWarning(child, father, mother);
+
+        if (warnings.isEmpty()) {
+            return true;
+        }
+
+        StringBuilder message = new StringBuilder();
+        message.append("Cảnh báo về năm sinh trong gia phả:\n\n");
+        for (String warning : warnings) {
+            message.append("• ").append(warning).append("\n");
+        }
+        message.append("\nBạn vẫn muốn tiếp tục thao tác này không?");
+
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Cảnh báo năm sinh (BR5)");
+        alert.setHeaderText("Năm sinh của cha/mẹ không nhỏ hơn năm sinh của con");
+        alert.setContentText(message.toString());
+        ButtonType continueButton = new ButtonType("Tiếp tục", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButton = new ButtonType("Hủy", ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(continueButton, cancelButton);
+
+        // Nếu chạy ngoài JavaFX Application Thread (ví dụ trong test) → cho phép tiếp tục
+        if (!javafx.application.Platform.isFxApplicationThread()) {
+            return true;
+        }
+
+        return alert.showAndWait().filter(continueButton::equals).isPresent();
+    }
+
+    /**
+     * Kiểm tra quan hệ cha có thay đổi so với bản gốc hay không.
+     *
+     * @param originalFather cha gốc (có thể null)
+     * @param newFather      cha mới (có thể null)
+     * @return true nếu quan hệ cha thay đổi
+     */
+    private boolean fatherChanged(Person originalFather, Person newFather) {
+        if (newFather == null && originalFather == null) {
+            return false;
+        }
+        if (newFather == null || originalFather == null) {
+            return true;
+        }
+        return newFather.getId() != originalFather.getId();
+    }
+
+    /**
+     * Kiểm tra quan hệ mẹ có thay đổi so với bản gốc hay không.
+     *
+     * @param originalMother mẹ gốc (có thể null)
+     * @param newMother      mẹ mới (có thể null)
+     * @return true nếu quan hệ mẹ thay đổi
+     */
+    private boolean motherChanged(Person originalMother, Person newMother) {
+        if (newMother == null && originalMother == null) {
+            return false;
+        }
+        if (newMother == null || originalMother == null) {
+            return true;
+        }
+        return newMother.getId() != originalMother.getId();
+    }
+
+    /**
+     * Copy ảnh đại diện do người dùng chọn vào thư mục images của ứng dụng.
+     *
+     * <p>Được gọi sau khi thành viên đã được lưu thành công (đã có id) để đặt tên file
+     * theo mã định danh. Nếu copy thất bại, ảnh cũ trong DB vẫn được giữ nguyên.
+     *
+     * @param sourceFilePath đường dẫn tuyệt đối tới ảnh nguồn
+     * @param personId       mã định danh của thành viên
+     * @return đường dẫn tương đối cần lưu vào DB, hoặc null nếu không có ảnh nào được chọn
+     */
+    private String persistSelectedImage(String sourceFilePath, int personId) {
+        if (sourceFilePath == null || sourceFilePath.trim().isEmpty()) {
+            return null;
+        }
+
+        if (!ImageManager.isAllowedImage(sourceFilePath)) {
+            showErrorAlert("Định dạng ảnh không hợp lệ",
+                    "Chỉ chấp nhận các định dạng ảnh: png, jpg, jpeg.");
+            return null;
+        }
+
+        try {
+            return ImageManager.copyImageToAppDirectory(sourceFilePath, personId);
+        } catch (IOException e) {
+            showErrorAlert("Lỗi ảnh đại diện", "Không thể lưu ảnh vào thư mục images: " + e.getMessage());
+            return null;
+        } catch (IllegalArgumentException e) {
+            showErrorAlert("Định dạng ảnh không hợp lệ", e.getMessage());
+            return null;
+        }
+    }
 
     public void setPeopleListView(PeopleListView peopleListView) {
         this.peopleListView = peopleListView;
