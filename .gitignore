@@ -45,3 +45,7 @@ desktop.ini
 
 # Ảnh đại diện người dùng (được copy vào lúc runtime, không commit)
 images/
+
+# Log runtime khi chạy ứng dụng (mvn javafx:run)
+run.log
+run.err
