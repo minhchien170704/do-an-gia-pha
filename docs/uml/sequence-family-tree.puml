@@ -1,8 +1,10 @@
 @startuml sequence-family-tree
 
-title Sequence Diagram - Xem cây gia phả
+title Sequence Diagram - Xem cây gia phả (sơ đồ 2D)
 
 actor "Người dùng" as User
+participant "FamilyTreeView" as TreeView
+participant "FamilyTreeDiagram" as Diagram
 participant "PersonController" as Controller
 participant "FamilyTreeService" as Service
 participant "PersonRepository" as Repo
@@ -11,61 +13,92 @@ participant "DatabaseConnection" as DBConn
 database "MySQL" as DB
 
 User -> Controller : handleViewTree()
+activate Controller
 
 Controller -> Service : getPersonById(focusPersonId)
 Service -> Repo : findById(focusPersonId)
 Repo -> JdbcRepo : findById(focusPersonId)
 JdbcRepo -> DBConn : getConnection()
 DBConn --> JdbcRepo : Connection
-JdbcRepo -> DB : SELECT * FROM person WHERE id = focusPersonId
+JdbcRepo -> DB : SELECT ... FROM person WHERE id = focusPersonId
 DB --> JdbcRepo : dòng dữ liệu
 JdbcRepo --> Repo : Person (trọng tâm)
 Repo --> Service : Person (trọng tâm)
 
-alt Thành viên không tồn tại (null)
+alt Thành viên không tồn tại
     Service --> Controller : PersonNotFoundException
     Controller --> User : hiển thị lỗi
-
+    deactivate Controller
 else Thành viên tồn tại
-
     Service --> Controller : Person (trọng tâm)
 
     Controller -> Service : getAncestors(focusPersonId)
-    Service -> Repo : findById(id)
+    activate Service
     note right of Service
-      Gọi findById() đệ quy theo
-      liên kết father/mother
-      để duyệt tổ tiên
+      Duyệt BFS ngược qua các nhánh
+      cha/mẹ với Set<Integer> visited
+      → không lặp vô hạn
     end note
-    Repo -> JdbcRepo : findById(id)
-    JdbcRepo -> DBConn : getConnection()
-    DBConn --> JdbcRepo : Connection
-    JdbcRepo -> DB : SELECT ...
-    DB --> JdbcRepo : danh sách dòng
-    JdbcRepo --> Repo : List<Person>
-    Repo --> Service : List<Person>
+    loop Mỗi tổ tiên
+        Service -> Repo : findById(id)
+        Repo -> JdbcRepo : findById(id)
+        JdbcRepo -> DBConn : getConnection()
+        DBConn --> JdbcRepo : Connection
+        JdbcRepo -> DB : SELECT ... FROM person WHERE id = id
+        DB --> JdbcRepo : dòng dữ liệu
+        JdbcRepo --> Repo : Person
+        Repo --> Service : Person
+    end
     Service --> Controller : List<Person> (tổ tiên)
+    deactivate Service
 
     Controller -> Service : getDescendants(focusPersonId)
-    Service -> Repo : findAll()
+    activate Service
     note right of Service
-      Lọc những Person có
-      father.id hoặc mother.id
-      trỏ về focusPersonId
-      (đệ quy cho descendants)
+      findAll() một lần → dựng
+      childrenMap theo father_id/mother_id
+      rồi BFS xuống với Set<Integer> visited
     end note
+    Service -> Repo : findAll()
     Repo -> JdbcRepo : findAll()
     JdbcRepo -> DBConn : getConnection()
     DBConn --> JdbcRepo : Connection
-    JdbcRepo -> DB : SELECT * FROM person
+    JdbcRepo -> DB : SELECT ... FROM person
     DB --> JdbcRepo : danh sách dòng
-    JdbcRepo --> Repo : List<Person>
+    JdbcRepo --> Repo : List<Person> (đã liên kết cha/mẹ)
     Repo --> Service : List<Person>
     Service --> Controller : List<Person> (hậu duệ)
+    deactivate Service
 
-    Controller -> Controller : dựng TreeView\n(trọng tâm + tổ tiên + hậu duệ)
-    Controller --> User : Hiển thị TreeView
+    Controller --> TreeView : navigateToFamilyTree.accept(focusPerson)
+    deactivate Controller
 
+    activate TreeView
+    TreeView -> Controller : getAllPersons()
+    Controller -> Service : getAllPersons()
+    Service -> Repo : findAll()
+    Repo --> Service : List<Person>
+    Service --> Controller : List<Person>
+    Controller --> TreeView : List<Person> (đồ thị liên kết đầy đủ)
+
+    TreeView -> Diagram : setData(allPersons, focusPerson)
+    activate Diagram
+    Diagram -> Diagram : buildModel()\n(tổ tiên + hậu duệ + vợ/chồng)
+    Diagram -> Diagram : buildUnits()\n(gom khối gia đình cha–mẹ)
+    Diagram -> Diagram : layoutAll()\n(bố trí theo thế hệ & cột)
+    Diagram -> Diagram : drawEdges() + createNodeCard()\n(vẽ đường nối + node avatar)
+    Diagram -> Diagram : fitToView()\n(canh sơ đồ vào khung nhìn)
+    deactivate Diagram
+
+    User -> Diagram : kéo chuột (pan) / lăn chuột (cuộn, zoom)
+    Diagram -> Diagram : zoomProperty.set(newZoom)
+    Diagram --> TreeView : contentScaleProperty() phát thông báo\n(Observer)
+    TreeView -> TreeView : cập nhật nhãn "%" zoom\ntrên thanh công cụ
+
+    User -> Diagram : bấm vào một node
+    Diagram -> TreeView : onViewPerson.accept(person)
+    TreeView --> User : mở hồ sơ cá nhân
+    deactivate TreeView
 end
 
 @enduml

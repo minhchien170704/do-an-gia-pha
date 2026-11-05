@@ -1,5 +1,7 @@
 @startuml class-diagram
 
+title Class Diagram (Tổng quan) - Hệ thống Quản lý Sơ đồ Gia phả\nChỉ lớp có thật trong src/main/java - không vẽ lớp test\nChi tiết thuộc tính/phương thức: xem 3 sơ đồ tách theo gói
+
 skinparam classAttributeIconSize 0
 skinparam classFontSize 13
 skinparam class {
@@ -7,176 +9,194 @@ skinparam class {
     BorderColor #A80036
     ArrowColor #A80036
 }
+skinparam package {
+    BackgroundColor #F5F5FF
+    BorderColor #A80036
+    FontSize 12
+}
+skinparam enum {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+}
 skinparam linetype ortho
 
 ' ============================================================
-' ENUM
+' GÓI: com.giapha.model
 ' ============================================================
-
-enum Gender {
-    MALE
-    FEMALE
+package "com.giapha.model" {
+    enum Gender {
+        MALE
+        FEMALE
+    }
+    class Person
 }
 
 ' ============================================================
-' MODEL
+' GÓI: com.giapha.exception
 ' ============================================================
-
-class Person {
-    - id : int
-    - fullName : String
-    - birthYear : int
-    - gender : Gender
-    - photoPath : String
-    - father : Person
-    - mother : Person
-    + getId() : int
-    + setId(id : int) : void
-    + getFullName() : String
-    + setFullName(fullName : String) : void
-    + getBirthYear() : int
-    + setBirthYear(birthYear : int) : void
-    + getGender() : Gender
-    + setGender(gender : Gender) : void
-    + getPhotoPath() : String
-    + setPhotoPath(photoPath : String) : void
-    + getFather() : Person
-    + setFather(father : Person) : void
-    + getMother() : Person
-    + setMother(mother : Person) : void
+package "com.giapha.exception" {
+    class SelfParentException {
+        <<custom exception>>
+    }
+    class SameParentException {
+        <<custom exception>>
+    }
+    class InvalidParentGenderException {
+        <<custom exception>>
+    }
+    class CycleDetectedException {
+        <<custom exception>>
+    }
+    class PersonInUseException {
+        <<custom exception>>
+    }
+    class PersonNotFoundException {
+        <<custom exception>>
+    }
+    class InvalidBirthYearException {
+        <<custom exception>>
+    }
 }
 
 ' ============================================================
-' VIEW
+' GÓI: com.giapha.repository
 ' ============================================================
-
-class PeopleListView {
-    - controller : PersonController
-    + getRoot() : Parent
-    + reloadData() : void
-    + getSelectedPerson() : Person
-}
-
-class PersonFormView {
-    - controller : PersonController
-    - editingPerson : Person
-    + getRoot() : Parent
-    + getEditingPerson() : Person
-    + getFullNameInput() : String
-    + getBirthYearInput() : String
-    + getGenderInput() : Gender
-    + getPhotoPathInput() : String
-    + getSelectedFather() : Person
-    + getSelectedMother() : Person
-}
-
-class PersonDetailView {
-    - controller : PersonController
-    - person : Person
-    + getRoot() : Parent
-}
-
-class FamilyTreeView {
-    - controller : PersonController
-    - focusPerson : Person
-    + getRoot() : Parent
+package "com.giapha.repository" {
+    interface PersonRepository {
+        <<interface>>
+    }
+    class JdbcPersonRepository
 }
 
 ' ============================================================
-' CONTROLLER
+' GÓI: com.giapha.database
 ' ============================================================
-
-class PersonController {
-    - familyTreeService : FamilyTreeService
-    - selectedPerson : Person
-    + getAllPersons() : List<Person>
-    + handleAdd() : void
-    + handleEdit() : void
-    + handleDelete() : void
-    + handleSearch(keyword : String) : void
-    + handleViewDetail() : void
-    + handleAssignFather(childId : int, fatherId : int) : void
-    + handleAssignMother(childId : int, motherId : int) : void
-    + handleClearFather(childId : int) : void
-    + handleClearMother(childId : int) : void
-    + handleViewTree() : void
-    + getSelectedPerson() : Person
-    + setSelectedPerson(person : Person) : void
+package "com.giapha.database" {
+    class DatabaseConnection {
+        <<utility>>
+    }
 }
 
 ' ============================================================
-' SERVICE
+' GÓI: com.giapha.service
 ' ============================================================
-
-class FamilyTreeService {
-    - personRepository : PersonRepository
-    + getAllPersons() : List<Person>
-    + getPersonById(id : int) : Person
-    + searchPersons(keyword : String) : List<Person>
-    + addPerson(person : Person) : Person
-    + updatePerson(person : Person) : void
-    + deletePerson(id : int) : void
-    + assignFather(childId : int, fatherId : int) : void
-    + assignMother(childId : int, motherId : int) : void
-    + clearFather(childId : int) : void
-    + clearMother(childId : int) : void
-    + getAncestors(id : int) : List<Person>
-    + getDescendants(id : int) : List<Person>
-    - validatePerson(person : Person) : void
-    - validateParentAssignment(child : Person, parent : Person, requiredGender : Gender) : void
-    - checkCycle(childId : int, candidateParentId : int) : boolean
-    - checkPersonInUse(id : int) : boolean
+package "com.giapha.service" {
+    class FamilyTreeService
 }
 
 ' ============================================================
-' REPOSITORY
+' GÓI: com.giapha.controller
 ' ============================================================
-
-interface PersonRepository {
-    + findAll() : List<Person>
-    + findById(id : int) : Person
-    + search(keyword : String) : List<Person>
-    + save(person : Person) : int
-    + update(person : Person) : void
-    + delete(id : int) : void
-}
-
-class JdbcPersonRepository {
-    + findAll() : List<Person>
-    + findById(id : int) : Person
-    + search(keyword : String) : List<Person>
-    + save(person : Person) : int
-    + update(person : Person) : void
-    + delete(id : int) : void
+package "com.giapha.controller" {
+    class PersonController
 }
 
 ' ============================================================
-' DATABASE
+' GÓI: com.giapha.view
 ' ============================================================
-
-class DatabaseConnection {
-    + getConnection() : Connection
-    + getConnection(url : String, user : String, password : String) : Connection
+package "com.giapha.view" {
+    class PeopleListView
+    class PersonFormView
+    class PersonDetailView
+    class FamilyTreeView
+    class FamilyTreeDiagram
+    class PersonAvatar
 }
 
 ' ============================================================
-' RELATIONSHIPS
+' GÓI: com.giapha.util
 ' ============================================================
+package "com.giapha.util" {
+    class ImageManager {
+        <<utility>>
+    }
+    class PngWriter {
+        <<utility>>
+    }
+}
 
+' ============================================================
+' GÓI: com.giapha (gốc)
+' ============================================================
+package "com.giapha" {
+    class Main
+}
+
+' ============================================================
+' QUAN HỆ — MODEL
+' ============================================================
+Person --> "1" Gender : giới tính
+Person "0..*" --> "0..1" Person : cha
+Person "0..*" --> "0..1" Person : mẹ
+
+' ============================================================
+' QUAN HỆ — EXCEPTION (kế thừa RuntimeException)
+' ============================================================
+SelfParentException --|> RuntimeException
+SameParentException --|> RuntimeException
+InvalidParentGenderException --|> RuntimeException
+CycleDetectedException --|> RuntimeException
+PersonInUseException --|> RuntimeException
+PersonNotFoundException --|> RuntimeException
+InvalidBirthYearException --|> RuntimeException
+
+' ============================================================
+' QUAN HỆ — REPOSITORY / DATABASE / SERVICE
+' ============================================================
+JdbcPersonRepository ..|> PersonRepository : implements
+JdbcPersonRepository --> DatabaseConnection : lấy Connection
+DatabaseConnection --> "Connection" : tạo (factory)
+
+FamilyTreeService --> PersonRepository : phụ thuộc vào interface (Dependency Inversion)
+
+' ============================================================
+' QUAN HỆ — CONTROLLER / SERVICE
+' ============================================================
+PersonController --> FamilyTreeService : gọi nghiệp vụ
+FamilyTreeService ..> SelfParentException : ném
+FamilyTreeService ..> SameParentException : ném
+FamilyTreeService ..> InvalidParentGenderException : ném
+FamilyTreeService ..> CycleDetectedException : ném
+FamilyTreeService ..> PersonInUseException : ném
+FamilyTreeService ..> PersonNotFoundException : ném
+FamilyTreeService ..> InvalidBirthYearException : ném
+PersonController ..> SelfParentException : bắt
+PersonController ..> SameParentException : bắt
+PersonController ..> InvalidParentGenderException : bắt
+PersonController ..> CycleDetectedException : bắt
+PersonController ..> PersonInUseException : bắt
+PersonController ..> PersonNotFoundException : bắt
+PersonController ..> InvalidBirthYearException : bắt
+
+' ============================================================
+' QUAN HỆ — VIEW / CONTROLLER
+' ============================================================
 PeopleListView --> PersonController
 PersonFormView --> PersonController
 PersonDetailView --> PersonController
 FamilyTreeView --> PersonController
-
-PersonController --> FamilyTreeService
 PersonController --> Person : thành viên đang chọn
 
-FamilyTreeService --> PersonRepository
-JdbcPersonRepository ..|> PersonRepository
-JdbcPersonRepository --> DatabaseConnection
+' ============================================================
+' QUAN HỆ — VIEW ↔ VIEW, VIEW ↔ UTIL
+' ============================================================
+FamilyTreeView *-- FamilyTreeDiagram : chứa (composition)
+FamilyTreeDiagram --> PersonAvatar : dựng node
+FamilyTreeDiagram --> Person : dữ liệu hiển thị
+PeopleListView --> PersonAvatar : hiển thị avatar
+PersonDetailView --> PersonAvatar : hiển thị avatar
+PersonFormView --> PersonAvatar : xem trước ảnh
+PersonFormView --> ImageManager : kiểm tra định dạng
+PersonController --> ImageManager : copy ảnh vào images/
+FamilyTreeView --> PngWriter : ghi file PNG
 
-Person --> "1" Gender
-Person "0..*" --> "0..1" Person : cha
-Person "0..*" --> "0..1" Person : mẹ
+' ============================================================
+' QUAN HỆ — COMPOSITION ROOT
+' ============================================================
+Main --> PersonController : khởi tạo
+Main --> PeopleListView
+Main --> PersonFormView
+Main --> PersonDetailView
+Main --> FamilyTreeView
 
 @enduml

@@ -1,0 +1,117 @@
+@startuml class-diagram-model-exception
+
+title Class Diagram (a) - Gói model + exception
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam class {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    ArrowColor #A80036
+}
+skinparam package {
+    BackgroundColor #F5F5FF
+    BorderColor #A80036
+    FontSize 12
+}
+skinparam enum {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+}
+skinparam linetype ortho
+
+' ============================================================
+' GÓI: com.giapha.model
+' ============================================================
+package "com.giapha.model" {
+
+    enum Gender {
+        MALE
+        FEMALE
+    }
+
+    class Person {
+        - id : int
+        - fullName : String
+        - birthYear : int
+        - gender : Gender
+        - photoPath : String
+        - father : Person
+        - mother : Person
+        + Person()
+        + Person(fullName : String, birthYear : int, gender : Gender, photoPath : String)
+        + getId() : int
+        + setId(id : int) : void
+        + getFullName() : String
+        + setFullName(fullName : String) : void
+        + getBirthYear() : int
+        + setBirthYear(birthYear : int) : void
+        + getGender() : Gender
+        + setGender(gender : Gender) : void
+        + getPhotoPath() : String
+        + setPhotoPath(photoPath : String) : void
+        + getFather() : Person
+        + setFather(father : Person) : void
+        + getMother() : Person
+        + setMother(mother : Person) : void
+    }
+}
+
+' ============================================================
+' GÓI: com.giapha.exception
+' ============================================================
+package "com.giapha.exception" {
+
+    class SelfParentException {
+        <<custom exception>>
+        BR1 - Tự làm cha/mẹ chính mình
+    }
+    class SameParentException {
+        <<custom exception>>
+        BR2 - Cha và Mẹ trùng nhau
+    }
+    class InvalidParentGenderException {
+        <<custom exception>>
+        BR6 - Sai giới tính vai trò
+    }
+    class CycleDetectedException {
+        <<custom exception>>
+        BR3 - Chu trình gia phả
+    }
+    class PersonInUseException {
+        <<custom exception>>
+        BR4 - Đang làm cha/mẹ
+    }
+    class PersonNotFoundException {
+        <<custom exception>>
+        Không tìm thấy thành viên
+    }
+    class InvalidBirthYearException {
+        <<custom exception>>
+        Năm sinh không hợp lệ
+    }
+}
+
+' ============================================================
+' QUAN HỆ
+' ============================================================
+Person --> "1" Gender : giới tính
+Person "0..*" --> "0..1" Person : cha
+Person "0..*" --> "0..1" Person : mẹ
+
+SelfParentException --|> RuntimeException
+SameParentException --|> RuntimeException
+InvalidParentGenderException --|> RuntimeException
+CycleDetectedException --|> RuntimeException
+PersonInUseException --|> RuntimeException
+PersonNotFoundException --|> RuntimeException
+InvalidBirthYearException --|> RuntimeException
+
+InvalidParentGenderException --> Gender : kiểm tra giới tính vai trò
+
+note bottom of SelfParentException
+  Tất cả 7 lớp exception kế thừa RuntimeException
+  và có 2 constructor: (message) và (message, cause)
+end note
+
+@enduml

@@ -1,0 +1,113 @@
+@startuml sequence-photo-avatar
+
+title Sequence Diagram - Chọn và lưu ảnh đại diện
+
+actor "Người dùng" as User
+participant "PersonFormView" as FormView
+participant "FileChooser" as Chooser
+participant "ImageManager" as ImageMgr
+participant "PersonAvatar" as Avatar
+participant "PersonController" as Controller
+participant "FamilyTreeService" as Service
+participant "PersonRepository" as Repo
+participant "Hệ thống tệp\n(thư mục images/)" as FS
+
+== Chọn ảnh và xem trước ==
+
+User -> FormView : bấm nút "Chọn ảnh..."
+activate FormView
+
+FormView -> Chooser : showOpenDialog(window)\nlọc png, jpg, jpeg
+activate Chooser
+Chooser --> User : hộp thoại chọn file
+User --> Chooser : chọn file ảnh
+Chooser --> FormView : File (hoặc null nếu hủy)
+deactivate Chooser
+
+alt Người dùng hủy
+    FormView --> User : không làm gì
+else Đã chọn file
+    FormView -> ImageMgr : isAllowedImage(fileName)
+    activate ImageMgr
+    ImageMgr --> FormView : true / false
+    deactivate ImageMgr
+
+    alt Định dạng không hợp lệ
+        FormView --> User : Alert "Định dạng ảnh không hợp lệ"
+    else Định dạng hợp lệ
+        FormView -> FormView : lưu selectedPhotoSourcePath\n(và selectedPhotoFile)
+        FormView -> FormView : hiển thị tên file đã chọn\ntrong txtPhotoPath
+        FormView -> Avatar : tạo lại PersonAvatar\n(person tạm, size, file đã chọn)
+        activate Avatar
+        Avatar -> Avatar : nạp ảnh nền (background loading)
+        Avatar --> FormView : ảnh thật bo tròn\nhoặc placeholder chữ cái đầu
+        deactivate Avatar
+    end
+end
+deactivate FormView
+
+== Lưu ảnh kèm thành viên ==
+
+User -> FormView : bấm nút "Lưu"
+activate FormView
+
+FormView -> Controller : handleAdd() (thêm mới)\nhoặc handleEdit() (cập nhật)
+activate Controller
+
+alt Thêm mới
+    Controller -> Service : addPerson(person)
+    Service -> Repo : save(person)
+    Repo --> Service : id tự sinh
+    Service --> Controller : Person (đã có id)
+
+    Controller -> Controller : persistSelectedImage(sourcePath, id)
+    activate Controller
+    Controller -> ImageMgr : isAllowedImage(sourcePath)
+    ImageMgr --> Controller : true
+    Controller -> ImageMgr : copyImageToAppDirectory(sourcePath, personId)
+    activate ImageMgr
+    ImageMgr -> FS : tạo thư mục images/\n(nếu chưa có)
+    ImageMgr -> FS : copy file → images/person_<id>.<đuôi>\n(REPLACE_EXISTING)
+    FS --> ImageMgr : copy xong
+    ImageMgr --> Controller : "images/person_<id>.<đuôi>"
+    deactivate ImageMgr
+
+    Controller -> Controller : person.setPhotoPath(đường dẫn tương đối)
+    Controller -> Service : updatePerson(person)
+    Service -> Repo : update(person)
+    Repo --> Service : void
+    Service --> Controller : void
+    deactivate Controller
+
+    Controller --> FormView : Alert "Đã thêm thành viên thành công"
+else Cập nhật
+    Controller -> Service : getPersonById(personId)
+    Service --> Controller : bản ghi gốc
+    Controller -> Controller : giữ nguyên đường dẫn ảnh cũ\nnếu người dùng không chọn ảnh mới
+
+    Controller -> ImageMgr : copyImageToAppDirectory(sourcePath, personId)
+    activate ImageMgr
+    ImageMgr -> FS : copy file → images/person_<id>.<đuôi>
+    FS --> ImageMgr : copy xong
+    ImageMgr --> Controller : "images/person_<id>.<đuôi>"
+    deactivate ImageMgr
+
+    Controller -> Service : updatePerson(person)\n(cập nhật ảnh + thông tin)
+    Service -> Repo : update(person)
+    Repo --> Service : void
+    Service --> Controller : void
+
+    Controller --> FormView : Alert "Đã cập nhật thành công"
+end
+
+deactivate Controller
+deactivate FormView
+
+note over FS
+  DB lưu ĐƯỜNG DẪN TƯƠNG ĐỐI
+  (photo_path = images/person_<id>.<đuôi>)
+  nên ứng dụng phải chạy từ
+  thư mục gốc dự án
+end note
+
+@enduml

@@ -1,0 +1,86 @@
+@startuml activity-export-print
+
+title Activity Diagram - Xuất PNG / In sơ đồ cây gia phả
+
+start
+
+:Bấm nút "Xuất PNG" hoặc "In"\ntrên thanh công cụ;
+
+:Chụp toàn bộ sơ đồ\n(FamilyTreeDiagram.renderFullImage());
+note right
+  Tạm đặt zoom = 1.0, translate = (0,0)
+  chụp với viewport = kích thước nội dung
+  rồi khôi phục lại trạng thái cũ
+end note
+
+if (Sơ đồ có dữ liệu?) then (có)
+else (trống)
+  :Alert "Sơ đồ đang trống\n— không có dữ liệu để xuất/in";
+  stop
+endif
+
+if (Hành động là Xuất PNG?) then (Xuất PNG)
+
+  :Mở hộp thoại chọn nơi lưu\n(FileChooser, đuôi .png);
+
+  if (Người dùng hủy?) then (hủy)
+    :Kết thúc, không ghi file;
+    stop
+  else (chọn đường dẫn)
+  endif
+
+  :Bổ sung đuôi ".png" nếu thiếu;
+
+  :Ghi file PNG bằng PngWriter;
+  note right
+    Chữ ký PNG 8 byte
+    Khối IHDR (RGBA 8-bit)
+    Khối IDAT (Deflate + filter byte 0)
+    Khối IEND
+    CRC32 cho từng khối
+  end note
+
+  if (Ghi file thành công?) then (thành công)
+    :Alert "Xuất PNG thành công";
+  else (lỗi)
+    :Alert "Xuất PNG thất bại";
+  endif
+
+else (In ấn)
+
+  :Tạo PrinterJob\n(PrinterJob.createPrinterJob());
+
+  if (Tìm thấy máy in?) then (có)
+  else (không)
+    :Alert "Không tìm thấy máy in";
+    stop
+  endif
+
+  :Xác nhận in;
+  note right
+    Ưu tiên hộp thoại in chuẩn
+    của JavaFX (showPrintDialog).
+    Nếu nền tảng không hỗ trợ
+    → dùng hộp thoại nội bộ.
+  end note
+
+  if (Người dùng xác nhận?) then (xác nhận)
+  else (hủy)
+    :Kết thúc, không in;
+    stop
+  endif
+
+  :Dựng Node in được\n(ImageView trong StackPane,\ncanh giữa theo khổ giấy);
+
+  :Gửi lệnh in\n(job.printPage(printableNode));
+
+  if (Máy in nhận lệnh?) then (thành công)
+    :Alert "Đã gửi lệnh in";
+  else (từ chối)
+    :Alert "Không in được";
+  endif
+endif
+
+stop
+
+@enduml

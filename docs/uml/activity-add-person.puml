@@ -7,68 +7,84 @@ start
 :Người dùng nhập thông tin người;
 note right
   fullName, birthYear,
-  gender, photoPath
+  gender
 end note
 
 :Chọn Cha / Mẹ\n(có thể bỏ trống);
 
-:Kiểm tra thông tin cơ bản;
+:Kiểm tra thông tin cơ bản\n(validatePerson);
 
-if (Thông tin hợp lệ?) then (yes)
-else (no)
-  :Hiển thị lỗi validation;
+if (Thông tin hợp lệ?) then (hợp lệ)
+else (không hợp lệ)
+  :IllegalArgumentException\nhoặc InvalidBirthYearException;
+  :Hiển thị lỗi;
   stop
 endif
 
-if (Cha được chọn?) then (yes)
+if (Cả Cha và Mẹ đều được chọn?) then (có)
+  if (Cha == Mẹ? — BR2) then (trùng)
+    :SameParentException;
+    :Hiển thị lỗi;
+    stop
+  else (không)
+  endif
+else (không)
+endif
+
+if (Cha được chọn?) then (có)
   :Kiểm tra Cha tồn tại;
-  if (Cha tồn tại?) then (yes)
-  else (no)
+  if (Cha tồn tại?) then (có)
+    if (Cha.gender == MALE? — BR6) then (đúng)
+    else (sai)
+      :InvalidParentGenderException;
+      :Hiển thị lỗi;
+      stop
+    endif
+  else (không)
     :PersonNotFoundException;
+    :Hiển thị lỗi;
     stop
   endif
-else (no)
+else (không)
 endif
 
-if (Mẹ được chọn?) then (yes)
+if (Mẹ được chọn?) then (có)
   :Kiểm tra Mẹ tồn tại;
-  if (Mẹ tồn tại?) then (yes)
-  else (no)
+  if (Mẹ tồn tại?) then (có)
+    if (Mẹ.gender == FEMALE? — BR6) then (đúng)
+    else (sai)
+      :InvalidParentGenderException;
+      :Hiển thị lỗi;
+      stop
+    endif
+  else (không)
     :PersonNotFoundException;
+    :Hiển thị lỗi;
     stop
   endif
-else (no)
+else (không)
 endif
 
-if (Cả Cha và Mẹ đều được chọn?) then (yes)
-  if (Cha == Mẹ?) then (yes)
-    :Lỗi: Cha và Mẹ\nkhông được trùng nhau;
+:checkBirthYearWarning()\n(kiểm tra BR5);
+
+if (Có cảnh báo năm sinh?) then (có)
+  :Hiển thị Alert cảnh báo\n(Tiếp tục / Hủy);
+  if (Người dùng chọn?) then (Hủy)
+    :Dừng, không lưu;
     stop
-  else (no)
+  else (Tiếp tục)
   endif
-else (no)
+else (không)
 endif
 
-if (Cha được chọn?) then (yes)
-  if (Cha.gender == MALE?) then (yes)
-  else (no)
-    :Lỗi: Cha phải có gender MALE;
-    stop
-  endif
-else (no)
+:Lưu Person vào Database\n(Repository.save());
+
+if (Người dùng đã chọn ảnh đại diện?) then (có)
+  :Copy ảnh vào images/person_<id>.<đuôi>\n(ImageManager);
+  :Lưu đường dẫn tương đối vào photo_path\n(Repository.update());
+else (không)
 endif
 
-if (Mẹ được chọn?) then (yes)
-  if (Mẹ.gender == FEMALE?) then (yes)
-  else (no)
-    :Lỗi: Mẹ phải có gender FEMALE;
-    stop
-  endif
-else (no)
-endif
-
-:Lưu Person;
-:Repository lưu vào Database;
 :Thêm người thành công;
 
 stop

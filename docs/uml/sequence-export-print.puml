@@ -1,0 +1,116 @@
+@startuml sequence-export-print
+
+title Sequence Diagram - Xuất PNG / In sơ đồ cây gia phả
+
+actor "Người dùng" as User
+participant "FamilyTreeView" as TreeView
+participant "FamilyTreeDiagram" as Diagram
+participant "PngWriter" as PngWriter
+participant "PrinterJob" as Printer
+participant "Máy in" as PrinterDevice
+participant "Hệ thống tệp" as FS
+
+== Xuất ảnh PNG ==
+
+User -> TreeView : bấm nút "Xuất PNG"
+activate TreeView
+
+TreeView -> Diagram : renderFullImage()
+activate Diagram
+
+Diagram -> Diagram : tạm đặt zoom = 1.0,\ntranslate = (0, 0)
+Diagram -> Diagram : content.snapshot(SnapshotParameters\nviewport = kích thước nội dung, nền trắng)
+Diagram -> Diagram : khôi phục lại zoom/translate cũ
+Diagram --> TreeView : WritableImage
+deactivate Diagram
+
+TreeView -> User : hộp thoại chọn nơi lưu\n(FileChooser, đuôi .png)
+
+alt Người dùng hủy
+    TreeView --> User : không làm gì
+else Đã chọn đường dẫn
+    TreeView -> TreeView : thêm đuôi ".png" nếu thiếu
+    TreeView -> PngWriter : write(image, file)
+    activate PngWriter
+
+    PngWriter -> PngWriter : ghi chữ ký PNG 8 byte\n+ khối IHDR (RGBA 8-bit)
+    PngWriter -> PngWriter : nén IDAT bằng Deflater\n(filter byte 0 mỗi dòng)
+    PngWriter -> PngWriter : tính CRC32 từng khối
+    PngWriter -> FS : ghi file ra đĩa
+    FS --> PngWriter : ghi xong
+    deactivate PngWriter
+
+    alt Ghi file thành công
+        TreeView --> User : Alert "Xuất PNG thành công"
+    else Ghi file thất bại
+        TreeView --> User : Alert "Xuất PNG thất bại"
+    end
+end
+deactivate TreeView
+
+== In sơ đồ ==
+
+User -> TreeView : bấm nút "In"
+activate TreeView
+
+TreeView -> Diagram : renderFullImage()
+activate Diagram
+Diagram --> TreeView : WritableImage
+deactivate Diagram
+
+TreeView -> Printer : PrinterJob.createPrinterJob()
+activate Printer
+
+alt Không tìm thấy máy in (job == null)
+    Printer --> TreeView : null
+    TreeView --> User : Alert "Không tìm thấy máy in"
+    deactivate Printer
+    deactivate TreeView
+else Tìm thấy máy in
+    Printer --> TreeView : PrinterJob
+
+    TreeView -> Printer : showPrintDialog(window)
+    activate Printer
+
+    alt Hộp thoại hệ thống được hỗ trợ
+        Printer --> TreeView : true (người dùng xác nhận) / false (hủy)
+        deactivate Printer
+
+        opt Người dùng hủy
+            TreeView --> User : dừng, không in
+        else Người dùng xác nhận
+            TreeView -> Printer : job.printPage(printableNode)
+        end
+    else Nền tảng không hỗ trợ (bắt Exception)
+        deactivate Printer
+        TreeView -> TreeView : hiện hộp thoại xác nhận nội bộ
+        TreeView --> User : Dialog "In sơ đồ cây gia phả?"
+        alt Người dùng xác nhận
+            TreeView -> Printer : job.printPage(printableNode)
+        else Người dùng hủy
+            TreeView --> User : dừng, không in
+        end
+    end
+
+    note right of TreeView
+      buildPrintableNode():
+      - ImageView bọc ảnh đã chụp
+      - JobSettings.getPageLayout() lấy khổ giấy
+      - canh giữa trong StackPane nền trắng
+    end note
+
+    activate Printer
+    Printer -> PrinterDevice : gửi trang in
+    PrinterDevice --> Printer : kết quả
+    deactivate Printer
+
+    alt In thành công
+        TreeView --> User : Alert "Đã gửi lệnh in"
+    else Máy in từ chối
+        TreeView --> User : Alert "Không in được"
+    end
+    deactivate Printer
+    deactivate TreeView
+end
+
+@enduml

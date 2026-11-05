@@ -8,62 +8,68 @@ start
 
 :Chọn Cha hoặc Mẹ;
 
-:Kiểm tra Cha/Mẹ tồn tại;
+:Kiểm tra Cha/Mẹ tồn tại\n(findById);
 
-if (Cha/Mẹ tồn tại?) then (yes)
-else (no)
+if (Cha/Mẹ tồn tại?) then (tồn tại)
+else (không)
   :PersonNotFoundException;
+  :Hiển thị lỗi;
   stop
 endif
 
-if (Cha/Mẹ == Con?) then (yes)
+if (Cha/Mẹ == Con? — BR1) then (trùng)
   :SelfParentException;
+  :Hiển thị lỗi;
   stop
-else (no)
+else (không)
 endif
 
-if (Đang gán Cha?) then (yes)
-  if (Con đã có Mẹ?) then (yes)
-    if (fatherId mới == motherId hiện tại?) then (yes)
-      :Lỗi: Cha và Mẹ\nkhông được trùng nhau;
+if (Đang gán Cha?) then (Gán Cha)
+  if (Con đã có Mẹ?) then (có)
+    if (Cha mới == Mẹ hiện tại? — BR2) then (trùng)
+      :SameParentException;
+      :Hiển thị lỗi;
       stop
-    else (no)
+    else (không)
     endif
-  else (no)
+  else (không)
   endif
-else (đang gán Mẹ)
-  if (Con đã có Cha?) then (yes)
-    if (motherId mới == fatherId hiện tại?) then (yes)
-      :Lỗi: Cha và Mẹ\nkhông được trùng nhau;
+else (Gán Mẹ)
+  if (Con đã có Cha?) then (có)
+    if (Mẹ mới == Cha hiện tại? — BR2) then (trùng)
+      :SameParentException;
+      :Hiển thị lỗi;
       stop
-    else (no)
+    else (không)
     endif
-  else (no)
+  else (không)
   endif
 endif
 
-:Kiểm tra gender theo vai trò;
+:Kiểm tra giới tính theo vai trò (BR6);
 note right
   Cha phải MALE
   Mẹ phải FEMALE
 end note
 
-if (Gender hợp lệ?) then (yes)
-else (no)
-  :Lỗi: Gender không phù hợp vai trò;
+if (Giới tính hợp lệ?) then (hợp lệ)
+else (không)
+  :InvalidParentGenderException;
+  :Hiển thị lỗi;
   stop
 endif
 
-:Kiểm tra chu trình trong cây gia phả;
+:Kiểm tra chu trình trong cây gia phả\n(checkCycle — BR3);
 
-if (Phát hiện chu trình?) then (yes)
+if (Phát hiện chu trình?) then (có)
   :CycleDetectedException;
+  :Hiển thị lỗi;
   stop
-else (no)
+else (không)
 endif
 
-:Cập nhật quan hệ;
-:Repository lưu vào Database;
+:Cập nhật quan hệ\n(Repository.update());
+
 :Gán cha/mẹ thành công;
 
 stop

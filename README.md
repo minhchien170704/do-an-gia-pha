@@ -489,16 +489,57 @@ do-an-gia-pha/
 
 ## 9. Tài liệu UML
 
-Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
+Tất cả sơ đồ nằm tại thư mục `docs/uml/` (mã nguồn `.puml` + ảnh render `.png`).
+Sơ đồ được đồng bộ với code hiện tại trong `src/main/java` — **không vẽ lớp test**.
 
 | Sơ đồ | File |
 |---|---|
-| Lớp | `class-diagram.puml` / `class-diagram.png` |
+| **Lớp — tổng quan** | `class-diagram.puml` / `class-diagram.png` |
+| **Lớp (a) — model + exception** | `class-diagram-model-exception.puml` / `class-diagram-model-exception.png` |
+| **Lớp (b) — service + repository + database** | `class-diagram-service-repository.puml` / `class-diagram-service-repository.png` |
+| **Lớp (c) — view + controller** | `class-diagram-view-controller.puml` / `class-diagram-view-controller.png` |
 | Thành phần | `component-diagram.puml` / `component-diagram.png` |
 | Triển khai | `deployment-diagram.puml` / `deployment-diagram.png` |
 | Ca sử dụng | `use-case.puml` / `use-case.png` |
-| Tuần tự | `sequence-add-person.puml`, `sequence-assign-parent.puml`, `sequence-family-tree.puml` |
-| Hoạt động | `activity-add-person.puml`, `activity-assign-parent.puml`, `activity-family-tree.puml` |
+| Tuần tự — thêm người | `sequence-add-person.puml` / `sequence-add-person.png` |
+| Tuần tự — gán cha/mẹ | `sequence-assign-parent.puml` / `sequence-assign-parent.png` |
+| Tuần tự — xem cây gia phả | `sequence-family-tree.puml` / `sequence-family-tree.png` |
+| Tuần tự — xuất PNG / In | `sequence-export-print.puml` / `sequence-export-print.png` |
+| Tuần tự — chọn & lưu ảnh đại diện | `sequence-photo-avatar.puml` / `sequence-photo-avatar.png` |
+| Hoạt động — thêm người | `activity-add-person.puml` / `activity-add-person.png` |
+| Hoạt động — gán cha/mẹ | `activity-assign-parent.puml` / `activity-assign-parent.png` |
+| Hoạt động — xem cây gia phả | `activity-family-tree.puml` / `activity-family-tree.png` |
+| Hoạt động — xuất PNG / In | `activity-export-print.puml` / `activity-export-print.png` |
+| Hoạt động — chọn & lưu ảnh đại diện | `activity-photo-avatar.puml` / `activity-photo-avatar.png` |
+
+### Render lại sơ đồ
+
+Cần [PlantUML](https://plantuml.com/) + GraphViz (`dot`). Tải `plantuml.jar` rồi chạy
+trong thư mục `docs/uml/`:
+
+```bash
+java -jar plantuml.jar -verbose *.puml
+```
+
+Lệnh trên vừa kiểm tra cú pháp vừa xuất lại toàn bộ file `.png`. Kiểm tra lỗi cú pháp
+không cần render:
+
+```bash
+java -jar plantuml.jar -checkonly *.puml
+```
+
+> **Lưu ý cú pháp PlantUML**: trong Activity Diagram, khối `opt`/`loop`/`repeat` phải
+> kết thúc bằng `end opt`/`end loop`/`end repeat` — dùng `endif` sẽ báo lỗi cú pháp.
+> Tiêu đề `title` phải nằm trên **một dòng** hoặc dùng `\n` để xuống dòng.
+
+### Sơ đồ lớp được tách theo gói
+
+Sơ đồ lớp gốc có 25 lớp + 7 exception → ảnh render rất rộng. Vì vậy:
+
+- `class-diagram.puml` — **tổng quan**: chỉ hiển thị tên lớp, đầy đủ quan hệ giữa các gói.
+- `class-diagram-model-exception.puml` — thuộc tính/phương thức của `Person`, `Gender` và 7 lớp exception.
+- `class-diagram-service-repository.puml` — thuộc tính/phương thức của `FamilyTreeService`, `PersonRepository`, `JdbcPersonRepository`, `DatabaseConnection` + các stereotype mẫu thiết kế.
+- `class-diagram-view-controller.puml` — thuộc tính/phương thức của 6 lớp `view` + `PersonController` + quan hệ Observer.
 
 ---
 
@@ -523,6 +564,7 @@ Tất cả sơ đồ nằm tại thư mục `docs/uml/`:
 | **6.5** | Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (121 test mặc định + 26 test tag `javafx`) | ✅ Hoàn thành |
 | **6.6** | Bộ dữ liệu mẫu & bảng test case trong `test-data/` (`LargeSampleDataTest`, 22 test) | ✅ Hoàn thành |
 | **6.7** | **Cách ly dữ liệu test**: mọi lớp test dùng database riêng `*_test`; `TestDatabaseManager` quản lý vòng đời + `assertSafeToDrop` | ✅ Hoàn thành |
+| **6.8** | **Đồng bộ hóa toàn bộ sơ đồ PlantUML với code hiện tại**: class-diagram tách 4 sơ đồ theo gói, component/deployment/use-case cập nhật, thêm sequence + activity cho "Xuất PNG/In" và "Chọn & lưu ảnh đại diện" | ✅ Hoàn thành |
 
 ### Hạng mục chưa làm
 

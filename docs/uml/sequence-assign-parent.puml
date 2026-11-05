@@ -11,18 +11,20 @@ participant "DatabaseConnection" as DBConn
 database "MySQL" as DB
 
 User -> Controller : handleAssignFather() hoặc handleAssignMother()
+activate Controller
 
 alt Gán Cha
     Controller -> Service : assignFather(childId, fatherId)
 else Gán Mẹ
     Controller -> Service : assignMother(childId, motherId)
 end
+activate Service
 
 Service -> Repo : findById(childId)
 Repo -> JdbcRepo : findById(childId)
 JdbcRepo -> DBConn : getConnection()
 DBConn --> JdbcRepo : Connection
-JdbcRepo -> DB : SELECT * FROM person WHERE id = childId
+JdbcRepo -> DB : SELECT ... FROM person WHERE id = childId
 DB --> JdbcRepo : dòng dữ liệu
 JdbcRepo --> Repo : Person (con)
 Repo --> Service : Person (con)
@@ -31,59 +33,52 @@ Service -> Repo : findById(parentId)
 Repo -> JdbcRepo : findById(parentId)
 JdbcRepo -> DBConn : getConnection()
 DBConn --> JdbcRepo : Connection
-JdbcRepo -> DB : SELECT * FROM person WHERE id = parentId
+JdbcRepo -> DB : SELECT ... FROM person WHERE id = parentId
 DB --> JdbcRepo : dòng dữ liệu
 JdbcRepo --> Repo : Person (cha/mẹ)
 Repo --> Service : Person (cha/mẹ)
 
-Service -> Service : validateParentAssignment(child, parent, requiredGender)
+note right of Service
+  Thứ tự ưu tiên kiểm tra:
+  BR1 → BR2 → BR6 → BR3
+end note
 
-alt 1. Cha/Mẹ không tồn tại (null)
-    Service --> Controller : PersonNotFoundException
-    Controller --> User : hiển thị lỗi
-
-else 2. child.id == parent.id (tự làm cha/mẹ)
+alt BR1 — childId == parentId (tự làm cha/mẹ)
     Service --> Controller : SelfParentException
     Controller --> User : hiển thị lỗi
 
-else 3. Kiểm tra Cha != Mẹ (theo vai trò đang gán)
+else BR2 — Cha trùng Mẹ hiện tại
+    Service --> Controller : SameParentException
+    Controller --> User : hiển thị lỗi
 
-    alt Đang gán Cha (assignFather)
-        alt child.mother != null VÀ fatherId == child.mother.id
-            Service --> Controller : validation error (trùng vai trò)
-            Controller --> User : hiển thị lỗi
-        end
-    else Đang gán Mẹ (assignMother)
-        alt child.father != null VÀ motherId == child.father.id
-            Service --> Controller : validation error (trùng vai trò)
-            Controller --> User : hiển thị lỗi
-        end
-    end
+else BR6 — Giới tính sai vai trò
+    Service --> Controller : InvalidParentGenderException
+    Controller --> User : hiển thị lỗi
 
-    alt 4. Gender không phù hợp vai trò
-        Service --> Controller : validation error (gender không phù hợp vai trò)
-        Controller --> User : hiển thị lỗi
+else BR3 — Gán tạo chu trình gia phả
+    Service -> Service : checkCycle(childId, candidateParentId)
+    note right of Service
+      Duyệt ngược từ candidateParent
+      theo nhánh cha/mẹ với Set visited
+      → gặp childId nghĩa là có chu trình
+    end note
+    Service --> Controller : CycleDetectedException
+    Controller --> User : hiển thị lỗi
 
-    else Gender hợp lệ
-        Service -> Service : checkCycle(childId, candidateParentId)
-
-        alt 5. Phát hiện chu trình
-            Service --> Controller : CycleDetectedException
-            Controller --> User : hiển thị lỗi
-
-        else 6. Không có chu trình
-            Service -> Repo : update(child)
-            Repo -> JdbcRepo : update(child)
-            JdbcRepo -> DBConn : getConnection()
-            DBConn --> JdbcRepo : Connection
-            JdbcRepo -> DB : UPDATE person SET father_id/mother_id WHERE id = childId
-            DB --> JdbcRepo : thành công
-            JdbcRepo --> Repo : void
-            Repo --> Service : void
-            Service --> Controller : void
-            Controller --> User : Gán cha/mẹ thành công
-        end
-    end
+else Không vi phạm — cập nhật quan hệ
+    Service -> Repo : update(child)
+    Repo -> JdbcRepo : update(child)
+    JdbcRepo -> DBConn : getConnection()
+    DBConn --> JdbcRepo : Connection
+    JdbcRepo -> DB : UPDATE person SET father_id/mother_id WHERE id = childId
+    DB --> JdbcRepo : thành công
+    JdbcRepo --> Repo : void
+    Repo --> Service : void
+    Service --> Controller : void
+    Controller --> User : Alert "Gán cha/mẹ thành công"
 end
+
+deactivate Service
+deactivate Controller
 
 @enduml

@@ -3,87 +3,124 @@
 title Sequence Diagram - Thêm người
 
 actor "Người dùng" as User
+participant "PersonFormView" as FormView
 participant "PersonController" as Controller
 participant "FamilyTreeService" as Service
 participant "PersonRepository" as Repo
 participant "JdbcPersonRepository" as JdbcRepo
 participant "DatabaseConnection" as DBConn
+participant "ImageManager" as ImageMgr
 database "MySQL" as DB
 
+User -> FormView : nhập họ tên, năm sinh, giới tính\nv chọn Cha / Mẹ
 User -> Controller : handleAdd()
+activate Controller
+
+Controller -> Service : checkBirthYearWarning(child, father, mother)
+note right of Service
+  BR5 là quy tắc CẢNH BÁO:
+  Service KHÔNG chặn, chỉ trả về
+  danh sách thông điệp cảnh báo
+end note
+Service --> Controller : List<String> cảnh báo
+
+alt Có cảnh báo năm sinh (BR5)
+    Controller --> User : Alert cảnh báo\n(Tiếp tục / Hủy)
+    alt Người dùng chọn "Hủy"
+        Controller --> User : dừng, không lưu
+    else Người dùng chọn "Tiếp tục"
+    end
+end
+
 Controller -> Service : addPerson(person)
+activate Service
 
 Service -> Service : validatePerson(person)
+note right of Service
+  - person != null
+  - fullName 1..100 ký tự
+  - 1000 <= birthYear <= Year.now()
+  - gender != null
+end note
 
 alt Thông tin cơ bản không hợp lệ
-    Service --> Controller : validation error
+    Service --> Controller : IllegalArgumentException\nhoặc InvalidBirthYearException
     Controller --> User : hiển thị lỗi
-else Thông tin hợp lệ
+end
 
-    opt Cha được chọn
-        Service -> Repo : findById(fatherId)
-        Repo -> JdbcRepo : findById(fatherId)
-        JdbcRepo -> DBConn : getConnection()
-        DBConn --> JdbcRepo : Connection
-        JdbcRepo -> DB : SELECT * FROM person WHERE id = fatherId
-        DB --> JdbcRepo : dòng dữ liệu
-        JdbcRepo --> Repo : Person (cha)
-        Repo --> Service : Person (cha)
-
-        alt Cha không tồn tại (null)
-            Service --> Controller : PersonNotFoundException
-            Controller --> User : hiển thị lỗi
-        end
+opt Cả Cha và Mẹ đều được chọn
+    alt father.id == mother.id (BR2)
+        Service --> Controller : SameParentException
+        Controller --> User : hiển thị lỗi
     end
+end
 
-    opt Mẹ được chọn
-        Service -> Repo : findById(motherId)
-        Repo -> JdbcRepo : findById(motherId)
-        JdbcRepo -> DBConn : getConnection()
-        DBConn --> JdbcRepo : Connection
-        JdbcRepo -> DB : SELECT * FROM person WHERE id = motherId
-        DB --> JdbcRepo : dòng dữ liệu
-        JdbcRepo --> Repo : Person (mẹ)
-        Repo --> Service : Person (mẹ)
-
-        alt Mẹ không tồn tại (null)
-            Service --> Controller : PersonNotFoundException
-            Controller --> User : hiển thị lỗi
-        end
-    end
-
-    opt Cả Cha và Mẹ đều được chọn
-        alt father.id == mother.id
-            Service --> Controller : validation error (Cha == Mẹ)
-            Controller --> User : hiển thị lỗi
-        end
-    end
-
-    opt Cha được chọn
-        alt father.gender != MALE
-            Service --> Controller : validation error (Cha phải có gender MALE)
-            Controller --> User : hiển thị lỗi
-        end
-    end
-
-    opt Mẹ được chọn
-        alt mother.gender != FEMALE
-            Service --> Controller : validation error (Mẹ phải có gender FEMALE)
-            Controller --> User : hiển thị lỗi
-        end
-    end
-
-    Service -> Repo : save(person)
-    Repo -> JdbcRepo : save(person)
+opt Cha được chọn
+    Service -> Repo : findById(fatherId)
+    Repo -> JdbcRepo : findById(fatherId)
     JdbcRepo -> DBConn : getConnection()
     DBConn --> JdbcRepo : Connection
-    JdbcRepo -> DB : INSERT INTO person (...)
-    DB --> JdbcRepo : generated id
-    JdbcRepo --> Repo : int (id tự sinh)
-    Repo --> Service : int (id tự sinh)
-    Service --> Controller : Person (với id đã gán)
-    Controller --> User : Thêm người thành công
+    JdbcRepo -> DB : SELECT ... FROM person WHERE id = fatherId
+    DB --> JdbcRepo : dòng dữ liệu
+    JdbcRepo --> Repo : Person (cha)
+    Repo --> Service : Person (cha)
 
+    alt Cha không tồn tại
+        Service --> Controller : PersonNotFoundException
+        Controller --> User : hiển thị lỗi
+    end
+
+    alt Cha có giới tính != MALE (BR6)
+        Service --> Controller : InvalidParentGenderException
+        Controller --> User : hiển thị lỗi
+    end
 end
+
+opt Mẹ được chọn
+    Service -> Repo : findById(motherId)
+    Repo -> JdbcRepo : findById(motherId)
+    JdbcRepo -> DBConn : getConnection()
+    DBConn --> JdbcRepo : Connection
+    JdbcRepo -> DB : SELECT ... FROM person WHERE id = motherId
+    DB --> JdbcRepo : dòng dữ liệu
+    JdbcRepo --> Repo : Person (mẹ)
+    Repo --> Service : Person (mẹ)
+
+    alt Mẹ không tồn tại
+        Service --> Controller : PersonNotFoundException
+        Controller --> User : hiển thị lỗi
+    end
+
+    alt Mẹ có giới tính != FEMALE (BR6)
+        Service --> Controller : InvalidParentGenderException
+        Controller --> User : hiển thị lỗi
+    end
+end
+
+Service -> Repo : save(person)
+Repo -> JdbcRepo : save(person)
+JdbcRepo -> DBConn : getConnection()
+DBConn --> JdbcRepo : Connection
+JdbcRepo -> DB : INSERT INTO person (...)
+DB --> JdbcRepo : generated id
+JdbcRepo --> Repo : int (id tự sinh)
+Repo --> Service : int (id tự sinh)
+Service --> Controller : Person (với id đã gán)
+deactivate Service
+
+opt Người dùng đã chọn ảnh đại diện
+    Controller -> ImageMgr : isAllowedImage(sourcePath)
+    ImageMgr --> Controller : true
+    Controller -> ImageMgr : copyImageToAppDirectory(sourcePath, id)
+    ImageMgr --> Controller : "images/person_<id>.<đuôi>"
+    Controller -> Service : updatePerson(person)
+    Service -> Repo : update(person)
+    Repo --> Service : void
+    Service --> Controller : void
+end
+
+Controller --> FormView : điều hướng về danh sách
+Controller --> User : Alert "Thêm người thành công"
+deactivate Controller
 
 @enduml

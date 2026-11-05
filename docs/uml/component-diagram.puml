@@ -12,16 +12,27 @@ skinparam component {
 skinparam interface {
     BackgroundColor #FEFECE
     BorderColor #A80036
+    FontSize 13
 }
 skinparam package {
     BackgroundColor #F5F5FF
     BorderColor #A80036
     FontSize 12
 }
+skinparam database {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    FontSize 12
+}
+skinparam folder {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    FontSize 12
+}
 skinparam ArrowColor #A80036
 
 package "Tầng Trình Bày" {
-    component "JavaFX UI" as UI
+    component "JavaFX UI\n(Main, PeopleListView,\nPersonFormView, PersonDetailView,\nFamilyTreeView, FamilyTreeDiagram,\nPersonAvatar)" as UI
     component "PersonController" as Controller
 }
 
@@ -35,20 +46,36 @@ package "Tầng Lưu Trữ" {
     component "DatabaseConnection" as DBConn
 }
 
+package "Tiện Ích" {
+    component "ImageManager" as ImageMgr
+    component "PngWriter" as PngW
+}
+
 package "Cơ Sở Dữ Liệu" {
-    database "MySQL" as MySQL
+    database "MySQL / MariaDB\n(gia_pha)" as MySQL
+}
+
+package "Hệ Thống Tệp" {
+    folder "images/\n(ảnh đại diện\nperson_<id>.<đuôi>)" as ImagesDir
 }
 
 UI --> Controller : gọi xử lý sự kiện
 
-Controller --> Service : gọi business logic
+Controller --> Service : gọi nghiệp vụ
 
-Service --> RepoInterface : sử dụng
+Service --> RepoInterface : sử dụng\n(Dependency Inversion)
 
-JdbcRepo ..|> RepoInterface : implements
+JdbcRepo ..|> RepoInterface : implements\n(Repository Pattern)
 
 JdbcRepo --> DBConn : lấy Connection
 
-DBConn --> MySQL : JDBC Connection
+DBConn --> MySQL : JDBC Connection\n(static factory)
+
+Controller --> ImageMgr : copy ảnh vào images/
+UI --> ImageMgr : kiểm tra định dạng
+
+UI --> PngW : ghi file PNG
+
+ImageMgr --> ImagesDir : copy / dọn file ảnh
 
 @enduml

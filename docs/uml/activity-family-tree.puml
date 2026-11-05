@@ -6,25 +6,45 @@ start
 
 :Chọn Xem cây gia phả;
 
-:Chọn người trung tâm;
+:Chọn người trung tâm\n(ComboBox trên thanh công cụ);
 
-:Kiểm tra thành viên tồn tại;
+:Kiểm tra thành viên tồn tại\n(findById);
 
-if (Thành viên tồn tại?) then (yes)
-else (no)
+if (Thành viên tồn tại?) then (tồn tại)
+else (không)
   :PersonNotFoundException;
+  :Hiển thị lỗi;
   stop
 endif
 
-:Lấy thông tin người trung tâm\n(findById);
+:Lấy danh sách tổ tiên\n(getAncestors — BFS ngược);
+note right
+  Duyệt theo nhánh cha/mẹ,
+  dùng Set<Integer> visited
+  để chống lặp vô hạn
+end note
 
-:Lấy danh sách tổ tiên\n(getAncestors);
+:Lấy danh sách hậu duệ\n(getDescendants);
 
-:Lấy danh sách con cháu\n(getDescendants);
+:Tải toàn bộ danh sách thành viên\n(getAllPersons — findAll);
 
-:Xây dựng cây gia phả;
+:Dựng sơ đồ 2D\n(FamilyTreeDiagram.setData);
+note right
+  1. buildModel(): gom trọng tâm,
+     tổ tiên, hậu duệ, vợ/chồng
+  2. buildUnits(): gom khối gia
+     đình cha–mẹ
+  3. layoutAll(): bố trí theo
+     thế hệ (hàng) và cột
+  4. drawEdges() + createNodeCard():
+     vẽ đường nối và node avatar
+end note
 
-:Hiển thị TreeView;
+:Canh sơ đồ vào khung nhìn\n(fitToView);
+
+:Hiển thị sơ đồ 2D\n(tab "Sơ đồ 2D");
+
+:Hiển thị cây dạng danh sách\n(tab "Danh sách phả hệ");
 
 stop
 

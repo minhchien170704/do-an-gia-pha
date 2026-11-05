@@ -13,7 +13,17 @@ skinparam component {
     BorderColor #A80036
     FontSize 12
 }
+skinparam interface {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    FontSize 12
+}
 skinparam database {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    FontSize 12
+}
+skinparam folder {
     BackgroundColor #FEFECE
     BorderColor #A80036
     FontSize 12
@@ -21,9 +31,14 @@ skinparam database {
 skinparam ArrowColor #A80036
 
 node "Máy tính người dùng" as Client {
-    node "Môi trường chạy Java\n(Java 25)" as JRE {
+
+    node "Môi trường chạy Java\n(Java 25 + JavaFX 23)" as JRE {
         component "Ứng dụng JavaFX\n(Quản lý Gia phả)" as App
-        component "Driver MySQL JDBC\n(Connector/J)" as Driver
+        component "Driver MySQL JDBC\n(Connector/J 9.2.0)" as Driver
+    }
+
+    folder "Thư mục làm việc ứng dụng\n(user.dir)" as WorkDir {
+        folder "images/\n(ảnh đại diện\nperson_<id>.<đuôi>)" as ImagesDir
     }
 }
 
@@ -36,6 +51,21 @@ node "Máy chủ MySQL" as Server {
 }
 
 App ..> Driver : sử dụng
-Driver --> DB : JDBC Connection (TCP/IP Port 3306)
+Driver --> DB : JDBC Connection\n(TCP/IP Port 3306)
+
+App --> WorkDir : đọc/ghi ảnh đại diện\n(đường dẫn tương đối trong DB)
+
+note right of WorkDir
+  photo_path lưu đường dẫn TƯƠNG ĐỐI
+  ví dụ images/person_7.png
+  → ứng dụng phải chạy từ
+  thư mục gốc dự án
+end note
+
+note bottom of DB
+  Cấu hình qua biến môi trường
+  DB_URL / DB_USER / DB_PASSWORD
+  (không hard-code mật khẩu)
+end note
 
 @enduml

@@ -1,0 +1,55 @@
+@startuml activity-photo-avatar
+
+title Activity Diagram - Chọn và lưu ảnh đại diện
+
+start
+
+:Mở màn hình Thêm/Sửa thành viên;
+
+:Bấm nút "Chọn ảnh...";
+
+:Mở hộp thoại chọn file\n(FileChooser, lọc png/jpg/jpeg);
+
+if (Người dùng hủy?) then (hủy)
+  :Không chọn ảnh;
+  stop
+else (chọn file)
+endif
+
+:Kiểm tra định dạng ảnh\n(ImageManager.isAllowedImage);
+
+if (Định dạng hợp lệ?) then (hợp lệ)
+else (không hợp lệ)
+  :Alert "Định dạng ảnh không hợp lệ";
+  stop
+endif
+
+:Lưu đường dẫn ảnh nguồn\n(selectedPhotoSourcePath);
+
+:Hiển thị tên file đã chọn\nvà cập nhật khung xem trước\n(PersonAvatar);
+
+:Bấm nút "Lưu";
+
+if (Thêm mới hay Cập nhật?) then (Thêm mới)
+  :Service.addPerson() → lấy id tự sinh;
+else (Cập nhật)
+  :Service.getPersonById() → lấy bản ghi gốc\n(giữ ảnh cũ nếu không chọn ảnh mới);
+endif
+
+:ImageManager.copyImageToAppDirectory()\n(đặt tên images/person_<id>.<đuôi>);
+
+if (Copy ảnh thành công?) then (thành công)
+  :Lưu ĐƯỜNG DẪN TƯƠNG ĐỐI\nvào photo_path;
+  :Service.updatePerson() → cập nhật DB;
+  :Alert "Lưu thành công";
+else (lỗi)
+  :Alert "Lỗi ảnh đại diện";
+  note right
+    Ảnh cũ trong DB vẫn được giữ nguyên
+    khi copy ảnh mới thất bại
+  end note
+endif
+
+stop
+
+@enduml

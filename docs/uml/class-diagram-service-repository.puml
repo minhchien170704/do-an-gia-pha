@@ -1,0 +1,124 @@
+@startuml class-diagram-service-repository
+
+title Class Diagram (b) - Gói service + repository + database
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam class {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    ArrowColor #A80036
+}
+skinparam package {
+    BackgroundColor #F5F5FF
+    BorderColor #A80036
+    FontSize 12
+}
+skinparam linetype ortho
+
+' ============================================================
+' GÓI: com.giapha.service
+' ============================================================
+package "com.giapha.service" {
+
+    class FamilyTreeService {
+        - MIN_BIRTH_YEAR : int = 1000
+        - personRepository : PersonRepository
+        + FamilyTreeService(personRepository : PersonRepository)
+        + getPersonById(id : int) : Person
+        + addPerson(person : Person) : Person
+        + updatePerson(person : Person) : void
+        + deletePerson(id : int) : void
+        + assignFather(childId : int, fatherId : int) : void
+        + assignMother(childId : int, motherId : int) : void
+        + clearFather(childId : int) : void
+        + clearMother(childId : int) : void
+        + getAncestors(id : int) : List<Person>
+        + getDescendants(id : int) : List<Person>
+        + searchPersons(keyword : String) : List<Person>
+        + getAllPersons() : List<Person>
+        + checkBirthYearWarning(child : Person, father : Person, mother : Person) : List<String>
+        - validatePerson(person : Person) : void
+        - checkCycle(childId : int, candidateParentId : int) : boolean
+        - checkPersonInUse(id : int) : boolean
+    }
+}
+
+' ============================================================
+' GÓI: com.giapha.repository
+' ============================================================
+package "com.giapha.repository" {
+
+    interface PersonRepository {
+        <<interface>>
+        + findAll() : List<Person>
+        + findById(id : int) : Person
+        + search(keyword : String) : List<Person>
+        + save(person : Person) : int
+        + update(person : Person) : void
+        + delete(id : int) : void
+    }
+
+    class JdbcPersonRepository {
+        - connection : Connection
+        + JdbcPersonRepository()
+        + JdbcPersonRepository(connection : Connection)
+        # getConnection() : Connection
+        + findAll() : List<Person>
+        + findById(id : int) : Person
+        + search(keyword : String) : List<Person>
+        + save(person : Person) : int
+        + update(person : Person) : void
+        + delete(id : int) : void
+    }
+}
+
+' ============================================================
+' GÓI: com.giapha.database
+' ============================================================
+package "com.giapha.database" {
+
+    class DatabaseConnection {
+        <<utility>>
+        - getUrl() : String
+        - getUser() : String
+        - getPassword() : String
+        + getConnection() : Connection
+        + getConnection(url : String, user : String, password : String) : Connection
+    }
+}
+
+' ============================================================
+' QUAN HỆ — MẪU THIẾT KẾ (xem README §6.2)
+' ============================================================
+
+' Repository Pattern: interface = abstraction, class = concrete implementation
+JdbcPersonRepository ..|> PersonRepository : implements (Repository Pattern)
+
+' Dependency Inversion: Service phụ thuộc abstraction, KHÔNG phụ thuộc JDBC
+FamilyTreeService --> PersonRepository : <<Dependency Inversion>> phụ thuộc interface
+note right of FamilyTreeService
+  Không import JdbcPersonRepository,
+  DatabaseConnection hay java.sql.*
+end note
+
+' Static Factory Method: DatabaseConnection tạo Connection
+JdbcPersonRepository --> DatabaseConnection : lấy Connection
+DatabaseConnection ..> "java.sql.Connection" : <<Static Factory>> tạo đối tượng
+
+' Template Method: điểm móc getConnection() có thể ghi đè
+note bottom of JdbcPersonRepository
+  # getConnection() là điểm móc (Template Method)
+  được ghi đè ở lớp test để trỏ sang DB test
+end note
+
+' Exception được ném ra
+FamilyTreeService ..> SelfParentException : ném (BR1)
+FamilyTreeService ..> SameParentException : ném (BR2)
+FamilyTreeService ..> InvalidParentGenderException : ném (BR6)
+FamilyTreeService ..> CycleDetectedException : ném (BR3)
+FamilyTreeService ..> PersonInUseException : ném (BR4)
+FamilyTreeService ..> PersonNotFoundException : ném
+FamilyTreeService ..> InvalidBirthYearException : ném
+
+@enduml

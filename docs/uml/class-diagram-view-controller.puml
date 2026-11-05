@@ -1,0 +1,207 @@
+@startuml class-diagram-view-controller
+
+title Class Diagram (c) - Gói view + controller
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam class {
+    BackgroundColor #FEFECE
+    BorderColor #A80036
+    ArrowColor #A80036
+}
+skinparam package {
+    BackgroundColor #F5F5FF
+    BorderColor #A80036
+    FontSize 12
+}
+skinparam linetype ortho
+
+' ============================================================
+' GÓI: com.giapha.controller
+' ============================================================
+package "com.giapha.controller" {
+
+    class PersonController {
+        - familyTreeService : FamilyTreeService
+        - peopleListView : PeopleListView
+        - personFormView : PersonFormView
+        - personDetailView : PersonDetailView
+        - familyTreeView : FamilyTreeView
+        - selectedPerson : Person
+        - searchKeyword : String
+        - targetChildId : Integer
+        - targetFatherId : Integer
+        - targetMotherId : Integer
+        - focusPersonId : Integer
+        - navigateToPeopleList : Runnable
+        - navigateToPersonForm : Consumer<Person>
+        - navigateToPersonDetail : Consumer<Person>
+        - navigateToFamilyTree : Consumer<Person>
+        + PersonController(familyTreeService : FamilyTreeService)
+        + handleAdd() : void
+        + handleAdd(person : Person) : Person
+        + handleEdit() : void
+        + handleEdit(personToUpdate : Person, newFather : Person, newMother : Person) : void
+        + handleDelete() : void
+        + handleDelete(id : int) : void
+        + handleSearch() : void
+        + handleSearch(keyword : String) : List<Person>
+        + getAllPersons() : List<Person>
+        + handleViewDetail() : void
+        + handleViewDetail(id : int) : Person
+        + handleAssignFather() : void
+        + handleAssignFather(childId : int, fatherId : int) : void
+        + handleAssignMother() : void
+        + handleAssignMother(childId : int, motherId : int) : void
+        + handleClearFather(childId : int) : void
+        + handleClearMother(childId : int) : void
+        + handleViewTree() : void
+        + handleViewTree(focusId : int) : Person
+    }
+}
+
+' ============================================================
+' GÓI: com.giapha.view
+' ============================================================
+package "com.giapha.view" {
+
+    class PeopleListView {
+        - controller : PersonController
+        - filteredData : FilteredList<Person>
+        + PeopleListView(controller : PersonController)
+        + getRoot() : BorderPane
+        + reloadData() : void
+        + refresh() : void
+        + getSelectedPerson() : Person
+        + getSearchKeyword() : String
+    }
+
+    class PersonFormView {
+        - controller : PersonController
+        - editingPerson : Person
+        - selectedPhotoSourcePath : String
+        - selectedPhotoFile : File
+        - avatarPreview : PersonAvatar
+        + PersonFormView(controller : PersonController)
+        + PersonFormView(controller : PersonController, personToEdit : Person)
+        + getRoot() : BorderPane
+        + getEditingPerson() : Person
+        + getFullNameInput() : String
+        + getBirthYearInput() : String
+        + getGenderInput() : Gender
+        + getPhotoPathInput() : String
+        + getSelectedFather() : Person
+        + getSelectedMother() : Person
+        + getSelectedPhotoSourcePath() : String
+        + getExistingPhotoPath() : String
+    }
+
+    class PersonDetailView {
+        - controller : PersonController
+        - person : Person
+        + PersonDetailView(controller : PersonController, person : Person)
+        + getRoot() : BorderPane
+    }
+
+    class FamilyTreeView {
+        - controller : PersonController
+        - diagram : FamilyTreeDiagram
+        - cboFocusPerson : ComboBox<Person>
+        - treeView : TreeView<TreeNodeItem>
+        + FamilyTreeView(controller : PersonController, focusPerson : Person)
+        + getRoot() : BorderPane
+        - handleExportPng() : void
+        - handlePrint() : void
+        - buildPrintableNode(job : PrinterJob) : Node
+        - confirmPrint(job : PrinterJob) : boolean
+        - defaultExportFileName() : String
+    }
+
+    class FamilyTreeDiagram {
+        - content : Pane
+        - allPersons : List<Person>
+        - focusPerson : Person
+        - onViewPerson : Consumer<Person>
+        - zoomProperty : ReadOnlyDoubleWrapper
+        + FamilyTreeDiagram()
+        + setData(allPersons : List<Person>, focusPerson : Person) : void
+        + contentScaleProperty() : ReadOnlyDoubleProperty
+        + zoomBy(factor : double) : void
+        + resetZoom() : void
+        + fitToView() : void
+        + getZoom() : double
+        + getContentWidth() : double
+        + getContentHeight() : double
+        + renderFullImage() : WritableImage
+        + setOnViewPerson(handler : Consumer<Person>) : void
+    }
+
+    class PersonAvatar {
+        - person : Person
+        - size : int
+        - imageView : ImageView
+        - initialLabel : Label
+        + DEFAULT_SIZE : int = 70
+        + SMALL_SIZE : int = 34
+        + PersonAvatar(person : Person)
+        + PersonAvatar(person : Person, size : int)
+        + PersonAvatar(person : Person, size : int, imageFile : File)
+        + resolveImageFile(photoPath : String) : File
+        + isShowingRealImage() : boolean
+        + getAvatarSize() : int
+    }
+}
+
+' ============================================================
+' GÓI: com.giapha.util (phụ thuộc từ view/controller)
+' ============================================================
+package "com.giapha.util" {
+    class ImageManager {
+        <<utility>>
+        + isAllowedImage(filePath : String) : boolean
+        + copyImageToAppDirectory(sourceFilePath : String, personId : int) : String
+        + deleteImageQuietly(relativePath : String) : void
+    }
+    class PngWriter {
+        <<utility>>
+        + write(image : WritableImage, file : File) : void
+    }
+}
+
+' ============================================================
+' QUAN HỆ — VIEW → CONTROLLER
+' ============================================================
+PeopleListView --> PersonController : gọi xử lý sự kiện
+PersonFormView --> PersonController : gọi xử lý sự kiện
+PersonDetailView --> PersonController : gọi xử lý sự kiện
+FamilyTreeView --> PersonController : gọi xử lý sự kiện
+
+' Controller → Service (điều phối)
+PersonController --> FamilyTreeService : gọi nghiệp vụ
+note right of PersonController
+  Bắt custom exception và ánh xạ
+  sang thông báo tiếng Việt (Alert)
+end note
+
+' Controller ↔ View (2 chiều: setter đăng ký View hiện hành)
+PersonController --> PeopleListView : giữ tham chiếu View
+PersonController --> PersonFormView : giữ tham chiếu View
+PersonController --> PersonDetailView : giữ tham chiếu View
+PersonController --> FamilyTreeView : giữ tham chiếu View
+
+' View ↔ View
+FamilyTreeView *-- FamilyTreeDiagram : chứa (composition)
+FamilyTreeDiagram --> PersonAvatar : dựng node
+PeopleListView --> PersonAvatar : hiển thị avatar
+PersonDetailView --> PersonAvatar : hiển thị avatar
+PersonFormView --> PersonAvatar : xem trước ảnh
+
+' Observer: FamilyTreeView lắng nghe zoomProperty của FamilyTreeDiagram
+FamilyTreeView --> "zoomProperty" : <<Observer>> đăng ký listener\n(cập nhật nhãn % zoom)
+
+' View/Controller ↔ Util
+PersonFormView --> ImageManager : kiểm tra định dạng ảnh
+PersonController --> ImageManager : copy ảnh vào images/
+FamilyTreeView --> PngWriter : ghi file PNG
+
+@enduml
