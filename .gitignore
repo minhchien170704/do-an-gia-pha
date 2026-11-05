@@ -21,7 +21,7 @@ replay_pid*
 
 # Ảnh đại diện người dùng (được copy vào lúc runtime, không commit)
 # Dùng "/images/" để chỉ áp dụng cho thư mục gốc, KHÔNG ảnh hưởng
-# src/main/resources/images/ (chứa icon tĩnh + .gitkeep).
+# src/main/resources/images/ (thư mục tài nguyên tĩnh của ứng dụng).
 /images/
 
 # ===== IDE =====
