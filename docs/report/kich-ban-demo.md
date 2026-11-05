@@ -1,4 +1,4 @@
-# KỊCH BẢN DEMO 5 PHÚT — HỆ THỐNG QUẢN LÝ SƠ ĐỒ GIA PHẢ
+﻿# KỊCH BẢN DEMO 5 PHÚT — HỆ THỐNG QUẢN LÝ SƠ ĐỒ GIA PHẢ
 
 > **Mục đích:** trình diễn trọn vẹn các chức năng chính và **các ca lỗi** trong
 > 5 phút, đủ để giảng viên thấy hệ thống chạy thật, không chỉ nghe mô tả.
@@ -33,7 +33,7 @@
 | 3:35 – 3:55 | **LỖI 3** — Tạo chu trình gia phả (BR3) | Thấy DFS phát hiện chu trình |
 | 3:55 – 4:15 | **LỖI 4** — Xóa người đang làm cha/mẹ (BR4) | Thấy chặn xóa |
 | 4:15 – 4:30 | **CẢNH BÁO** — Năm sinh cha ≥ con (BR5) | Thấy cảnh báo không chặn |
-| 4:30 – 4:50 | Chạy `mvn clean test` (nếu có môi trường) | Thấy 121 test PASS |
+| 4:30 – 4:50 | Chạy `mvn clean test` (nếu có môi trường) | Thấy 138 test PASS |
 | 4:50 – 5:00 | Tổng kết, mở câu hỏi | |
 
 > **Mẹo:** nếu bị hỏi giữa lúc demo, hãy nhảy sang phần **"Câu hỏi thường gặp
@@ -296,10 +296,12 @@ TC-10b BR6 — assignMother(29, 23) trong khi id 23 là MALE
   > *"• Lỗi chu trình khi gán cha: Gán cha tạo chu trình vòng lặp trong cây gia phả"*
 
 - Quan hệ cha của `Nguyễn Văn Tổ` **không** bị gán (vẫn là "—" trong bảng).
-- **Lưu ý:** phần "Đã cập nhật thành công thông tin thành viên" vẫn hiện, vì
-  Controller tách 2 bước: cập nhật thông tin cơ bản (`updatePerson` — đã thành
-  công) rồi mới gán quan hệ (`assignFather` — thất bại). Đây là hành vi **cố ý**:
-  thông tin cơ bản vẫn được lưu, chỉ phần quan hệ bị từ chối.
+- **Lưu ý — đây là điểm cần nhấn mạnh:** luồng cập nhật là **nguyên tử**.
+  `FamilyTreeService.updatePersonWithParents(...)` kiểm tra BR1 → BR2 → BR6 → BR3 cho
+  **cả cha lẫn mẹ** **trước**, rồi mới ghi bằng **một** câu `UPDATE` duy nhất.
+  Vì vậy khi BR3 bị vi phạm thì **không có gì được ghi cả** — kể cả thông tin cá
+  nhân cũng giữ nguyên bản cũ. Đây là hành vi **đã được cố ý thiết kế và kiểm thử**
+  (`AtomicUpdateAndBr5Test`) để tránh trạng thái "cập nhật một nửa".
 
 **Cách nói:**
 > "Đây là BR3 — chu trình gia phả. Thuật toán nằm ở
@@ -381,12 +383,12 @@ mvn clean test
 **Kết quả mong đợi (cuối output):**
 
 ```
-[INFO] Tests run: 121, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 138, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
 **Cách nói:**
-> "Bộ test dùng JUnit 5, 121 test, tất cả PASS. Điểm quan trọng: **mọi** test ghi
+> "Bộ test dùng JUnit 5, 138 test mặc định (thêm 26 test JavaFX chạy riêng bằng `mvn test -Pjavafx-tests`), tất cả PASS. Điểm quan trọng: **mọi** test ghi
 > vào CSDL đều dùng database riêng tên kết thúc bằng `_test` — được tự tạo ở
 > `@BeforeAll` và tự xóa ở `@AfterAll`. Ngoài ra `TestDatabaseManager.assertSafeToDrop()`
 > bắt buộc tên database phải kết thúc bằng `_test`, nếu không khớp thì ném

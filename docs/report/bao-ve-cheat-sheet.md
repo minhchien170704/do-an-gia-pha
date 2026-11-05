@@ -1,4 +1,4 @@
-# TÀI LIỆU ÔN BẢO VỆ — HỆ THỐNG QUẢN LÝ SƠ ĐỒ GIA PHẢ
+﻿# TÀI LIỆU ÔN BẢO VỆ — HỆ THỐNG QUẢN LÝ SƠ ĐỒ GIA PHẢ
 
 > Tài liệu dùng để ôn tập và trả lời câu hỏi giảng viên.
 > Mọi tham chiếu đều trỏ tới **đúng tên file** trong `src/main/java/` và **đúng tên file**
@@ -106,8 +106,8 @@ không phụ thuộc chi tiết. Nhờ đó test có thể thay repository bằn
 | Bước | File & hàm | Việc làm |
 |---|---|---|
 | 1 | `view/PersonFormView.java` → `handleSave()` | Validate ở tầng View: họ tên rỗng, năm sinh rỗng/không phải số, giới tính null → `showAlert(...)` và dừng |
-| 2 | `view/PersonFormView.java` → `handleSave()` | Tạo `Person`, `setFather(newFather)`, `setMother(newMother)` → `controller.handleAdd(newPerson)` |
-| 3 | `controller/PersonController.java` → `handleAdd(Person)` | Gọi `familyTreeService.addPerson(person)` trong `try/catch` |
+| 2 | `view/PersonFormView.java` → `handleSave()` | Tạo `Person`, `setFather(newFather)`, `setMother(newMother)` → `controller.handleAdd()` (overload không tham số — nhờ vậy **BR5 luôn chạy** trong luồng lưu thật của form) |
+| 3 | `controller/PersonController.java` → `handleAdd()` | Đọc dữ liệu từ `personFormView` → kiểm tra **BR5** (`confirmBirthYearWarning`) → nếu OK gọi `handleAdd(Person)` → `familyTreeService.addPerson(person)` trong `try/catch` |
 | 4 | `service/FamilyTreeService.java` → `addPerson(Person)` | `validatePerson(person)` → kiểm tra BR2 → kiểm tra BR6 (cha, mẹ) → `personRepository.save(person)` → `person.setId(generatedId)` |
 | 5 | `repository/JdbcPersonRepository.java` → `save(Person)` | `INSERT INTO person (...)` với `Statement.RETURN_GENERATED_KEYS` → trả `generated id` |
 | 6 | `controller/PersonController.java` → `handleAdd(Person)` | Nếu đã chọn ảnh: `persistSelectedImage(sourcePath, added.getId())` → `ImageManager.copyImageToAppDirectory(...)` → `familyTreeService.updatePerson(added)` |
@@ -972,19 +972,27 @@ không tính là `FAILED`.
 
 ---
 
-### Câu 18 — Vì sao `updatePerson()` không cho sửa quan hệ cha/mẹ?
+### Câu 18 — Vì sao `updatePerson()` không cho sửa quan hệ cha/mẹ? Và cập nhật thành viên có nguyên tử không?
 
 **Gợi ý trả lời:**
 Có chủ đích. `FamilyTreeService.updatePerson(Person)` luôn lấy `father`/`mother`
 **hiện tại từ DB** (`existing = getPersonById(person.getId())`) rồi gán đè lên
 object, bỏ qua hoàn toàn giá trị caller truyền vào — vì `updatePerson()` **không
-bao giờ** được phép thay đổi quan hệ cha/mẹ. Việc đổi quan hệ đi qua
-`assignFather()` / `assignMother()` / `clearFather()` / `clearMother()` để **mọi
-quy tắc BR1–BR6 được áp dụng đầy đủ**. Nếu `updatePerson()` cho phép sửa
-`father_id` trực tiếp thì các quy tắc này sẽ bị bypass. Đây cũng là lý do
-`PersonController.handleEdit(Person, Person, Person)` tách rõ 2 bước: cập nhật
-thông tin cơ bản (`updatePerson`) rồi mới gán/gỡ quan hệ (`assignFather` /
-`clearFather` / `assignMother` / `clearMother`), và báo kết quả gộp.
+bao giờ** được phép thay đổi quan hệ cha/mẹ. Việc đổi quan hệ đi qua các hàm
+chuyên biệt để **mọi quy tắc BR1–BR6 được áp dụng đầy đủ**. Nếu `updatePerson()`
+cho phép sửa `father_id` trực tiếp thì các quy tắc này sẽ bị bypass.
+
+**Còn cập nhật thành viên thì nguyên tử thế nào?** Đây là ý cực kỳ quan trọng —
+đừng nói "gán cha rồi gán mẹ" như trước nữa. Luồng lưu từ form gọi
+`FamilyTreeService.updatePersonWithParents(person, newFather, newMother)`:
+
+1. **Kiểm tra toàn bộ TRƯỚC khi ghi**: thông tin cá nhân (validate) + BR1/BR2/BR6/BR3
+   cho **cả cha lẫn mẹ**.
+2. **Chỉ khi mọi kiểm tra đạt** mới ghi bằng **một** câu `UPDATE` duy nhất.
+
+Nhờ vậy nếu người dùng chọn cùng một người làm cả cha và mẹ, **không có gì được
+ghi cả** — tránh được trạng thái "cha đã đổi nhưng mẹ vẫn giữ nguyên" (trước đây
+là lỗi thật, đã được sửa và có test `AtomicUpdateAndBr5Test` bảo chứng).
 
 ---
 
@@ -1025,6 +1033,41 @@ nguồn gốc dữ liệu.
 
 ---
 
+### Câu 21 — Repository có tự đóng `Connection` không? Ai chịu trách nhiệm?
+
+**Gợi ý trả lời:**
+Phân biệt rõ **quyền sở hữu** (ownership):
+
+| Nguồn `Connection` | Ai đóng? |
+|---|---|
+| Repo tự mở qua `DatabaseConnection.getConnection()` | **Repo** — qua `closeIfOwned(conn)` |
+| `Connection` truyền vào constructor `JdbcPersonRepository(Connection)` | **Bên ngoài** — repo chỉ **mượn**, tuyệt đối không đóng |
+
+Lý do: `try-with-resources` đóng `Connection` ở cuối khối. Nếu repo dùng chung
+`Connection` do test / caller cấp mà vẫn đóng nó, thì caller sẽ gặp
+`SQLException: Connection is closed` ở lần dùng tiếp theo — đây chính là lỗi đã
+từng xảy ra và đã được sửa (bảo chứng bởi `JdbcPersonRepositoryConnectionTest`).
+
+Ngoài ra, nếu `Connection` ngoài đã đóng, repo **ném `SQLException` rõ ràng**
+thay vì âm thầm kết nối sang database chính `gia_pha` — tránh việc vô tình
+ghi/đọc nhầm dữ liệu thật.
+
+---
+
+### Câu 22 — Nếu MySQL chưa chạy thì ứng dụng báo lỗi thế nào?
+
+**Gợi ý trả lời:**
+`Main.initBackend()` **kiểm tra kết nối thật** trước khi hiển thị giao diện: mở một
+`Connection` qua `DatabaseConnection.getConnection()` trong try-with-resources. Nếu
+thất bại (MySQL chưa chạy / sai cấu hình), ứng dụng **thông báo rõ cách cấu hình**
+(user / password / database / port) và **dừng khởi động có kiểm soát** — thay vì
+để lỗi SQL lọt ra giữa lúc người dùng đang thao tác.
+
+Điều này cũng giữ đúng nguyên tắc **Composition Root**: `Main` là nơi duy nhất biết
+cấu hình hạ tầng, các tầng bên trên không cần (và không được) biết.
+
+---
+
 ## 5. BẢNG TRA NHANH TÊN HÀM / TÊN LỚP
 
 | Tên | File | Vai trò |
@@ -1035,6 +1078,7 @@ nguồn gốc dữ liệu.
 | `Gender` | `model/Gender.java` | enum `MALE`, `FEMALE` |
 | `FamilyTreeService.addPerson(Person)` | `service/FamilyTreeService.java` | Validate + BR2 + BR6 → `save()` |
 | `FamilyTreeService.updatePerson(Person)` | `service/FamilyTreeService.java` | Chỉ sửa thông tin cơ bản, **giữ nguyên** cha/mẹ từ DB |
+| `FamilyTreeService.updatePersonWithParents(Person, Person, Person)` | `service/FamilyTreeService.java` | **Cập nhật nguyên tử** — validate + BR1/BR2/BR6/BR3 cho cha & mẹ, rồi **một** `UPDATE` duy nhất |
 | `FamilyTreeService.deletePerson(int)` | `service/FamilyTreeService.java` | BR4 — chặn xóa người đang được tham chiếu |
 | `FamilyTreeService.assignFather(int, int)` | `service/FamilyTreeService.java` | BR1 → BR2 → BR6 → BR3 |
 | `FamilyTreeService.assignMother(int, int)` | `service/FamilyTreeService.java` | BR1 → BR2 → BR6 → BR3 |
@@ -1066,6 +1110,8 @@ nguồn gốc dữ liệu.
 | `JdbcPersonRepository.update(Person)` | `repository/JdbcPersonRepository.java` | `UPDATE` — dùng cho cả gán/gỡ quan hệ |
 | `JdbcPersonRepository.delete(int)` | `repository/JdbcPersonRepository.java` | `DELETE` |
 | `JdbcPersonRepository.getConnection()` | `repository/JdbcPersonRepository.java` | `protected` — **điểm móc** cho Template Method |
+| `JdbcPersonRepository.closeIfOwned(Connection)` | `repository/JdbcPersonRepository.java` | `protected` — chỉ đóng `Connection` do repo **tự mở**; `Connection` truyền từ ngoài chỉ **mượn**, không đóng |
+| `JdbcPersonRepository(Connection)` | `repository/JdbcPersonRepository.java` | Nhận `Connection` ngoài — dùng cho mọi thao tác, **không đóng**; nếu đã đóng thì ném `SQLException` (không âm thầm chuyển sang DB chính) |
 | `DatabaseConnection.getConnection()` | `database/DatabaseConnection.java` | `static` — cấp `Connection` mới mỗi lần |
 | `DatabaseConnection.getUrl()/getUser()/getPassword()` | `database/DatabaseConnection.java` | System property → Env var → mặc định |
 | `ImageManager.isAllowedImage(String)` | `util/ImageManager.java` | Chỉ nhận `png`/`jpg`/`jpeg`, không phân biệt hoa thường |
@@ -1105,12 +1151,12 @@ nguồn gốc dữ liệu.
 
 | Con số | Giá trị | Nơi dùng |
 |---|---|---|
-| Tổng test mặc định | **121** (0 fail, 0 error, 0 skip) | `mvn clean test` |
+| Tổng test mặc định | **138** (0 fail, 0 error, 0 skip) | `mvn clean test` |
 | Test tag `javafx` | **26** | `mvn test -Pjavafx-tests` |
 | Test case trong `test-data/test-cases.md` | **22** (22 PASS) | `LargeSampleDataTest` |
 | Lớp exception | **7**, đều `extends RuntimeException` | `com.giapha.exception.*` |
 | Quy tắc nghiệp vụ | **BR1–BR6** | `FamilyTreeService` |
-| Sơ đồ PlantUML | **17** (`.puml` + `.png`) | `docs/uml/` |
+| Sơ đồ PlantUML | **18** (`.puml` + `.png`) | `docs/uml/` |
 | Module | `com.giapha`, **4** `requires` | `module-info.java` |
 | Năm sinh tối thiểu | `MIN_BIRTH_YEAR = 1000` | `FamilyTreeService` |
 | Năm sinh tối đa | `Year.now().getValue()` (Service) / `2100` (CSDL CHECK) | — |

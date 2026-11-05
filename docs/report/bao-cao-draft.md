@@ -1,4 +1,4 @@
-# BÁO CÁO ĐỒ ÁN — HỆ THỐNG QUẢN LÝ SƠ ĐỒ GIA PHẢ
+﻿# BÁO CÁO ĐỒ ÁN — HỆ THỐNG QUẢN LÝ SƠ ĐỒ GIA PHẢ
 
 > **Bản nháp (draft)** — dùng để nộp và trình bày. Các chỗ đánh dấu `[ẢNH: ...]`
 > cần chụp ảnh màn hình thực tế và chèn vào. Các thông tin kỹ thuật trong báo cáo
@@ -12,7 +12,7 @@
 | **Ngôn ngữ / nền tảng** | Java 25, JavaFX 23, MySQL/MariaDB, JDBC thuần, Maven |
 | **Mô hình kiến trúc** | Kiến trúc phân tầng (Layered Architecture) + MVC |
 | **Module hệ thống** | JPMS — module `com.giapha` (`module-info.java`) |
-| **Kiểm thử** | JUnit 5 — 121 test mặc định + 26 test tag `javafx` |
+| **Kiểm thử** | JUnit 5 — 138 test mặc định + 26 test tag `javafx` |
 | **Mã nguồn** | <https://github.com/minhchien170704/do-an-gia-pha> |
 
 ---
@@ -151,8 +151,9 @@ bước tùy chọn trong luồng thêm/sửa, không phải ca sử dụng đ�
 **Các quan hệ `<<extend>>`**: UC02 (sửa thông tin) `<<extend>>` UC07/UC08/UC09 —
 tức là khi sửa hồ sơ mà người dùng đổi cha/mẹ thì luồng gán/gỡ quan hệ được
 kích hoạt. Điều này khớp với cách `PersonController.handleEdit(Person, Person, Person)`
-tách riêng phần "cập nhật thông tin cơ bản" (`updatePerson`) và phần "gán/gỡ quan hệ"
-(`assignFather` / `clearFather` / `assignMother` / `clearMother`).
+gọi `FamilyTreeService.updatePersonWithParents(...)` — hàm này **kiểm tra toàn bộ**
+thông tin cá nhân + cha + mẹ **trước**, rồi ghi bằng **một** câu `UPDATE` duy nhất, nhờ đó
+không bao giờ xảy ra trạng thái "cập nhật một nửa" (cha đã đổi nhưng mẹ vẫn giữ nguyên).
 
 > **Điểm cần lưu ý khi trình bày:** sơ đồ không vẽ các lớp test, và không mô tả
 > tính năng đăng nhập / xuất GEDCOM (chưa triển khai).
@@ -240,6 +241,7 @@ báo thành công / thất bại — không nhánh nào ném exception ra UI.
 | File | Kịch bản |
 |---|---|
 | `docs/uml/sequence-add-person.puml` | Thêm người: Form → Controller → Service → Repository → JDBC → MySQL, rồi vòng lại copy ảnh |
+| `docs/uml/sequence-edit-person.puml` | Sửa người: kiểm tra toàn bộ (BR1/BR2/BR6/BR3 + BR5) **trước**, rồi ghi bằng **một** `UPDATE` |
 | `docs/uml/sequence-assign-parent.puml` | Gán cha/mẹ với 4 nhánh exception BR1/BR2/BR6/BR3 |
 | `docs/uml/sequence-family-tree.puml` | Xem cây: BFS ngược tổ tiên + tải toàn bộ danh sách để dựng đồ thị |
 | `docs/uml/sequence-export-print.puml` | Xuất PNG (`PngWriter`) và In (`PrinterJob`) |
@@ -252,6 +254,12 @@ copy ảnh đại diện **sau khi** đã có `id` do CSDL sinh.
 **`sequence-assign-parent.puml`** dùng khối `alt/else/end` chia 5 nhánh theo đúng
 thứ tự ưu tiên, mỗi nhánh một loại exception riêng — thể hiện trực quan việc
 Controller bắt exception theo kiểu chứ không bắt chung một `Exception`.
+
+**`sequence-edit-person.puml`** mô tả luồng sửa **nguyên tử**: Controller yêu cầu
+Service kiểm tra BR1 → BR2 → BR6 → BR3 cho **cả cha lẫn mẹ** và BR5 (cảnh báo)
+**trước khi** ghi bất kỳ dữ liệu nào; nếu mọi kiểm tra đạt thì Service thực hiện
+**một** câu `UPDATE` duy nhất. Nhánh lỗi trả về thông báo và **không** ghi gì —
+loại bỏ hoàn toàn trạng thái "cập nhật một nửa".
 
 **`sequence-photo-avatar.puml`** thể hiện chi tiết quan trọng: ảnh được copy
 **sau khi** có `id` (nút "Thêm mới"), tên file là `person_<id>.<đuôi>`, và CSDL
@@ -593,9 +601,11 @@ kết thúc bằng câu hỏi "Bạn vẫn muốn tiếp tục thao tác này kh
 1. Chọn một dòng trong bảng → bấm **"Sửa"** (hoặc nhấp đúp vào dòng để xem chi tiết
    rồi bấm **"Chỉnh sửa"**).
 2. Sửa các trường, bấm **"Lưu thay đổi"**.
-3. Nếu đổi cha/mẹ, ứng dụng tự gọi `assignFather()` / `assignMother()` — mọi quy tắc
-   BR1–BR6 vẫn được áp dụng. Nếu bỏ chọn cha/mẹ (chọn "— Không có —"), quan hệ
-   được gỡ bằng `clearFather()` / `clearMother()`.
+3. Nếu đổi cha/mẹ, ứng dụng gọi `FamilyTreeService.updatePersonWithParents(...)` —
+   toàn bộ thông tin cá nhân + cha + mẹ được **kiểm tra trước**, rồi mới ghi bằng
+   **một** câu `UPDATE` duy nhất, nên mọi quy tắc BR1–BR6 vẫn được áp dụng và
+   **không** xảy ra trạng thái "cập nhật một nửa". Nếu bỏ chọn cha/mẹ
+   (chọn "— Không có —"), quan hệ được gỡ trong cùng thao tác đó.
 
 #### 4.4.3. Xóa một thành viên
 
@@ -684,10 +694,13 @@ Bộ kiểm thử dùng **JUnit 5** (`junit-jupiter` 5.10.2) + `maven-surefire-p
 | `FamilyTreeServiceTest` | 44 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu |
 | `PersonControllerTest` | 25 | Điều phối View ↔ Service, xử lý exception, callback điều hướng |
 | `LargeSampleDataTest` | 22 | Bộ dữ liệu mẫu 30 người / 5 thế hệ (BR1–BR6, validation, ràng buộc CSDL, an toàn DROP DB) |
-| `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
 | `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
 | `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
-| **Tổng (mặc định)** | **121** | `mvn clean test` |
+| `AtomicUpdateAndBr5Test` | 9 | Cập nhật nguyên tử (cha/mẹ + thông tin cá nhân), BR5 trong luồng lưu của form |
+| `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
+| `JdbcPersonRepositoryConnectionTest` | 5 | Quyền sở hữu `Connection`: repo tự mở thì tự đóng, Connection ngoài thì không đóng |
+| `BackendInitializationTest` | 3 | Kiểm tra kết nối MySQL thật trước khi hiển thị giao diện |
+| **Tổng (mặc định)** | **138** | `mvn clean test` |
 | `AvatarFallbackTest` + `JavaFxViewTest` (tag `javafx`) | 26 | Chạy riêng bằng `mvn test -Pjavafx-tests` |
 
 ### 5.3. Bảng test case — bộ dữ liệu mẫu 30 người / 5 thế hệ
@@ -756,21 +769,24 @@ Kết quả thu được trên môi trường phát triển (Windows, JDK 25, My
 
 ```
 [INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.controller.PersonControllerTest
+[INFO] Tests run:  9, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.controller.AtomicUpdateAndBr5Test
+[INFO] Tests run:  3, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.database.BackendInitializationTest
 [INFO] Tests run:  7, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.database.DatabaseConnectionTest
+[INFO] Tests run:  5, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.repository.JdbcPersonRepositoryConnectionTest
 [INFO] Tests run: 44, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.service.FamilyTreeServiceTest$DataIsolation
 [INFO] Tests run:  0, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.service.FamilyTreeServiceTest
 [INFO] Tests run: 22, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.testdata.LargeSampleDataTest
 [INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.util.ImageManagerTest
 [INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.util.PngWriterTest
 [INFO] Results:
-[INFO] Tests run: 121, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 138, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 [INFO] Total time:  20.801 s
 ```
 
 | Chỉ số | Giá trị |
 |---|---|
-| Tổng test thực thi | **121** |
+| Tổng test thực thi | **138** |
 | Failures | **0** |
 | Errors | **0** |
 | Skipped | **0** |
@@ -833,9 +849,11 @@ Hệ thống đã hoàn thành đầy đủ các yêu cầu của đề tài:
   tầng CSDL bằng `CHECK` constraint + `TRIGGER` + `ON DELETE RESTRICT`.
 - Sơ đồ cây gia phả 2D có zoom/pan, xuất PNG toàn sơ đồ và in ấn qua `PrinterJob`.
 - Kiến trúc phân tầng rõ ràng, tuân thủ Dependency Inversion, không phụ thuộc framework.
-- 121 test tự động + 26 test JavaFX, tất cả đều PASS; database chính `gia_pha` được
+- 138 test tự động + 26 test JavaFX, tất cả đều PASS; database chính `gia_pha` được
   bảo vệ khỏi mọi thao tác ghi của test.
-- Tài liệu UML đầy đủ 17 sơ đồ (`.puml` + `.png`) đồng bộ với code.
+- Cập nhật thành viên là **nguyên tử**: kiểm tra toàn bộ (cha/mẹ + thông tin cá nhân)
+  trước, ghi bằng một câu `UPDATE` duy nhất — không có trạng thái "cập nhật một nửa".
+- Tài liệu UML đầy đủ 18 sơ đồ (`.puml` + `.png`) đồng bộ với code.
 
 ### 6.2. Ưu điểm
 
@@ -846,10 +864,10 @@ Hệ thống đã hoàn thành đầy đủ các yêu cầu của đề tài:
 | **Không phụ thuộc framework, dễ trình bày trong đồ án OOP** | Chỉ JDK + JavaFX + JDBC thuần — mọi lớp, mọi mối quan hệ đều do tay viết, phù hợp mục tiêu môn học. |
 | **Thông báo lỗi thân thiện** | Mỗi quy tắc có exception riêng → thông báo tiếng Việt đúng nguyên nhân, không lộ stack trace kỹ thuật ra UI. |
 | **Mô hình hóa quan hệ phả hệ bằng OOP thuần** | `Person.father` / `Person.mother` là tham chiếu đối tượng; thuật toán DFS/BFS chạy trên object graph, không phải trên SQL phức tạp. |
-| **Kiểm thử tự động đầy đủ và an toàn** | 147 test; mọi test ghi vào DB riêng `*_test` tự tạo/tự xóa; có bảo vệ chống DROP nhầm database chính. |
+| **Kiểm thử tự động đầy đủ và an toàn** | 164 test (138 + 26 JavaFX); mọi test ghi vào DB riêng `*_test` tự tạo/tự xóa; có bảo vệ chống DROP nhầm database chính. |
 | **Sơ đồ 2D đẹp và linh hoạt** | Gom khối gia đình cha–mẹ, canh giữa con giữa hai vị trí, vẽ đường nối ở mức cá nhân (không nối nhầm vợ/chồng), hỗ trợ zoom 0.25×–2.5× và pan. |
 | **Tự quản lý ảnh đại diện** | `PersonAvatar` fallback về chữ cái đầu khi thiếu ảnh / ảnh hỏng — **không bao giờ** ném exception ra giao diện; ảnh lưu bằng đường dẫn tương đối nên CSDL không phụ thuộc vị trí cài đặt. |
-| **Tài liệu đầy đủ, đồng bộ** | 17 sơ đồ PlantUML render sẵn, README chi tiết, bộ test data + bảng test case, 3 tài liệu báo cáo/bảo vệ/demo trong `docs/report/`. |
+| **Tài liệu đầy đủ, đồng bộ** | 18 sơ đồ PlantUML render sẵn, README chi tiết, bộ test data + bảng test case, 3 tài liệu báo cáo/bảo vệ/demo trong `docs/report/`. |
 
 ### 6.3. Hạn chế
 
