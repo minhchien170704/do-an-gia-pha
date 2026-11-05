@@ -12,9 +12,19 @@ participant "DatabaseConnection" as DBConn
 participant "ImageManager" as ImageMgr
 database "MySQL" as DB
 
+== Giai đoạn 1: Người dùng nhập liệu ==
+
 User -> FormView : nhập họ tên, năm sinh, giới tính\nv chọn Cha / Mẹ
-User -> Controller : handleAdd()
+User -> FormView : bấm "Lưu thành viên"
+FormView -> Controller : handleAdd()
 activate Controller
+
+Controller -> FormView : getFullNameInput() / getBirthYearInput()\ngetGenderInput() / getSelectedFather() / getSelectedMother()
+FormView --> Controller : dữ liệu người dùng nhập
+
+Controller -> Controller : validate input\n(tên rỗng / năm sinh rỗng / không phải số / giới tính null)
+
+== Giai đoạn 2: Kiểm tra BR5 (cảnh báo năm sinh cha/mẹ) ==
 
 Controller -> Service : checkBirthYearWarning(child, father, mother)
 note right of Service
@@ -27,10 +37,13 @@ Service --> Controller : List<String> cảnh báo
 alt Có cảnh báo năm sinh (BR5)
     Controller --> User : Alert cảnh báo\n(Tiếp tục / Hủy)
     alt Người dùng chọn "Hủy"
-        Controller --> User : dừng, không lưu
+        Controller --> User : dừng, KHÔNG lưu
+        Controller --> FormView : giữ nguyên form để sửa
     else Người dùng chọn "Tiếp tục"
     end
 end
+
+== Giai đoạn 3: Lưu vào MySQL ==
 
 Controller -> Service : addPerson(person)
 activate Service
@@ -108,6 +121,8 @@ Repo --> Service : int (id tự sinh)
 Service --> Controller : Person (với id đã gán)
 deactivate Service
 
+== Giai đoạn 4: Lưu ảnh đại diện (nếu có) ==
+
 opt Người dùng đã chọn ảnh đại diện
     Controller -> ImageMgr : isAllowedImage(sourcePath)
     ImageMgr --> Controller : true
@@ -119,8 +134,10 @@ opt Người dùng đã chọn ảnh đại diện
     Service --> Controller : void
 end
 
-Controller --> FormView : điều hướng về danh sách
+== Giai đoạn 5: Hoàn tất ==
+
 Controller --> User : Alert "Thêm người thành công"
+Controller --> FormView : điều hướng về danh sách
 deactivate Controller
 
 @enduml

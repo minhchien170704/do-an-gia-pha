@@ -28,6 +28,7 @@ package "com.giapha.service" {
         + getPersonById(id : int) : Person
         + addPerson(person : Person) : Person
         + updatePerson(person : Person) : void
+        + updatePersonWithParents(person : Person, newFather : Person, newMother : Person) : void
         + deletePerson(id : int) : void
         + assignFather(childId : int, fatherId : int) : void
         + assignMother(childId : int, motherId : int) : void
@@ -60,10 +61,11 @@ package "com.giapha.repository" {
     }
 
     class JdbcPersonRepository {
-        - connection : Connection
+        - externalConnection : Connection
         + JdbcPersonRepository()
         + JdbcPersonRepository(connection : Connection)
         # getConnection() : Connection
+        # closeIfOwned(conn : Connection) : void
         + findAll() : List<Person>
         + findById(id : int) : Person
         + search(keyword : String) : List<Person>
@@ -110,6 +112,8 @@ DatabaseConnection ..> "java.sql.Connection" : <<Static Factory>> tạo đối t
 note bottom of JdbcPersonRepository
   # getConnection() là điểm móc (Template Method)
   được ghi đè ở lớp test để trỏ sang DB test
+  closeIfOwned(): chỉ đóng Connection do repo tự mở
+  Connection ngoài = mượn, không đóng
 end note
 
 ' Exception được ném ra

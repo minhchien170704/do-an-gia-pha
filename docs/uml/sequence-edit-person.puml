@@ -1,0 +1,115 @@
+@startuml sequence-edit-person
+
+title Sequence Diagram - Chỉnh sửa thành viên (cập nhật NGUYÊN TỬ)
+
+actor "Người dùng" as User
+participant "PersonFormView" as FormView
+participant "PersonController" as Controller
+participant "FamilyTreeService" as Service
+participant "PersonRepository" as Repo
+participant "JdbcPersonRepository" as JdbcRepo
+participant "DatabaseConnection" as DBConn
+participant "ImageManager" as ImageMgr
+database "MySQL" as DB
+
+User -> FormView : sửa họ tên / năm sinh / giới tính\nv chọn Cha / Mẹ mới
+User -> FormView : bấm "Lưu thay đổi"
+FormView -> Controller : handleEdit()
+activate Controller
+
+== Giai đoạn 1: Nạp bản gốc & đọc dữ liệu mới ==
+
+Controller -> Service : getPersonById(personId)
+Service -> Repo : findById(personId)
+Repo -> JdbcRepo : findById(personId)
+JdbcRepo -> DBConn : getConnection()
+DBConn --> JdbcRepo : Connection
+JdbcRepo -> DB : SELECT ... LEFT JOIN person (cha/mẹ)
+DB --> JdbcRepo : dòng dữ liệu
+JdbcRepo --> Repo : Person (cha/mẹ đã liên kết)
+Repo --> Service : Person (bản gốc)
+Service --> Controller : Person (bản gốc)
+
+Controller -> FormView : getFullNameInput() / getBirthYearInput()\ngetGenderInput() / getSelectedFather() / getSelectedMother()
+FormView --> Controller : dữ liệu mới người dùng nhập
+
+Controller -> Controller : validate input\n(tên rỗng / năm sinh rỗng / không phải số / giới tính null)
+
+== Giai đoạn 2: Kiểm tra BR5 (chỉ khi quan hệ cha/mẹ THAY ĐỔI) ==
+
+alt Quan hệ cha hoặc mẹ thay đổi
+    Controller -> Service : checkBirthYearWarning(child, father, mother)
+    note right of Service
+      BR5 là quy tắc CẢNH BÁO:
+      Service KHÔNG chặn, chỉ trả về
+      danh sách thông điệp cảnh báo
+    end note
+    Service --> Controller : List<String> cảnh báo
+
+    alt Có cảnh báo năm sinh (BR5)
+        Controller --> User : Alert cảnh báo\n(Tiếp tục / Hủy)
+        alt Người dùng chọn "Hủy"
+            Controller --> User : dừng, KHÔNG lưu gì cả
+            Controller --> FormView : giữ nguyên form để sửa
+        else Người dùng chọn "Tiếp tục"
+        end
+    end
+end
+
+== Giai đoạn 3: Copy ảnh đại diện mới (nếu có) ==
+
+opt Người dùng đã chọn ảnh mới
+    Controller -> ImageMgr : copyImageToAppDirectory(sourcePath, id)
+    ImageMgr --> Controller : "images/person_<id>.<đuôi>"
+end
+
+== Giai đoạn 4: Cập nhật NGUYÊN TỬ — kiểm tra toàn bộ trước, ghi MỘT lần ==
+
+Controller -> Service : updatePersonWithParents(person, newFather, newMother)
+activate Service
+
+Service -> Service : validatePerson(person)
+
+note right of Service
+  BƯỚC 1 — kiểm tra TOÀN Bộ trước khi ghi:
+  BR2  cha mới và mẹ mới khác nhau
+  BR1  không tự gán làm cha/mẹ chính mình
+  BR6  cha phải MALE, mẹ phải FEMALE
+  BR3  checkCycle() — không tạo chu trình
+end note
+
+alt Vi phạm bất kỳ quy tắc nào
+    Service --> Controller : SelfParentException / SameParentException\n/ InvalidParentGenderException / CycleDetectedException
+    Controller --> User : hiển thị lỗi
+    note right of Controller
+      KHÔNG có gì được ghi xuống DB.
+      Dữ liệu giữ nguyên trạng thái cũ
+      (tính nguyên tử).
+    end note
+end
+
+Service -> Service : person.setFather(father)\nperson.setMother(mother)
+
+Service -> Repo : update(person)
+note right of Repo
+  MỘT câu lệnh UPDATE ghi đồng thời:
+  full_name, birth_year, gender, photo_path,
+  father_id, mother_id
+end note
+Repo -> JdbcRepo : update(person)
+JdbcRepo -> DBConn : getConnection()
+DBConn --> JdbcRepo : Connection
+JdbcRepo -> DB : UPDATE person SET full_name=?, birth_year=?, gender=?,\nphoto_path=?, father_id=?, mother_id=? WHERE id=?
+DB --> JdbcRepo : thành công
+JdbcRepo --> Repo : void
+Repo --> Service : void
+Service --> Controller : void
+deactivate Service
+
+== Giai đoạn 5: Hoàn tất ==
+
+Controller --> User : Alert "Đã cập nhật thành công"
+Controller --> FormView : điều hướng về danh sách
+deactivate Controller
+
+@enduml
