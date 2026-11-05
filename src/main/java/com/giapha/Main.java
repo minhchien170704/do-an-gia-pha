@@ -1,6 +1,7 @@
 package com.giapha;
 
 import com.giapha.controller.PersonController;
+import com.giapha.database.DatabaseConnection;
 import com.giapha.model.Person;
 import com.giapha.repository.JdbcPersonRepository;
 import com.giapha.service.FamilyTreeService;
@@ -13,6 +14,9 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+
+import java.sql.Connection;
+import java.sql.SQLException;
 
 /**
  * Entry point cho ứng dụng Sơ đồ gia phả.
@@ -76,15 +80,36 @@ public class Main extends Application {
 
     /**
      * Khởi tạo JdbcPersonRepository → FamilyTreeService → PersonController.
-     * Nếu MySQL không kết nối được, hiện Alert và thoát.
+     * <p>
+     * <b>Kiểm tra kết nối thật:</b> việc khởi tạo các lớp trên KHÔNG mở kết nối
+     * JDBC, nên nếu chỉ try/catch quanh lệnh {@code new JdbcPersonRepository()}
+     * thì lỗi mất kết nối MySQL sẽ không được phát hiện — ứng dụng sẽ mở ra
+     * màn hình trống rồi mới báo lỗi khi View tải dữ liệu.
+     * <p>
+     * Vì vậy quy trình khởi tạo gồm 3 bước:
+     * <ol>
+     *     <li>Tạo Repository → Service → Controller (Dependency Injection).</li>
+     *     <li>Mở một kết nối thật tới MySQL để xác nhận CSDL sẵn sàng
+     *         ({@code DatabaseConnection.getConnection()}).</li>
+     *     <li>Chỉ khi mọi thứ ổn mới trả về {@code true} để hiển thị giao diện.</li>
+     * </ol>
      *
-     * @return true nếu thành công, false nếu lỗi (đã gọi Platform.exit())
+     * @return true nếu thành công, false nếu lỗi (đã hiện Alert và gọi Platform.exit())
      */
     private boolean initBackend() {
         try {
             JdbcPersonRepository repository = new JdbcPersonRepository();
             FamilyTreeService service = new FamilyTreeService(repository);
             controller = new PersonController(service);
+
+            // Bước 2 — xác nhận MySQL thực sự kết nối được TRƯỚC khi hiển thị màn hình.
+            // Dùng try-with-resources: Connection thăm dò được đóng ngay sau khi kiểm tra.
+            try (Connection probe = DatabaseConnection.getConnection()) {
+                if (probe == null || probe.isClosed()) {
+                    throw new SQLException("Không mở được kết nối tới MySQL.");
+                }
+            }
+
             return true;
         } catch (Exception e) {
             Alert alert = new Alert(Alert.AlertType.ERROR);
