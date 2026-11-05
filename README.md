@@ -1,4 +1,4 @@
-# Hệ Thống Quản Lý Sơ Đồ Gia Phả (Family Tree Management)
+﻿# Hệ Thống Quản Lý Sơ Đồ Gia Phả (Family Tree Management)
 
 Ứng dụng desktop quản lý phả hệ và cây gia phả, xây dựng bằng **Java 25**, **JavaFX 23** và **MySQL/MariaDB**,
 tuân thủ các nguyên lý lập trình hướng đối tượng (OOP) và kiến trúc phân tầng (Layered Architecture).
@@ -153,7 +153,7 @@ mvn clean package        # đóng gói thành target/do-an-gia-pha-1.0-SNAPSHOT.
 mvn javafx:run
 ```
 
-### 4.3. Chạy toàn bộ kiểm thử (121 test cases)
+### 4.3. Chạy toàn bộ kiểm thử (138 test cases)
 
 ```bash
 mvn clean test
@@ -164,9 +164,12 @@ mvn clean test
 | `FamilyTreeServiceTest` | 44 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu |
 | `PersonControllerTest` | 25 | Điều phối View ↔ Service, xử lý exception, callback điều hướng |
 | `LargeSampleDataTest` | 22 | Bộ dữ liệu mẫu 30 người / 5 thế hệ (BR1–BR6, validation, ràng buộc CSDL, an toàn DROP DB) |
-| `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
 | `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
 | `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
+| `AtomicUpdateAndBr5Test` | 9 | Cập nhật nguyên tử (cha/mẹ + thông tin cá nhân), BR5 trong luồng lưu của form |
+| `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
+| `JdbcPersonRepositoryConnectionTest` | 5 | Quyền sở hữu `Connection`: repo tự mở thì tự đóng, Connection ngoài thì không đóng |
+| `BackendInitializationTest` | 3 | Kiểm tra kết nối MySQL thật trước khi hiển thị giao diện |
 
 **Điều kiện tiên quyết**: MySQL phải đang chạy. Các test dùng database **riêng** (tên kết thúc bằng
 `_test`) được **tự động tạo ở `@BeforeAll`** và **tự động xóa ở `@AfterAll`** — database chính
@@ -222,7 +225,7 @@ mysql -u root -p < database/schema.sql
 
 ### 4.8. Giải thích lệch số liệu khi đọc log Surefire
 
-Nếu bạn cộng tay từng dòng log Surefire (25 + 7 + 44 + 0 + 22 + 12 + 11) thì ra **121**,
+Nếu bạn cộng tay từng dòng log Surefire (25 + 7 + 44 + 0 + 22 + 12 + 11 + 9 + 5 + 3) thì ra **138**,
 không phải 142. Con số 142 xuất hiện khi **báo cáo cũ** cộng thêm một dòng
 "22 test — FamilyTreeServiceTest (phần lồng)" *cùng* với dòng `FamilyTreeServiceTest$DataIsolation`
 đã chứa 44 test — tức là **đếm trùng** các test của lớp lồng `@Nested`.
@@ -240,7 +243,7 @@ Cơ chế thật (đã kiểm chứng qua `target/surefire-reports/TEST-*.xml`):
 
 ```
 [INFO] Results:
-[INFO] Tests run: 121, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 138, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
@@ -274,6 +277,10 @@ JUnit 5 nằm ở "unnamed module". Để tránh lỗi JPMS chặn reflection c�
 
 - Gán / gỡ cha (`assignFather` / `clearFather`) và mẹ (`assignMother` / `clearMother`).
 - Mọi thao tác đều được kiểm tra theo 6 quy tắc nghiệp vụ (xem [Mục 7](#7-quy-tắc-nghiệp-vụ-br1br6)).
+- **Cập nhật nguyên tử**: khi lưu từ form, `FamilyTreeService.updatePersonWithParents(...)` kiểm tra
+  **toàn bộ** thông tin cá nhân + cha + mẹ **trước**, rồi mới ghi bằng **một** câu `UPDATE`.
+  Nếu bất kỳ quan hệ nào vi phạm BR1–BR3/BR6 thì **không có** thay đổi nào được ghi — dữ liệu
+  không bao giờ ở trạng thái "cập nhật một nửa".
 - Tra cứu đa thế hệ: `getAncestors` (tổ tiên) và `getDescendants` (hậu duệ).
 - Phát hiện chu trình phả hệ bằng thuật toán duyệt đồ thị (DFS) với `Set` chống lặp.
 - Xóa an toàn: chặn xóa thành viên đang làm cha/mẹ của người khác (không cascade, không tự set NULL).
@@ -344,7 +351,21 @@ DatabaseConnection (Static Factory)
 MySQL / MariaDB
 ```
 
-### 6.2. Các hình mẫu thiết kế đã dùng
+### 6.2. Quyền sở hữu `Connection` & kiểm tra CSDL lúc khởi động
+
+**Quyền sở hữu `Connection`** (`JdbcPersonRepository`):
+
+| Nguồn `Connection` | Ai đóng? | Hành vi khi `Connection` đã đóng |
+|---|---|---|
+| Repository tự mở qua `DatabaseConnection.getConnection()` | **Repository** (`closeIfOwned(...)`) | Mở connection mới cho thao tác tiếp theo |
+| `Connection` truyền từ bên ngoài (constructor có tham số) | **Bên ngoài** — repository chỉ **mượn** | Ném `SQLException` rõ ràng, **không** âm thầm chuyển sang database chính |
+
+**Kiểm tra CSDL lúc khởi động** (`Main.initBackend()`): trước khi hiển thị giao diện, ứng dụng
+mở một `Connection` thật qua `DatabaseConnection.getConnection()`. Nếu thất bại (MySQL chưa
+chạy / sai cấu hình), ứng dụng **thông báo rõ cách cấu hình và dừng khởi động có kiểm soát**
+thay vì để lỗi SQL lọt ra giữa lúc người dùng đang thao tác.
+
+### 6.3. Các hình mẫu thiết kế đã dùng
 
 Bảng dưới liệt kê **chỉ những mẫu có bằng chứng trực tiếp trong mã nguồn** — mỗi dòng đều
 trỏ tới file cụ thể, tên lớp cụ thể và vai trò đóng vai trò nào trong mẫu.
@@ -375,7 +396,7 @@ Cột "Loại" phân biệt rõ: **Kiến trúc** (mô hình tổ chức hệ th
 > - ~~"Data Access Object mở rộng (test)"~~ → không phải một mẫu riêng; đã được gộp đúng bản chất
 >   vào dòng **Template Method** (`TestPersonRepository` ghi đè điểm móc `getConnection()`).
 > - ~~"Separation of Concerns"~~ → là **nguyên tắc thiết kế**, không phải hình mẫu cụ thể có
->   cấu trúc lớp định danh; nội dung của nó đã được mô tả đầy đủ ở mục **6.3 Ranh giới trách nhiệm**
+>   cấu trúc lớp định danh; nội dung của nó đã được mô tả đầy đủ ở mục **6.4 Ranh giới trách nhiệm**
 >   và trong dòng *Layered Architecture* ở trên.
 > - ~~"Singleton"~~ → **không** dùng: `DatabaseConnection` là utility class tĩnh, **không** giữ
 >   instance `static` dài hạn; mỗi lần gọi đều trả `Connection` mới (xem dòng *Static Factory Method*).
@@ -395,7 +416,7 @@ Cột "Loại" phân biệt rõ: **Kiến trúc** (mô hình tổ chức hệ th
 | 7 lớp exception BR1–BR6 | `src/main/java/com/giapha/exception/` (`SelfParentException`, `SameParentException`, `InvalidParentGenderException`, `CycleDetectedException`, `PersonInUseException`, `PersonNotFoundException`, `InvalidBirthYearException`) |
 | `TestPersonRepository` | `src/test/java/com/giapha/support/TestPersonRepository.java` |
 
-### 6.3. Ranh giới trách nhiệm
+### 6.4. Ranh giới trách nhiệm
 
 | Tầng | Trách nhiệm | KHÔNG được làm |
 |---|---|---|
@@ -587,7 +608,7 @@ Sơ đồ lớp gốc có 25 lớp + 7 exception → ảnh render rất rộng. 
 | **6.2** | Xuất PNG (`PngWriter` thuần `java.util.zip`) và In ấn (`javafx.print.PrinterJob`) | ✅ Hoàn thành |
 | **6.3** | Nới validate năm sinh xuống `1000 <= birthYear <= Year.now()` | ✅ Hoàn thành |
 | **6.4** | Custom exception riêng cho BR2 (`SameParentException`) và BR6 (`InvalidParentGenderException`) | ✅ Hoàn thành |
-| **6.5** | Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (121 test mặc định + 26 test tag `javafx`) | ✅ Hoàn thành |
+| **6.5** | Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (138 test mặc định + 26 test tag `javafx`) | ✅ Hoàn thành |
 | **6.6** | Bộ dữ liệu mẫu & bảng test case trong `test-data/` (`LargeSampleDataTest`, 22 test) | ✅ Hoàn thành |
 | **6.7** | **Cách ly dữ liệu test**: mọi lớp test dùng database riêng `*_test`; `TestDatabaseManager` quản lý vòng đời + `assertSafeToDrop` | ✅ Hoàn thành |
 | **6.8** | **Đồng bộ hóa toàn bộ sơ đồ PlantUML với code hiện tại**: class-diagram tách 4 sơ đồ theo gói, component/deployment/use-case cập nhật, thêm sequence + activity cho "Xuất PNG/In" và "Chọn & lưu ảnh đại diện" | ✅ Hoàn thành |

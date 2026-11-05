@@ -67,8 +67,13 @@ MySQL / MariaDB
 4. **Repository (`com.giapha.repository`)**:
    - `PersonRepository`: Interface định nghĩa các hợp đồng truy xuất dữ liệu (`findById`, `findAll`, `save`, `update`, `delete`).
    - `JdbcPersonRepository`: Lớp cài đặt interface sử dụng JDBC thuần, thao tác với bảng `PERSON`.
+   - **Quyền sở hữu `Connection` (bắt buộc):**
+     - Repository **tự mở** Connection (qua `DatabaseConnection.getConnection()`) → repository **chịu trách nhiệm đóng** nó (qua `closeIfOwned(conn)`).
+     - Repository **nhận** Connection từ bên ngoài (constructor có tham số) → repository chỉ **mượn**, **tuyệt đối không đóng**.
+     - Nếu Connection bên ngoài đã đóng → ném `SQLException` rõ ràng, **không** âm thầm chuyển sang database chính `gia_pha`.
 5. **Database Connection (`com.giapha.database`)**:
    - `DatabaseConnection`: Utility class cung cấp Connection mới mỗi khi gọi `getConnection()`. Không dùng static long-lived connection.
+   - `Main.initBackend()` **phải kiểm tra kết nối thật** (mở 1 Connection thật) **trước khi** hiển thị giao diện; thất bại → thông báo rõ cách cấu hình và dừng khởi động có kiểm soát.
 6. **Utility (`com.giapha.util`)**:
    - `ImageManager`: Tiện ích thuần (không phụ thuộc JavaFX/DB) xử lý ảnh đại diện — kiểm tra định dạng `png`/`jpg`/`jpeg`, copy vào thư mục `images/` cạnh ứng dụng, và dọn file an toàn.
    - `PngWriter`: Tiện ích ghi `WritableImage` ra file PNG — hiện thực **thuần** bằng `java.util.zip` (`Deflater` + `CRC32`), **không** dùng `javax.imageio` hay `javafx.swing` để tránh phải khai báo thêm module `java.desktop` / `javafx.swing`.
@@ -130,11 +135,15 @@ src/test/java/com/giapha
 │   ├── TestDatabase.java                # Tiện ích truy vấn: đếm bản ghi, reset dữ liệu mẫu, dọn bản ghi test
 │   └── FxTestSupport.java             # Tiện ích khởi tạo/quản lý JavaFX Toolkit cho test tag "javafx"
 ├── database/
-│   └── DatabaseConnectionTest.java    # 7 test — kết nối MySQL, metadata, bảng PERSON, DB chính không bị đổi
+│   ├── DatabaseConnectionTest.java    # 7 test — kết nối MySQL, metadata, bảng PERSON, DB chính không bị đổi
+│   └── BackendInitializationTest.java # 3 test — kiểm tra kết nối MySQL thật trước khi hiển thị UI
 ├── service/
 │   └── FamilyTreeServiceTest.java     # 44 test — BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu
+├── repository/
+│   └── JdbcPersonRepositoryConnectionTest.java # 5 test — quyền sở hữu Connection
 ├── controller/
-│   └── PersonControllerTest.java      # 25 test — điều phối View ↔ Service, xử lý exception
+│   ├── PersonControllerTest.java      # 25 test — điều phối View ↔ Service, xử lý exception
+│   └── AtomicUpdateAndBr5Test.java    # 9 test — cập nhật nguyên tử + BR5 trong luồng lưu của form
 ├── util/
 │   ├── ImageManagerTest.java          # 12 test — định dạng ảnh, copy, dọn file
 │   └── PngWriterTest.java             # 11 test — chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib
@@ -197,6 +206,15 @@ luôn đồng bộ.
 **Thứ tự ưu tiên kiểm tra** trong `assignFather` / `assignMother` (quan trọng để thông báo đúng nguyên nhân):
 `BR1 (SelfParent)` → `BR2 (SameParent)` → `BR6 (InvalidParentGender)` → `BR3 (Cycle)`.
 
+### 5.1. Cập nhật thành viên phải **NGUYÊN TỬ** (bắt buộc)
+
+- Luồng lưu từ form **KHÔNG** được gọi `updatePerson()` rồi `assignFather()` rồi `assignMother()` — cách đó tạo ra trạng thái "cập nhật một nửa" (cha đã đổi nhưng mẹ thất bại).
+- Thay vào đó dùng `FamilyTreeService.updatePersonWithParents(person, newFather, newMother)`:
+  1. Kiểm tra **toàn bộ** trước: validate thông tin cá nhân + BR1/BR2/BR6/BR3 cho **cả cha lẫn mẹ**.
+  2. Chỉ khi **mọi** kiểm tra đạt mới ghi bằng **một** câu `UPDATE` duy nhất.
+  3. Nếu bất kỳ kiểm tra nào fail → **không ghi gì cả**.
+- BR5 **phải** chạy trong luồng lưu thật của form: `PersonFormView` đăng ký itself qua `controller.setPersonFormView(this)` rồi gọi `controller.handleAdd()` / `controller.handleEdit()` (overload **không tham số**) — không gọi overload có tham số để tránh bỏ qua kiểm tra BR5.
+
 ---
 
 ## 6. QUY TẮC VALIDATION DỮ LIỆU (`validatePerson`)
@@ -236,6 +254,7 @@ Dự án đã được mô hình hóa đầy đủ bằng PlantUML và render s�
 - **Use Case Diagram**: `use-case.puml` / `use-case.png`
 - **Sequence Diagrams**:
   - `sequence-add-person.puml`
+  - `sequence-edit-person.puml` — luồng cập nhật **nguyên tử** (kiểm tra trước, 1 `UPDATE`)
   - `sequence-assign-parent.puml`
   - `sequence-family-tree.puml`
 - **Activity Diagrams**:
@@ -257,7 +276,7 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 121 test cases):
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 138 test cases):
 ```bash
 mvn clean test
 ```
