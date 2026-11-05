@@ -528,9 +528,35 @@ không cần render:
 java -jar plantuml.jar -checkonly *.puml
 ```
 
-> **Lưu ý cú pháp PlantUML**: trong Activity Diagram, khối `opt`/`loop`/`repeat` phải
-> kết thúc bằng `end opt`/`end loop`/`end repeat` — dùng `endif` sẽ báo lỗi cú pháp.
-> Tiêu đề `title` phải nằm trên **một dòng** hoặc dùng `\n` để xuống dòng.
+> ### ⚠️ Lưu ý cú pháp PlantUML (đã kiểm chứng bằng PlantUML 1.2026.9)
+>
+> **Activity Diagram** và **Sequence Diagram** dùng **hai bộ từ khoá khác nhau** — nhầm
+> giữa hai loại là nguyên nhân phổ biến nhất gây lỗi cú pháp:
+>
+> | Khối | Activity Diagram | Sequence Diagram |
+> |---|---|---|
+> | Rẽ nhánh | `if (điều kiện?) then (có)` … `elseif` … `else` … **`endif`** | **`alt`** … `else` … **`end`** |
+> | Vòng lặp | **`while (điều kiện?)`** … **`endwhile`**<br>`repeat` … **`repeat while (điều kiện?) is (có)`** | **`loop`** … **`end`** |
+> | Tuỳ chọn | ❌ **không hỗ trợ** (`opt` → lỗi cú pháp) | **`opt`** … **`end`** |
+> | Song song | `fork` … `fork again` … **`end fork`**<br>`split` … `split again` … **`end split`** | **`par`** … `par again` … **`end`**<br>(không dùng từ khoá `and` — sẽ lỗi cú pháp) |
+> | Ghi chú | `note right` … **`end note`** | `note right of X` … **`end note`** |
+> | Nhóm | — | **`group`** … **`end`** |
+> | Thoát vòng lặp | **`break`** (đặt trong `while`/`repeat`) | **`break`** (đặt trong `loop`) |
+> | Rời nhánh | **`stop`** (kết thúc luồng) | `destroy X` / `create X` |
+>
+> Lưu ý thêm:
+>
+> - Trong **Activity Diagram**, khối `opt` và `loop` **không tồn tại** — phải chuyển
+>   thành `if (…?) then … else … endif` (nhánh tuỳ chọn) hoặc `while (…?) … endwhile`
+>   (vòng lặp).
+> - Trong **Activity Diagram**, `repeat` kết thúc bằng **`repeat while`** (không phải
+>   `end repeat`).
+> - Trong **Activity Diagram**, `if` phải có **`endif`**; trong **Sequence Diagram**,
+>   `alt`/`opt`/`loop` kết thúc bằng **`end`**.
+> - Lệnh `title` phải nằm trên **một dòng**; muốn xuống dòng dùng `\n`.
+>   Viết `title` trên nhiều dòng thật sẽ báo lỗi cú pháp.
+> - `note right of X` (Sequence) khác `note right` (Activity) — thiếu `of <đối tượng>`
+>   sẽ báo lỗi.
 
 ### Sơ đồ lớp được tách theo gói
 
