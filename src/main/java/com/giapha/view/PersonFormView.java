@@ -72,6 +72,12 @@ public class PersonFormView {
         root = new BorderPane();
         root.getStyleClass().add("content-area");
 
+        // Đăng ký chính form này với Controller.
+        // Nhờ vậy Controller có thể ĐỌC dữ liệu người dùng đang nhập (họ tên, năm sinh,
+        // giới tính, cha/mẹ đã chọn) khi xử lý lưu — bao gồm cả bước kiểm tra BR5
+        // (cảnh báo năm sinh cha/mẹ) trong luồng lưu thực tế từ giao diện.
+        controller.setPersonFormView(this);
+
         VBox topHeader = createHeader();
         root.setTop(topHeader);
 
@@ -420,71 +426,32 @@ public class PersonFormView {
     }
 
     /**
-     * Xử lý lưu: validate input ở View, sau đó gọi Controller để lưu vào MySQL.
+     * Xử lý lưu: gọi Controller để lưu vào MySQL.
      *
-     * Chế độ thêm: controller.handleAdd(Person) → Service → Repository → MySQL
-     * Chế độ sửa: controller.handleEdit(Person, newFather, newMother) → so sánh, assignFather/clearFather nếu cần
+     * <p>Chế độ thêm: {@code controller.handleAdd()} — Controller đọc dữ liệu từ chính
+     * form này, validate, kiểm tra BR5 (cảnh báo năm sinh cha/mẹ), rồi
+     * Service → Repository → MySQL.
+     * <p>Chế độ sửa: {@code controller.handleEdit()} — tương tự, kiểm tra BR5 khi
+     * quan hệ cha/mẹ thay đổi, rồi cập nhật NGUYÊN TỬ (thông tin cá nhân + cha + mẹ
+     * trong một lần UPDATE).
      *
-     * Điều hướng sau khi thành công do Controller xử lý qua navigateToPeopleList callback.
+     * <p>Điều hướng sau khi thành công do Controller xử lý qua navigateToPeopleList callback.
      * Nếu có lỗi nghiệp vụ (SelfParentException, CycleDetectedException, v.v.),
      * Controller hiện Alert và User ở lại form để sửa.
      */
     private void handleSave() {
-        // --- Validation View-layer ---
-        String name = txtFullName.getText();
-        String yearStr = txtBirthYear.getText();
-        Gender gender = cboGender.getValue();
-
-        if (name == null || name.trim().isEmpty()) {
-            showAlert("Vui lòng nhập họ và tên.");
-            return;
-        }
-        if (yearStr == null || yearStr.trim().isEmpty()) {
-            showAlert("Vui lòng nhập năm sinh.");
-            return;
-        }
-        if (gender == null) {
-            showAlert("Vui lòng chọn giới tính.");
-            return;
-        }
-
-        int birthYear;
-        try {
-            birthYear = Integer.parseInt(yearStr.trim());
-        } catch (NumberFormatException e) {
-            showAlert("Năm sinh phải là số nguyên hợp lệ (VD: 1990).");
-            return;
-        }
-
-        // Đường dẫn ảnh ghi vào DB phải luôn là đường dẫn TƯƠNG ĐỐI (images/person_<id>.<đuôi>).
-        // Khi người dùng chọn ảnh mới, ảnh đó chưa được copy vào thư mục images —
-        // việc copy và sinh đường dẫn tương đối do PersonController đảm nhiệm.
-        // Vì vậy ở đây chỉ giữ lại ảnh hiện tại đã lưu trong DB.
-        String photoPath = (editingPerson != null && editingPerson.getPhotoPath() != null
-                && !editingPerson.getPhotoPath().trim().isEmpty())
-                ? editingPerson.getPhotoPath().trim() : null;
-
-        Person newFather = cboFather.getValue();    // null = chọn "— Không có —"
-        Person newMother = cboMother.getValue();    // null = chọn "— Không có —"
-
         if (editingPerson != null) {
             // --- Chế độ sửa ---
-            // Truyền father/mother gốc (từ editingPerson) để Controller so sánh với newFather/newMother
-            // và quyết định cần gọi assignFather / clearFather / assignMother / clearMother
-            Person updated = new Person(name.trim(), birthYear, gender, photoPath);
-            updated.setId(editingPerson.getId());
-            updated.setFather(editingPerson.getFather());    // cha/mẹ gốc từ DB
-            updated.setMother(editingPerson.getMother());   // để controller so sánh
-            controller.handleEdit(updated, newFather, newMother);
+            // Controller tự đọc tên / năm sinh / giới tính / cha / mẹ đang chọn trên form,
+            // so sánh với bản gốc trong DB, kiểm tra BR5 và cập nhật nguyên tử.
+            controller.handleEdit();
         } else {
             // --- Chế độ thêm mới ---
-            Person newPerson = new Person(name.trim(), birthYear, gender, photoPath);
-            newPerson.setFather(newFather);
-            newPerson.setMother(newMother);
-            controller.handleAdd(newPerson);
+            // Controller tự đọc dữ liệu từ form và kiểm tra BR5 trước khi lưu.
+            controller.handleAdd();
         }
 
-        // Navigation sau khi thành công được controller xử lý (không cần gọi onSave ở đây)
+        // Navigation sau thành công được controller xử lý (không cần gọi onSave ở đây)
     }
 
     private void showAlert(String message) {

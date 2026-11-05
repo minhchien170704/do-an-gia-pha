@@ -127,6 +127,102 @@ public class FamilyTreeService {
     }
 
     /**
+     * Cập nhật NGUYÊN TỬ thông tin cá nhân VÀ cả hai quan hệ cha/mẹ của một thành viên.
+     *
+     * <p><b>Vì sao cần phương thức này?</b> Nếu cập nhật thông tin cá nhân, gán cha và gán mẹ
+     * bằng các lời gọi tách biệt ({@link #updatePerson(Person)} → {@link #assignFather(int, int)}
+     * → {@link #assignMother(int, int)}), thì khi thao tác giữa chừng thất bại, dữ liệu sẽ ở
+     * trạng thái "cập nhật một nửa": thông tin cá nhân đã đổi, cha đã đổi, nhưng mẹ thì chưa.
+     *
+     * <p>Phương thức này đảm bảo tính nguyên tử theo 2 bước:
+     * <ol>
+     *     <li><b>Kiểm tra toàn bộ trước</b> — BR1, BR2, BR6, BR3 được áp dụng cho CẢ cha
+     *         và mẹ mới. Nếu bất kỳ quy tắc nào vi phạm, exception được ném và KHÔNG có
+     *         ghi nào xảy ra — dữ liệu giữ nguyên trạng thái cũ.</li>
+     *     <li><b>Ghi đúng một lần</b> — sau khi mọi kiểm tra đạt, một lời gọi
+     *         {@code personRepository.update(person)} sẽ ghi đồng thời thông tin cá nhân,
+     *         {@code father_id} và {@code mother_id} trong MỘT câu lệnh UPDATE.</li>
+     * </ol>
+     *
+     * <p><b>Ngữ nghĩa tham số:</b> {@code newFather} / {@code newMother} là trạng thái
+     * mong muốn CUỐI CÙNG. Truyền {@code null} nghĩa là GỠ quan hệ đó (đặt {@code NULL});
+     * truyền một {@link Person} nghĩa là đặt quan hệ cha/mẹ về người đó.
+     *
+     * @param person     thông tin cá nhân cập nhật (bắt buộc có id hợp lệ)
+     * @param newFather  cha mong muốn, hoặc {@code null} để gỡ cha
+     * @param newMother  mẹ mong muốn, hoặc {@code null} để gỡ mẹ
+     * @throws IllegalArgumentException nếu dữ liệu không hợp lệ
+     * @throws InvalidBirthYearException nếu năm sinh không hợp lệ
+     * @throws PersonNotFoundException nếu chính người, cha hoặc mẹ không tồn tại
+     * @throws SelfParentException nếu tự gán làm cha/mẹ chính mình (BR1)
+     * @throws SameParentException nếu cha và mẹ là cùng một người (BR2)
+     * @throws InvalidParentGenderException nếu giới tính cha/mẹ sai vai trò (BR6)
+     * @throws CycleDetectedException nếu việc gán tạo chu trình trong cây gia phả (BR3)
+     */
+    public void updatePersonWithParents(Person person, Person newFather, Person newMother) {
+        validatePerson(person);
+
+        if (person.getId() <= 0) {
+            throw new IllegalArgumentException("Person id phải là số nguyên dương");
+        }
+
+        int personId = person.getId();
+
+        // ===== BƯỚC 1 — Kiểm tra TOÀN Bộ quy tắc trước khi ghi bất cứ thứ gì =====
+
+        // BR2 — cha mới và mẹ mới không được là cùng một người
+        if (newFather != null && newMother != null
+                && newFather.getId() == newMother.getId()) {
+            throw new SameParentException("Cha và Mẹ không thể là cùng một người");
+        }
+
+        Person father = null;
+        if (newFather != null) {
+            // BR1 — tự gán làm cha chính mình
+            if (newFather.getId() == personId) {
+                throw new SelfParentException(
+                        "Một người không thể là cha hoặc mẹ của chính mình (id = " + personId + ")");
+            }
+            father = getPersonById(newFather.getId());
+
+            // BR6 — cha bắt buộc phải là MALE
+            if (father.getGender() != Gender.MALE) {
+                throw InvalidParentGenderException.forRole("Cha", Gender.MALE, father.getGender());
+            }
+
+            // BR3 — gán cha phải không tạo chu trình
+            if (checkCycle(personId, father.getId())) {
+                throw new CycleDetectedException("Gán cha tạo chu trình vòng lặp trong cây gia phả");
+            }
+        }
+
+        Person mother = null;
+        if (newMother != null) {
+            // BR1 — tự gán làm mẹ chính mình
+            if (newMother.getId() == personId) {
+                throw new SelfParentException(
+                        "Một người không thể là cha hoặc mẹ của chính mình (id = " + personId + ")");
+            }
+            mother = getPersonById(newMother.getId());
+
+            // BR6 — mẹ bắt buộc phải là FEMALE
+            if (mother.getGender() != Gender.FEMALE) {
+                throw InvalidParentGenderException.forRole("Mẹ", Gender.FEMALE, mother.getGender());
+            }
+
+            // BR3 — gán mẹ phải không tạo chu trình
+            if (checkCycle(personId, mother.getId())) {
+                throw new CycleDetectedException("Gán mẹ tạo chu trình vòng lặp trong cây gia phả");
+            }
+        }
+
+        // ===== BƯỚC 2 — Mọi kiểm tra đã đạt: ghi MỘT lần, cả 2 quan hệ cùng lúc =====
+        person.setFather(father);
+        person.setMother(mother);
+        personRepository.update(person);
+    }
+
+    /**
      * Xóa một thành viên khỏi hệ thống gia phả.
      *
      * @param id mã định danh của Person cần xóa

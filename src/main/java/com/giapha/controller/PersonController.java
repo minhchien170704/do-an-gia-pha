@@ -121,21 +121,32 @@ public class PersonController {
         newPerson.setFather(father);
         newPerson.setMother(mother);
 
-        // BR5: cảnh báo nếu năm sinh cha/mẹ không nhỏ hơn năm sinh con
-        if (!confirmBirthYearWarning(newPerson, father, mother)) {
-            return; // Người dùng chọn Hủy
-        }
-
+        // BR5: cảnh báo nếu năm sinh cha/mẹ không nhỏ hơn năm sinh con.
+        // Việc kiểm tra này nằm trong handleAdd(Person) — đúng là phương thức mà
+        // luồng lưu thực tế từ PersonFormView đi qua (không phải chỉ ở handleAdd()).
         handleAdd(newPerson);
     }
 
     /**
      * Overloaded: Xử lý thêm đối tượng Person cụ thể vào hệ thống.
      *
+     * <p><b>Đây là phương thức lưu THỰC SỰ của luồng UI</b> — {@link PersonFormView}
+     * gọi phương thức này khi người dùng bấm "Lưu thành viên". Vì vậy kiểm tra
+     * BR5 (cảnh báo năm sinh cha/mẹ) được đặt ở ĐÂY để mọi lần lưu từ giao diện
+     * đều có cảnh báo, không chỉ riêng lời gọi từ {@link #handleAdd()}.
+     *
      * @param person đối tượng thành viên cần thêm
      * @return đối tượng Person đã được gán id, hoặc null nếu thao tác thất bại
      */
     public Person handleAdd(Person person) {
+        // BR5 — cảnh báo năm sinh cha/mẹ không nhỏ hơn năm sinh con.
+        // Chỉ hỏi khi thực sự có quan hệ cha/mẹ được gán.
+        if (person != null && (person.getFather() != null || person.getMother() != null)) {
+            if (!confirmBirthYearWarning(person, person.getFather(), person.getMother())) {
+                return null; // Người dùng chọn Hủy
+            }
+        }
+
         try {
             Person added = familyTreeService.addPerson(person);
 
@@ -249,23 +260,28 @@ public class PersonController {
         basicUpdatePerson.setFather(originalFather);
         basicUpdatePerson.setMother(originalMother);
 
-        // BR5: cảnh báo nếu năm sinh cha/mẹ không nhỏ hơn năm sinh con.
-        // Chỉ kiểm tra khi quan hệ cha/mẹ thực sự thay đổi so với bản gốc.
-        if (fatherChanged(originalFather, newFather) || motherChanged(originalMother, newMother)) {
-            if (!confirmBirthYearWarning(basicUpdatePerson, newFather, newMother)) {
-                return; // Người dùng chọn Hủy
-            }
-        }
-
+        // Lưu ý: kiểm tra BR5 (cảnh báo năm sinh) được thực hiện BÊN TRONG
+        // handleEdit(Person, Person, Person) — đúng là phương thức mà luồng lưu
+        // thực tế từ PersonFormView đi qua. Ở đây KHÔNG kiểm tra lại để tránh
+        // hiện cảnh báo hai lần khi gọi lồng nhau.
         handleEdit(basicUpdatePerson, newFather, newMother);
     }
 
     /**
      * Overloaded: Thực thi quy trình cập nhật thông tin và gán quan hệ cha mẹ.
      *
+     * <p><b>Tính nguyên tử:</b> toàn bộ thay đổi (thông tin cá nhân + {@code father_id}
+     * + {@code mother_id}) được kiểm tra trước rồi ghi trong MỘT lần UPDATE qua
+     * {@link FamilyTreeService#updatePersonWithParents(Person, Person, Person)}.
+     * Nhờ vậy nếu một quan hệ không hợp lệ thì KHÔNG có thay đổi nào được ghi —
+     * dữ liệu không ở trạng thái "cập nhật một nửa".
+     *
+     * <p><b>Đây là phương thức lưu THỰC SỰ của luồng UI</b> — {@link PersonFormView}
+     * gọi phương thức này khi người dùng bấm "Lưu thay đổi".
+     *
      * @param personToUpdate thông tin thành viên cập nhật (chứa cha mẹ gốc)
-     * @param newFather      cha mới được chọn từ ComboBox
-     * @param newMother      mẹ mới được chọn từ ComboBox
+     * @param newFather      cha mới được chọn từ ComboBox, {@code null} = gỡ cha
+     * @param newMother      mẹ mới được chọn từ ComboBox, {@code null} = gỡ mẹ
      */
     public void handleEdit(Person personToUpdate, Person newFather, Person newMother) {
         int personId = personToUpdate.getId();
@@ -275,9 +291,8 @@ public class PersonController {
         StringBuilder successMsg = new StringBuilder("Đã cập nhật thành công thông tin thành viên.");
         StringBuilder errorMsg = new StringBuilder();
 
-        // Bước 3: Copy ảnh đại diện mới (nếu người dùng đã chọn ảnh khác).
-        // Thực hiện TRƯỚC khi updatePerson() để đường dẫn tương đối của ảnh mới
-        // được ghi vào DB ngay trong lần lưu đó (không lưu 2 lần).
+        // Bước 1: Copy ảnh đại diện mới (nếu người dùng đã chọn ảnh khác).
+        // Đường dẫn tương đối của ảnh mới được ghi vào DB ngay trong lần lưu đó.
         if (personFormView != null) {
             String sourcePhoto = personFormView.getSelectedPhotoSourcePath();
             String newPhotoPath = persistSelectedImage(sourcePhoto, personId);
@@ -287,9 +302,41 @@ public class PersonController {
             }
         }
 
-        // Bước 4: Cập nhật thông tin cơ bản qua updatePerson()
+        // Bước 2: BR5 — cảnh báo năm sinh cha/mẹ không nhỏ hơn năm sinh con.
+        // Chỉ hỏi khi quan hệ cha/mẹ THỰC SỰ thay đổi so với bản gốc, và chỉ hỏi
+        // với các quan hệ MỚI được chọn.
+        if (fatherChanged(originalFather, newFather) || motherChanged(originalMother, newMother)) {
+            Person effectiveFather = newFather != null ? newFather : originalFather;
+            Person effectiveMother = newMother != null ? newMother : originalMother;
+            if (!confirmBirthYearWarning(personToUpdate, effectiveFather, effectiveMother)) {
+                return; // Người dùng chọn Hủy — KHÔNG lưu gì cả
+            }
+        }
+
+        // Bước 3: Cập nhật NGUYÊN TỬ — kiểm tra toàn bộ BR trước, rồi ghi MỘT lần.
         try {
-            familyTreeService.updatePerson(personToUpdate);
+            familyTreeService.updatePersonWithParents(personToUpdate, newFather, newMother);
+
+            if (fatherChanged(originalFather, newFather)) {
+                successMsg.append(newFather != null
+                        ? "\n• Đã cập nhật cha thành công."
+                        : "\n• Đã gỡ quan hệ cha thành công.");
+            }
+            if (motherChanged(originalMother, newMother)) {
+                successMsg.append(newMother != null
+                        ? "\n• Đã cập nhật mẹ thành công."
+                        : "\n• Đã gỡ quan hệ mẹ thành công.");
+            }
+        } catch (SelfParentException e) {
+            errorMsg.append("\n• Không thể tự gán mình làm cha/mẹ: ").append(e.getMessage());
+        } catch (CycleDetectedException e) {
+            errorMsg.append("\n• Lỗi chu trình khi gán cha/mẹ: ").append(e.getMessage());
+        } catch (InvalidParentGenderException e) {
+            errorMsg.append("\n• Lỗi giới tính vai trò cha/mẹ: ").append(e.getMessage());
+        } catch (SameParentException e) {
+            errorMsg.append("\n• Cha và Mẹ không thể là cùng một người: ").append(e.getMessage());
+        } catch (PersonNotFoundException e) {
+            errorMsg.append("\n• Không tìm thấy cha, mẹ hoặc con chỉ định: ").append(e.getMessage());
         } catch (InvalidBirthYearException e) {
             showErrorAlert("Lỗi năm sinh", e.getMessage());
             return;
@@ -297,71 +344,11 @@ public class PersonController {
             showErrorAlert("Lỗi dữ liệu", e.getMessage());
             return;
         } catch (Exception e) {
-            showErrorAlert("Lỗi cập nhật", "Không thể cập nhật thông tin cơ bản: " + e.getMessage());
+            showErrorAlert("Lỗi cập nhật", "Không thể cập nhật thông tin thành viên: " + e.getMessage());
             return;
         }
 
-        // Bước 4: Kiểm tra và gán/gỡ cha nếu có thay đổi qua assignFather() / clearFather()
-        boolean fatherChanged =
-                (newFather != null && (originalFather == null || newFather.getId() != originalFather.getId()))
-                || (newFather == null && originalFather != null);
-        if (fatherChanged) {
-            try {
-                if (newFather != null) {
-                    familyTreeService.assignFather(personId, newFather.getId());
-                    successMsg.append("\n• Đã cập nhật cha thành công.");
-                } else {
-                    familyTreeService.clearFather(personId);
-                    successMsg.append("\n• Đã gỡ quan hệ cha thành công.");
-                }
-            } catch (SelfParentException e) {
-                errorMsg.append("\n• Không thể tự gán mình làm cha: ").append(e.getMessage());
-            } catch (CycleDetectedException e) {
-                errorMsg.append("\n• Lỗi chu trình khi gán cha: ").append(e.getMessage());
-            } catch (InvalidParentGenderException e) {
-                errorMsg.append("\n• Lỗi giới tính vai trò cha: ").append(e.getMessage());
-            } catch (SameParentException e) {
-                errorMsg.append("\n• Cha trùng với mẹ hiện tại: ").append(e.getMessage());
-            } catch (IllegalArgumentException e) {
-                errorMsg.append("\n• Lỗi giới tính/vai trò cha: ").append(e.getMessage());
-            } catch (PersonNotFoundException e) {
-                errorMsg.append("\n• Không tìm thấy cha hoặc con chỉ định: ").append(e.getMessage());
-            } catch (Exception e) {
-                errorMsg.append("\n• Không thể cập nhật cha: ").append(e.getMessage());
-            }
-        }
-
-        // Bước 5: Kiểm tra và gán/gỡ mẹ nếu có thay đổi qua assignMother() / clearMother()
-        boolean motherChanged =
-                (newMother != null && (originalMother == null || newMother.getId() != originalMother.getId()))
-                || (newMother == null && originalMother != null);
-        if (motherChanged) {
-            try {
-                if (newMother != null) {
-                    familyTreeService.assignMother(personId, newMother.getId());
-                    successMsg.append("\n• Đã cập nhật mẹ thành công.");
-                } else {
-                    familyTreeService.clearMother(personId);
-                    successMsg.append("\n• Đã gỡ quan hệ mẹ thành công.");
-                }
-            } catch (SelfParentException e) {
-                errorMsg.append("\n• Không thể tự gán mình làm mẹ: ").append(e.getMessage());
-            } catch (CycleDetectedException e) {
-                errorMsg.append("\n• Lỗi chu trình khi gán mẹ: ").append(e.getMessage());
-            } catch (InvalidParentGenderException e) {
-                errorMsg.append("\n• Lỗi giới tính vai trò mẹ: ").append(e.getMessage());
-            } catch (SameParentException e) {
-                errorMsg.append("\n• Mẹ trùng với cha hiện tại: ").append(e.getMessage());
-            } catch (IllegalArgumentException e) {
-                errorMsg.append("\n• Lỗi giới tính/vai trò mẹ: ").append(e.getMessage());
-            } catch (PersonNotFoundException e) {
-                errorMsg.append("\n• Không tìm thấy mẹ hoặc con chỉ định: ").append(e.getMessage());
-            } catch (Exception e) {
-                errorMsg.append("\n• Không thể cập nhật mẹ: ").append(e.getMessage());
-            }
-        }
-
-        // Bước 6: Báo cáo kết quả
+        // Bước 4: Báo cáo kết quả
         if (errorMsg.length() > 0) {
             showErrorAlert("Cảnh báo quan hệ", successMsg.toString() + "\n" + errorMsg.toString());
         } else {
@@ -696,6 +683,15 @@ public class PersonController {
             return true;
         }
 
+        // Nếu chạy ngoài JavaFX Application Thread (ví dụ trong test tự động) →
+        // không thể hiển thị Alert, nên cho phép tiếp tục thao tác.
+        // Việc kiểm tra này phải đặt TRƯỚC khi tạo Alert, vì tạo Alert ngoài
+        // FX thread sẽ ném IllegalStateException (JavaFX toolkit chưa khởi tạo).
+        if (!javafx.application.Platform.isFxApplicationThread()) {
+            System.out.println("[CẢNH BÁO BR5] " + String.join(" | ", warnings));
+            return true;
+        }
+
         StringBuilder message = new StringBuilder();
         message.append("Cảnh báo về năm sinh trong gia phả:\n\n");
         for (String warning : warnings) {
@@ -710,11 +706,6 @@ public class PersonController {
         ButtonType continueButton = new ButtonType("Tiếp tục", ButtonBar.ButtonData.OK_DONE);
         ButtonType cancelButton = new ButtonType("Hủy", ButtonBar.ButtonData.CANCEL_CLOSE);
         alert.getButtonTypes().setAll(continueButton, cancelButton);
-
-        // Nếu chạy ngoài JavaFX Application Thread (ví dụ trong test) → cho phép tiếp tục
-        if (!javafx.application.Platform.isFxApplicationThread()) {
-            return true;
-        }
 
         return alert.showAndWait().filter(continueButton::equals).isPresent();
     }
