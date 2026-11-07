@@ -76,7 +76,7 @@ MySQL / MariaDB
    - Chịu trách nhiệm thực thi các quy tắc nghiệp vụ (BR1 – BR6), validation, và phát hiện chu trình.
 4. **Repository (`com.giapha.repository`)**:
    - `PersonRepository`: Interface định nghĩa các hợp đồng truy xuất dữ liệu (`findById`, `findAll`, `save`, `update`, `delete`).
-   - `JdbcPersonRepository`: Lớp cài đặt interface sử dụng JDBC thuần, thao tác với bảng `PERSON`.
+   - `JdbcPersonRepository`: Lớp cài đặt interface sử dụng JDBC thuần, thao tác với bảng `person`.
    - **Quyền sở hữu `Connection` (bắt buộc):**
      - Repository **tự mở** Connection (qua `DatabaseConnection.getConnection()`) → repository **chịu trách nhiệm đóng** nó (qua `closeIfOwned(conn)`).
      - Repository **nhận** Connection từ bên ngoài (constructor có tham số) → repository chỉ **mượn**, **tuyệt đối không đóng**.
@@ -150,7 +150,7 @@ src/test/java/com/giapha
 │   ├── TestDatabase.java                # Tiện ích truy vấn: đếm bản ghi, reset dữ liệu mẫu, dọn bản ghi test
 │   └── FxTestSupport.java             # Tiện ích khởi tạo/quản lý JavaFX Toolkit cho test tag "javafx"
 ├── database/
-│   ├── DatabaseConnectionTest.java    # 7 test — kết nối MySQL, metadata, bảng PERSON, DB chính không bị đổi
+│   ├── DatabaseConnectionTest.java    # 7 test — kết nối MySQL, metadata, bảng person, DB chính không bị đổi
 │   └── BackendInitializationTest.java # 3 test — kiểm tra kết nối MySQL thật trước khi hiển thị UI
 ├── service/
 │   └── FamilyTreeServiceTest.java     # 44 test — BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu
@@ -176,7 +176,7 @@ src/test/java/com/giapha
 
 **Quy tắc bắt buộc cho test:**
 - Test **không** được nằm trong `src/main/java`.
-- Mọi test có thay đổi dữ liệu CSDL **phải** có cleanup để trả bảng `PERSON` về đúng 7 bản ghi mẫu.
+- Mọi test có thay đổi dữ liệu CSDL **phải** có cleanup để trả bảng `person` về đúng 7 bản ghi mẫu.
 - **CÁCH LY DỮ LIỆU (bắt buộc):** **mọi** lớp test đụng tới CSDL **phải** dùng database RIÊNG có tên kết thúc bằng `_test`
   (`gia_pha_service_test`, `gia_pha_controller_test`, `gia_pha_abstraction_test`,
   `gia_pha_integrity_test`, `gia_pha_atomic_test`, `gia_pha_editfail_test`,
@@ -198,7 +198,7 @@ src/test/java/com/giapha
 
 | File | Nội dung |
 |------|----------|
-| `test-data/sample-data.sql` | Script SQL tạo **30 bản ghi** `PERSON` — 5 thế hệ (1850 → 1970), 4 nhánh dòng họ |
+| `test-data/sample-data.sql` | Script SQL tạo **30 bản ghi** `person` — 5 thế hệ (1850 → 1970), 4 nhánh dòng họ |
 | `test-data/test-cases.md` | Bảng test case: **mã, mô tả, dữ liệu vào, kết quả mong đợi, kết quả thực tế** + ma trận phủ BR1–BR6 |
 
 Bộ test tương ứng: `src/test/java/com/giapha/testdata/LargeSampleDataTest.java` — nạp trực tiếp
@@ -292,14 +292,14 @@ Mỗi khi tạo mới (`addPerson`) hoặc cập nhật (`updatePerson`), đối
 
 ## 7. CƠ SỞ DỮ LIỆU & SCHEMA (`database/schema.sql`)
 
-- **Bảng `PERSON`**:
+- **Bảng `person`** (tên bảng viết **chữ thường** — MySQL trên Linux phân biệt hoa/thường, `lower_case_table_names=0`):
   - `id INT AUTO_INCREMENT PRIMARY KEY`
   - `full_name VARCHAR(100) NOT NULL`
   - `birth_year INT NOT NULL`
   - `gender ENUM('MALE', 'FEMALE') NOT NULL`
   - `photo_path VARCHAR(255) NULL`
-  - `father_id INT NULL` (FK tới `PERSON(id)` ON DELETE RESTRICT)
-  - `mother_id INT NULL` (FK tới `PERSON(id)` ON DELETE RESTRICT)
+  - `father_id INT NULL` (FK tới `person(id)` ON DELETE RESTRICT)
+  - `mother_id INT NULL` (FK tới `person(id)` ON DELETE RESTRICT)
   - CHECK `chk_birth_year`: `birth_year >= 1000 AND birth_year <= 2100`
   - CHECK `chk_father_not_mother`: `father_id IS NULL OR mother_id IS NULL OR father_id <> mother_id`
   - TRIGGER `trg_check_not_self_parent_update`: Ngăn chặn `father_id = id` hoặc `mother_id = id` ở tầng DB.
@@ -396,7 +396,7 @@ mvn test -Dtest=LargeSampleDataTest -Dkeep.test.db=true
 # Nạp dữ liệu mẫu vào database chính để kiểm thử thủ công trên giao diện
 mysql -u root -p < test-data/sample-data.sql
 ```
-> ⚠️ `sample-data.sql` **xoá toàn bộ** dữ liệu đang có trong bảng `PERSON` (kể cả 7 bản ghi mẫu
+> ⚠️ `sample-data.sql` **xoá toàn bộ** dữ liệu đang có trong bảng `person` (kể cả 7 bản ghi mẫu
 > nguyên bản của `database/schema.sql`). Khôi phục: `mysql -u root -p < database/schema.sql`.
 >
 > Bảng test case đầy đủ (mã / mô tả / dữ liệu vào / kết quả mong đợi / kết quả thực tế) nằm trong

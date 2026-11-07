@@ -195,7 +195,7 @@ class JavaFxViewTest {
         int generatedId = -1;
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
-                     "SELECT id, birth_year, father_id, mother_id FROM PERSON WHERE full_name = ?")) {
+                     "SELECT id, birth_year, father_id, mother_id FROM person WHERE full_name = ?")) {
             ps.setString(1, TEST_PREFIX);
             try (ResultSet rs = ps.executeQuery()) {
                 assertTrue(rs.next(), "Không tìm thấy bản ghi trong MySQL sau khi lưu");
@@ -242,7 +242,7 @@ class JavaFxViewTest {
 
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
-                     "SELECT COUNT(*) AS total FROM PERSON WHERE full_name LIKE ? OR TRIM(full_name) = ''")) {
+                     "SELECT COUNT(*) AS total FROM person WHERE full_name LIKE ? OR TRIM(full_name) = ''")) {
             ps.setString(1, TEST_PREFIX + "_INVALID%");
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
@@ -287,7 +287,7 @@ class JavaFxViewTest {
 
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
-                     "SELECT full_name, father_id, mother_id FROM PERSON WHERE id = ?")) {
+                     "SELECT full_name, father_id, mother_id FROM person WHERE id = ?")) {
             ps.setInt(1, testPersonId);
             try (ResultSet rs = ps.executeQuery()) {
                 assertTrue(rs.next(), "Không tìm thấy bản ghi ID " + testPersonId);
@@ -310,7 +310,7 @@ class JavaFxViewTest {
         controller.handleDelete(3);
 
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
-             PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) AS total FROM PERSON WHERE id = 3")) {
+             PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) AS total FROM person WHERE id = 3")) {
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 assertEquals(1, rs.getInt("total"), "ID 3 đang làm cha nên phải được bảo toàn");
@@ -328,7 +328,7 @@ class JavaFxViewTest {
         controller.handleDelete(testPersonId);
 
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
-             PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) AS total FROM PERSON WHERE id = ?")) {
+             PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) AS total FROM person WHERE id = ?")) {
             ps.setInt(1, testPersonId);
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
@@ -472,7 +472,7 @@ class JavaFxViewTest {
 
     private static void cleanupTestData() {
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
-             PreparedStatement ps = conn.prepareStatement("DELETE FROM PERSON WHERE full_name LIKE ?")) {
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM person WHERE full_name LIKE ?")) {
             ps.setString(1, TEST_PREFIX + "%");
             int deleted = ps.executeUpdate();
             if (deleted > 0) {

@@ -124,7 +124,7 @@ Thế hệ 5 (1960 – 1970)                8 người
 | TC-17 | Xóa được thành viên lá (không có con) | `deletePerson(30)` — Nguyễn Văn Khang | Xóa thành công, còn 29 bản ghi | 29 bản ghi còn lại | PASS |
 | TC-18 | Gỡ quan hệ cha/mẹ rồi mới xóa được | `clearFather(23)`, `clearFather(24)` → `deletePerson(15)` | Xóa thành công | Đã xóa khỏi DB | PASS |
 | TC-19 | Ràng buộc CHECK của CSDL chặn năm sinh không hợp lệ | `INSERT ... birth_year = 500` (bỏ qua tầng Service) | CSDL từ chối (SQLException) | `SQLException`: CONSTRAINT `chk_birth_year` failed for `gia_pha_test`.`person` | PASS |
-| TC-20 | Trigger CSDL chặn tự làm cha/mẹ chính mình | `UPDATE PERSON SET father_id = id WHERE id = 23` | CSDL từ chối (SQLException) | `SQLException`: Một người không thể là cha hoặc mẹ của chính mình | PASS |
+| TC-20 | Trigger CSDL chặn tự làm cha/mẹ chính mình | `UPDATE person SET father_id = id WHERE id = 23` | CSDL từ chối (SQLException) | `SQLException`: Một người không thể là cha hoặc mẹ của chính mình | PASS |
 | TC-21a | **An toàn DROP** — assertSafeToDrop("gia_pha_test") | Tên DB kết thúc bằng `_test` | Không ném exception | Không ném exception | PASS |
 | TC-21b | **An toàn DROP** — assertSafeToDrop("gia_pha") | Tên database CHÍNH | Ném `IllegalStateException` | "Từ chối DROP database \"gia_pha\": tên database bắt buộc phải kết thúc bằng \"_test\" để bảo đảm không xóa nhầm dữ liệu chính." | PASS |
 | TC-21c | **An toàn DROP** — assertSafeToDrop("") và (null) | Tên rỗng / null | Ném `IllegalStateException` | Cả hai đều ném IllegalStateException | PASS |
@@ -163,7 +163,7 @@ Dùng để **kiểm thử thủ công** trên giao diện JavaFX (`mvn javafx:r
 mysql -u root -p < test-data/sample-data.sql
 ```
 
-> ⚠️ Script **xoá toàn bộ** dữ liệu hiện có trong bảng `PERSON` (kể cả 7 bản ghi mẫu
+> ⚠️ Script **xoá toàn bộ** dữ liệu hiện có trong bảng `person` (kể cả 7 bản ghi mẫu
 > nguyên bản của `database/schema.sql`).
 >
 > **Khôi phục lại dữ liệu gốc:**

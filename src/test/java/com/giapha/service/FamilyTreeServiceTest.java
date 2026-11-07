@@ -631,7 +631,7 @@ class FamilyTreeServiceTest {
     class DataIsolation {
 
         @Test
-        @DisplayName("Bảng PERSON luôn có đúng 7 bản ghi mẫu sau mỗi test")
+        @DisplayName("Bảng person luôn có đúng 7 bản ghi mẫu sau mỗi test")
         void databaseIsRestored() {
             assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, TestDatabase.countPersons(TEST_DB_NAME),
                     "CSDL phải được trả về đúng 7 bản ghi mẫu sau khi chạy test");

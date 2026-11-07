@@ -25,7 +25,7 @@ import java.util.Locale;
  * <p><b>Vòng đời một database test:</b>
  * <ol>
  *     <li>{@link #createFreshDatabase(String)} — {@code DROP} + {@code CREATE} + tạo bảng
- *         {@code PERSON} (schema giống hệt {@code database/schema.sql}) + nạp 7 bản ghi mẫu.
+ *         {@code person} (schema giống hệt {@code database/schema.sql}) + nạp 7 bản ghi mẫu.
  *         Được gọi ở {@code @BeforeAll} của mỗi lớp test → mỗi lần chạy đều sạch hoàn toàn.</li>
  *     <li>{@link #dropDatabase(String)} — xóa database test. Được gọi ở {@code @AfterAll}.
  *         Có thể bỏ qua bằng cờ {@code -Dkeep.test.db=true}.</li>
@@ -106,7 +106,7 @@ public final class TestDatabaseManager {
     // ============================================================
 
     /**
-     * Tạo mới hoàn toàn database test: DROP (nếu có) → CREATE → tạo bảng {@code PERSON}
+     * Tạo mới hoàn toàn database test: DROP (nếu có) → CREATE → tạo bảng {@code person}
      * → nạp 7 bản ghi mẫu nguyên bản.
      *
      * <p>Được gọi ở {@code @BeforeAll} của mỗi lớp test để bảo đảm mỗi lần chạy
@@ -244,7 +244,7 @@ public final class TestDatabaseManager {
     // ============================================================
 
     /**
-     * Tạo bảng {@code PERSON} + index + trigger, giống hệt {@code database/schema.sql}.
+     * Tạo bảng {@code person} + index + trigger, giống hệt {@code database/schema.sql}.
      *
      * @param dbName tên database test
      * @throws SQLException nếu thao tác SQL thất bại
@@ -253,7 +253,7 @@ public final class TestDatabaseManager {
         try (Connection conn = openConnection(dbName);
              Statement stmt = conn.createStatement()) {
             stmt.executeUpdate("""
-                    CREATE TABLE PERSON (
+                    CREATE TABLE person (
                         id          INT AUTO_INCREMENT PRIMARY KEY,
                         full_name   VARCHAR(100) NOT NULL,
                         birth_year  INT NOT NULL,
@@ -261,17 +261,17 @@ public final class TestDatabaseManager {
                         photo_path  VARCHAR(255) NULL,
                         father_id   INT NULL,
                         mother_id   INT NULL,
-                        CONSTRAINT fk_father FOREIGN KEY (father_id) REFERENCES PERSON(id) ON DELETE RESTRICT,
-                        CONSTRAINT fk_mother FOREIGN KEY (mother_id) REFERENCES PERSON(id) ON DELETE RESTRICT,
+                        CONSTRAINT fk_father FOREIGN KEY (father_id) REFERENCES person(id) ON DELETE RESTRICT,
+                        CONSTRAINT fk_mother FOREIGN KEY (mother_id) REFERENCES person(id) ON DELETE RESTRICT,
                         CONSTRAINT chk_birth_year CHECK (birth_year >= 1000 AND birth_year <= 2100),
                         CONSTRAINT chk_father_not_mother CHECK (
                             father_id IS NULL OR mother_id IS NULL OR father_id <> mother_id)
                     )
                     """);
-            stmt.executeUpdate("CREATE INDEX idx_person_name ON PERSON(full_name)");
+            stmt.executeUpdate("CREATE INDEX idx_person_name ON person(full_name)");
             stmt.executeUpdate("""
                     CREATE TRIGGER trg_check_not_self_parent_update
-                    BEFORE UPDATE ON PERSON
+                    BEFORE UPDATE ON person
                     FOR EACH ROW
                     BEGIN
                         IF (NEW.father_id IS NOT NULL AND NEW.father_id = NEW.id) OR
@@ -293,7 +293,7 @@ public final class TestDatabaseManager {
         try (Connection conn = openConnection(dbName);
              Statement stmt = conn.createStatement()) {
             stmt.executeUpdate("""
-                    INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mother_id)
+                    INSERT INTO person (id, full_name, birth_year, gender, photo_path, father_id, mother_id)
                     VALUES
                     (1, 'Nguyễn Văn Tổ', 1930, 'MALE', NULL, NULL, NULL),
                     (2, 'Trần Thị Tổ', 1932, 'FEMALE', NULL, NULL, NULL),

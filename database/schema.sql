@@ -1,7 +1,7 @@
 -- ============================================================
 -- SƠ ĐỒ GIA PHẢ — DATABASE SCHEMA
 -- Database: gia_pha
--- Bảng: PERSON
+-- Bảng: person
 -- Lưu ý: Lệnh DROP DATABASE chỉ dành cho môi trường development/test
 -- ============================================================
 
@@ -9,7 +9,7 @@ DROP DATABASE IF EXISTS gia_pha;
 CREATE DATABASE gia_pha CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE gia_pha;
 
-CREATE TABLE PERSON (
+CREATE TABLE person (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     full_name   VARCHAR(100) NOT NULL,
     birth_year  INT NOT NULL,
@@ -20,12 +20,12 @@ CREATE TABLE PERSON (
 
     CONSTRAINT fk_father
         FOREIGN KEY (father_id)
-        REFERENCES PERSON(id)
+        REFERENCES person(id)
         ON DELETE RESTRICT,
 
     CONSTRAINT fk_mother
         FOREIGN KEY (mother_id)
-        REFERENCES PERSON(id)
+        REFERENCES person(id)
         ON DELETE RESTRICT,
 
     -- MySQL/MariaDB yêu cầu biểu thức CHECK phải mang tính xác định (deterministic),
@@ -41,13 +41,13 @@ CREATE TABLE PERSON (
         )
 );
 
-CREATE INDEX idx_person_name ON PERSON(full_name);
+CREATE INDEX idx_person_name ON person(full_name);
 
 -- MySQL/MariaDB không cho phép tham chiếu cột AUTO_INCREMENT (id) trong mệnh đề CHECK,
 -- do đó ràng buộc không tự làm cha/mẹ chính mình (self-parent) được bảo vệ ở mức Database bằng Trigger:
 DELIMITER //
 CREATE TRIGGER trg_check_not_self_parent_update
-BEFORE UPDATE ON PERSON
+BEFORE UPDATE ON person
 FOR EACH ROW
 BEGIN
     IF (NEW.father_id IS NOT NULL AND NEW.father_id = NEW.id) OR
@@ -61,7 +61,7 @@ DELIMITER ;
 -- SAMPLE DATA (7 BẢN GHI NGUYÊN BẢN)
 -- ============================================================
 
-INSERT INTO PERSON
+INSERT INTO person
 (full_name, birth_year, gender, father_id, mother_id)
 VALUES
 ('Nguyễn Văn Tổ', 1930, 'MALE', NULL, NULL),

@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Kiểm thử tầng Database: kết nối MySQL, metadata và trạng thái bảng {@code PERSON}.
+ * Kiểm thử tầng Database: kết nối MySQL, metadata và trạng thái bảng {@code person}.
  *
  * <p><b>Cô lập dữ liệu:</b> lớp test này dùng database RIÊNG {@code gia_pha_conn_test}
  * (tên kết thúc bằng {@code _test}). Test {@code DatabaseConnection.getConnection()}
@@ -97,16 +97,16 @@ class DatabaseConnectionTest {
 
     @Test
     @Order(4)
-    @DisplayName("Bảng PERSON trong database test tồn tại và có dữ liệu mẫu")
+    @DisplayName("Bảng person trong database test tồn tại và có dữ liệu mẫu")
     void personTableExistsWithSampleData() throws Exception {
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM PERSON")) {
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM person")) {
             assertTrue(rs.next(), "Truy vấn COUNT(*) phải trả về một dòng");
             int count = rs.getInt(1);
             assertEquals(TestDatabase.SAMPLE_RECORD_COUNT, count,
                     "Database test phải có đúng 7 bản ghi mẫu");
-            System.out.println("[INFO] Số bản ghi PERSON trong database test: " + count);
+            System.out.println("[INFO] Số bản ghi person trong database test: " + count);
         }
     }
 
@@ -128,7 +128,7 @@ class DatabaseConnectionTest {
 
     @Test
     @Order(6)
-    @DisplayName("Số bản ghi PERSON khớp với giá trị đếm được")
+    @DisplayName("Số bản ghi person khớp với giá trị đếm được")
     void recordCountMatchesHelper() {
         assertEquals(TestDatabase.countPersons(TEST_DB_NAME),
                 TestDatabase.countPersons(TEST_DB_NAME));
@@ -142,6 +142,6 @@ class DatabaseConnectionTest {
         int mainCount = TestDatabase.countMainDatabasePersons();
         assertTrue(mainCount >= 0,
                 "Không đọc được database chính 'gia_pha' — hãy nạp database/schema.sql trước");
-        System.out.println("[INFO] Số bản ghi PERSON trong database chính 'gia_pha': " + mainCount);
+        System.out.println("[INFO] Số bản ghi person trong database chính 'gia_pha': " + mainCount);
     }
 }

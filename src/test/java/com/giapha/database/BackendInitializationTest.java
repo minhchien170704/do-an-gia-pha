@@ -81,7 +81,7 @@ class BackendInitializationTest {
     void mainDatabaseUntouchedAfterFailedProbe() {
         int mainCount = TestDatabase.countMainDatabasePersons();
         assertTrue(mainCount >= 0, "Không đọc được database chính");
-        System.out.println("[INFO] Số bản ghi PERSON trong database chính: " + mainCount);
+        System.out.println("[INFO] Số bản ghi person trong database chính: " + mainCount);
     }
 
     /** Holder để giữ kết quả của khối try/catch (biến phải effectively-final). */

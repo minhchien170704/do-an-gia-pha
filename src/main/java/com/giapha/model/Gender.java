@@ -4,7 +4,7 @@ package com.giapha.model;
  * Giới tính của một người trong gia phả.
  *
  * <p><b>Lưu ý về tên hằng số:</b> giá trị {@code MALE} / {@code FEMALE} được lưu
- * thẳng vào cột {@code gender} (kiểu {@code ENUM}) của bảng {@code PERSON}.
+ * thẳng vào cột {@code gender} (kiểu {@code ENUM}) của bảng {@code person}.
  * Vì vậy <b>không được</b> đổi tên các hằng số này — chỉ có thể bổ sung
  * method hỗ trợ hiển thị.
  */

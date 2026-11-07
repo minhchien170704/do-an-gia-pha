@@ -1,10 +1,10 @@
 -- ============================================================
 -- BỘ DỮ LIỆU MẪU MỞ RỘNG — 30 NGƯỜI / 5 THẾ HỆ
 -- Dự án: Quản lý Sơ đồ Gia phả (do-an-gia-pha)
--- Database: gia_pha — Bảng: PERSON
+-- Database: gia_pha — Bảng: person
 --
 -- CẢNH BÁO:
---   Script này XÓA toàn bộ dữ liệu đang có trong bảng PERSON
+--   Script này XÓA toàn bộ dữ liệu đang có trong bảng person
 --   (kể cả 7 bản ghi mẫu nguyên bản của database/schema.sql)
 --   rồi nạp lại 30 bản ghi mới.
 --   Khôi phục dữ liệu gốc: chạy lại  mysql < database/schema.sql
@@ -27,24 +27,24 @@
 
 USE gia_pha;
 
--- Tắt kiểm tra FK tạm thời để xóa sạch dữ liệu cũ (FK PERSON tự tham chiếu)
+-- Tắt kiểm tra FK tạm thời để xóa sạch dữ liệu cũ (FK person tự tham chiếu)
 SET FOREIGN_KEY_CHECKS = 0;
-DELETE FROM PERSON;
+DELETE FROM person;
 SET FOREIGN_KEY_CHECKS = 1;
 
-ALTER TABLE PERSON AUTO_INCREMENT = 1;
+ALTER TABLE person AUTO_INCREMENT = 1;
 
 -- ------------------------------------------------------------
 -- THẾ HỆ 1 — 2 người
 -- ------------------------------------------------------------
-INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
+INSERT INTO person (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
 (1,  'Nguyễn Văn Tổ',      1850, 'MALE',   NULL, NULL, NULL),
 (2,  'Trần Thị Tổ',        1855, 'FEMALE', NULL, NULL, NULL);
 
 -- ------------------------------------------------------------
 -- THẾ HỆ 2 — 4 người (2 con của thế hệ 1 + 2 người vợ)
 -- ------------------------------------------------------------
-INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
+INSERT INTO person (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
 (3,  'Nguyễn Văn Cụ',      1880, 'MALE',   NULL, 1,    2),
 (4,  'Phạm Thị Mẹ Cụ',    1884, 'FEMALE', NULL, NULL, NULL),
 (5,  'Nguyễn Văn Nhị',     1883, 'MALE',   NULL, 1,    2),
@@ -53,7 +53,7 @@ INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mo
 -- ------------------------------------------------------------
 -- THẾ HỆ 3 — 8 người (4 con của thế hệ 2 + 4 người vợ)
 -- ------------------------------------------------------------
-INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
+INSERT INTO person (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
 (7,  'Nguyễn Văn Đại',     1905, 'MALE',   NULL, 3,    4),
 (8,  'Đỗ Thị Mẹ Đại',     1909, 'FEMALE', NULL, NULL, NULL),
 (9,  'Nguyễn Văn Tị',      1908, 'MALE',   NULL, 3,    4),
@@ -66,7 +66,7 @@ INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mo
 -- ------------------------------------------------------------
 -- THẾ HỆ 4 — 8 người (4 con của thế hệ 3 + 4 người vợ)
 -- ------------------------------------------------------------
-INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
+INSERT INTO person (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
 (15, 'Nguyễn Văn Hùng',    1935, 'MALE',   NULL, 7,    8),
 (16, 'Vũ Thị Mẹ Hùng',    1939, 'FEMALE', NULL, NULL, NULL),
 (17, 'Nguyễn Văn Khoa',    1938, 'MALE',   NULL, 7,    8),
@@ -79,7 +79,7 @@ INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mo
 -- ------------------------------------------------------------
 -- THẾ HỆ 5 — 8 người (8 cháu nội của thế hệ 4)
 -- ------------------------------------------------------------
-INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
+INSERT INTO person (id, full_name, birth_year, gender, photo_path, father_id, mother_id) VALUES
 (23, 'Nguyễn Văn An',      1960, 'MALE',   NULL, 15,   16),
 (24, 'Nguyễn Văn Bình',    1962, 'MALE',   NULL, 15,   16),
 (25, 'Nguyễn Văn Cường',  1965, 'MALE',   NULL, 17,   18),
@@ -90,4 +90,4 @@ INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mo
 (30, 'Nguyễn Văn Khang',   1970, 'MALE',   NULL, 21,   22);
 
 -- Đồng bộ lại giá trị AUTO_INCREMENT về 31 để các bản ghi thêm mới không trùng id
-ALTER TABLE PERSON AUTO_INCREMENT = 31;
+ALTER TABLE person AUTO_INCREMENT = 31;

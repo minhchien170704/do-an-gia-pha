@@ -89,7 +89,7 @@ Nếu MySQL của bạn có mật khẩu: `mysql -u root -p --default-character-
 Kiểm tra kết quả:
 
 ```bash
-mysql -u root -e "SELECT COUNT(*) FROM gia_pha.PERSON;"   # → 7
+mysql -u root -e "SELECT COUNT(*) FROM gia_pha.person;"   # → 7
 ```
 
 > ⚠️ `database/schema.sql` chứa `DROP DATABASE IF EXISTS gia_pha;` — chạy lại sẽ **xoá sạch**
@@ -168,7 +168,7 @@ mvn clean test
 | `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
 | `AtomicUpdateAndBr5Test` | 9 | Cập nhật nguyên tử (cha/mẹ + thông tin cá nhân), BR5 trong luồng lưu của form |
 | `GenderTest` | 8 | Hiển thị tên/giới tính và CSS badge của enum `Gender` |
-| `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
+| `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `person`, kiểm chứng DB chính không bị đổi |
 | `EditFailureRollbackTest` | 10 | `handleEdit` rollback khi service từ chối quan hệ (BR1/BR2/BR3/BR6): DB không đổi, ảnh cũ không bị ghi đè, không điều hướng |
 | `JdbcPersonRepositoryConnectionTest` | 5 | Quyền sở hữu `Connection`: repo tự mở thì tự đóng, Connection ngoài thì không đóng |
 | `BackendInitializationTest` | 3 | Kiểm tra kết nối MySQL thật trước khi hiển thị giao diện |
@@ -208,7 +208,7 @@ mvn test -Dtest=LargeSampleDataTest -Dkeep.test.db=true
 
 | File | Nội dung |
 |---|---|
-| `test-data/sample-data.sql` | Script SQL tạo **30 bản ghi** `PERSON` — 5 thế hệ (1850 → 1970), 4 nhánh dòng họ |
+| `test-data/sample-data.sql` | Script SQL tạo **30 bản ghi** `person` — 5 thế hệ (1850 → 1970), 4 nhánh dòng họ |
 | `test-data/test-cases.md` | Bảng test case: **mã, mô tả, dữ liệu vào, kết quả mong đợi, kết quả thực tế** + ma trận phủ BR1–BR6 |
 
 Bộ test tương ứng là `src/test/java/com/giapha/testdata/LargeSampleDataTest.java` (22 test) — nạp trực tiếp
@@ -223,7 +223,7 @@ mysql -u root -p < test-data/sample-data.sql
 mysql -u root -p < database/schema.sql
 ```
 
-> ⚠️ `sample-data.sql` **xoá toàn bộ** dữ liệu đang có trong bảng `PERSON`.
+> ⚠️ `sample-data.sql` **xoá toàn bộ** dữ liệu đang có trong bảng `person`.
 
 ### 4.8. Giải thích lệch số liệu khi đọc log Surefire
 
@@ -381,7 +381,7 @@ Cột "Loại" phân biệt rõ: **Kiến trúc** (mô hình tổ chức hệ th
 | **MVC (Model–View–Controller)** | Kiến trúc | **Model**: `com.giapha.model.Person`, `com.giapha.model.Gender` · **View**: `PeopleListView`, `FamilyTreeView`, `FamilyTreeDiagram`, `PersonDetailView`, `PersonFormView`, `PersonAvatar` · **Controller**: `PersonController` · **Entry point / Composition Root**: `com.giapha.Main` | `Person`/`Gender` là **Model** (thuộc tính dữ liệu thuần + getter/setter, không chứa SQL hay UI); các lớp `*View` là **View** (dựng UI, bắt sự kiện); `PersonController` là **Controller** (nhận sự kiện từ View, gọi Service, trả kết quả về View). `Main` khởi tạo và nối các thành phần. | `PersonController.handleAdd()` đọc dữ liệu từ `FormDataSource` (abstraction do `PersonFormView` hiện thực) → gọi `familyTreeService.addPerson()` → `showInfoAlert()`; `Main.initBackend()` lắp ráp `JdbcPersonRepository → FamilyTreeService → PersonController`. |
 | **Dependency Inversion (SOLID – D)** | Nguyên tắc (SOLID) | `com.giapha.service.FamilyTreeService` (trường `private final PersonRepository personRepository`) | Tầng cao (`Service`) phụ thuộc vào **abstraction** (`PersonRepository` interface) thay vì phụ thuộc vào chi tiết (`JdbcPersonRepository`, JDBC API). Đây là hướng phụ thuộc bị đảo so với mặc định. | `FamilyTreeService` **không** import `JdbcPersonRepository`, `DatabaseConnection`, `java.sql.*`; thân hàm chỉ gọi `personRepository.findById/save/update/delete`. |
 | **Constructor Injection (DI)** | Mẫu thiết kế (DI) | `FamilyTreeService(PersonRepository)` · `PersonController(FamilyTreeService)` · `Main.initBackend()` | **Injection point** là constructor; **composition root** là `Main` — nơi duy nhất quyết định dùng triển khai nào (`new JdbcPersonRepository()`). Nhờ đó có thể thay CSDL (hoặc truyền repository test) mà không sửa Service. | `Main.initBackend()`: `new JdbcPersonRepository()` → `new FamilyTreeService(repository)` → `new PersonController(service)`; `Objects.requireNonNull(...)` chặn dependency null. |
-| **Repository Pattern** | Mẫu thiết kế (Enterprise) | **Interface (abstraction)**: `com.giapha.repository.PersonRepository` (`findById`, `findAll`, `search`, `save`, `update`, `delete`) · **Concrete repository**: `com.giapha.repository.JdbcPersonRepository` | Interface đóng vai trò **abstraction của kho lưu trữ**; `JdbcPersonRepository` là **Concrete implementation** gắn SQL vào bảng `PERSON` và map `ResultSet` → đối tượng `Person`. Toàn bộ SQL nằm sau abstraction này. | `JdbcPersonRepository implements PersonRepository`; mọi câu `SELECT/INSERT/UPDATE/DELETE` đều nằm trong class này, không lọt sang tầng trên. |
+| **Repository Pattern** | Mẫu thiết kế (Enterprise) | **Interface (abstraction)**: `com.giapha.repository.PersonRepository` (`findById`, `findAll`, `search`, `save`, `update`, `delete`) · **Concrete repository**: `com.giapha.repository.JdbcPersonRepository` | Interface đóng vai trò **abstraction của kho lưu trữ**; `JdbcPersonRepository` là **Concrete implementation** gắn SQL vào bảng `person` và map `ResultSet` → đối tượng `Person`. Toàn bộ SQL nằm sau abstraction này. | `JdbcPersonRepository implements PersonRepository`; mọi câu `SELECT/INSERT/UPDATE/DELETE` đều nằm trong class này, không lọt sang tầng trên. |
 | **Static Factory Method (JDBC Factory)** | Idiom (mẫu khởi tạo tập trung) | `com.giapha.database.DatabaseConnection.getConnection()` và `getConnection(url, user, password)` | **Factory** tạo đối tượng `java.sql.Connection` (product) mà không để client tự gọi `DriverManager`. Trả về **Connection mới** mỗi lần — không dùng connection `static` dài hạn; caller đóng bằng try-with-resources. | `DatabaseConnection` có constructor `private` (utility class) và chỉ có phương thức `static`; `JdbcPersonRepository.getConnection()` gọi `DatabaseConnection.getConnection()`. |
 | **Template Method (điểm móc truy cập CSDL)** | Mẫu thiết kế (GoF) | **Base class**: `JdbcPersonRepository.getConnection()` (`protected`) · **Subclass**: `src/test/java/com/giapha/support/TestPersonRepository.getConnection()` (`@Override`) | Base class định nghĩa **bước có thể ghi đè** (lấy kết nối); subclass chỉ thay **bước cụ thể** để trỏ sang database test, còn toàn bộ CRUD kế thừa nguyên vẹn. Đây chính là cơ chế cho **Test Double** cô lập dữ liệu. | `TestPersonRepository extends JdbcPersonRepository` và `@Override protected Connection getConnection()` trả `TestDatabaseManager.openConnection(testDbName)`. |
 | **Custom Exception (hierarchy lỗi nghiệp vụ)** | Mẫu thiết kế (Error handling) | `com.giapha.exception.*`: `SelfParentException`, `SameParentException`, `InvalidParentGenderException`, `CycleDetectedException`, `PersonInUseException`, `PersonNotFoundException`, `InvalidBirthYearException` — tất cả kế thừa `RuntimeException` | Mỗi lớp là **thông điệp có kiểu** cho một quy tắc nghiệp vụ (BR1–BR6). Tầng `Service` **ném** (không trả mã lỗi), tầng `Controller` **bắt** theo kiểu và ánh xạ sang thông báo tiếng Việt — stack trace không bao giờ lọt ra UI. | `FamilyTreeService.assignFather()` ném `SelfParentException` / `SameParentException` / `InvalidParentGenderException` / `CycleDetectedException`; `PersonController` có `catch` riêng cho từng loại và gọi `showErrorAlert(...)`. |
@@ -425,7 +425,7 @@ Cột "Loại" phân biệt rõ: **Kiến trúc** (mô hình tổ chức hệ th
 | **View** | Hiển thị, bắt sự kiện, gọi Controller | Không chứa SQL, không gọi Service/Repository trực tiếp |
 | **Controller** | Điều phối View ↔ Service, chuyển exception thành thông báo | Không viết SQL, không gọi Repository/JDBC |
 | **Service** | Quy tắc nghiệp vụ BR1–BR6, validation, phát hiện chu trình | Không import bất kỳ JDBC API nào |
-| **Repository** | CRUD bảng `PERSON` bằng JDBC thuần | Không chứa quy tắc nghiệp vụ |
+| **Repository** | CRUD bảng `person` bằng JDBC thuần | Không chứa quy tắc nghiệp vụ |
 | **Database** | Cấp `Connection` mới | Không giữ connection dài hạn |
 
 ---
@@ -470,7 +470,7 @@ do-an-gia-pha/
 ├── AGENTS.md                       # Hướng dẫn dành cho AI Agent (source of truth kiến trúc)
 ├── .gitignore
 ├── database/
-│   └── schema.sql                  # Định nghĩa bảng PERSON, index, trigger & 7 bản ghi mẫu
+│   └── schema.sql                  # Định nghĩa bảng person, index, trigger & 7 bản ghi mẫu
 ├── docs/
 │   └── uml/                        # Toàn bộ PlantUML (.puml) và ảnh sơ đồ (.png)
 ├── test-data/

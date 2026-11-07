@@ -381,7 +381,7 @@ public class LargeSampleDataTest {
         String error = null;
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
-                     "INSERT INTO PERSON (full_name, birth_year, gender) VALUES (?, ?, ?)")) {
+                     "INSERT INTO person (full_name, birth_year, gender) VALUES (?, ?, ?)")) {
             ps.setString(1, "Nguyễn Văn Vi Phạm");
             ps.setInt(2, 500);
             ps.setString(3, "MALE");
@@ -403,13 +403,13 @@ public class LargeSampleDataTest {
         String error = null;
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE PERSON SET father_id = id WHERE id = 23")) {
+                     "UPDATE person SET father_id = id WHERE id = 23")) {
             ps.executeUpdate();
         } catch (SQLException e) {
             error = e.getMessage();
         }
         boolean blocked = error != null;
-        record("TC-20", "UPDATE PERSON SET father_id = id (bỏ qua tầng Service)",
+        record("TC-20", "UPDATE person SET father_id = id (bỏ qua tầng Service)",
                 "CSDL từ chối (SQLException)", blocked ? "SQLException: " + shorten(error) : "Không bị chặn",
                 blocked);
         assertTrue(blocked);

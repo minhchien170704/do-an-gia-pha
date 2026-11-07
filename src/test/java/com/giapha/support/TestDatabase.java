@@ -21,7 +21,7 @@ import java.sql.Statement;
  */
 public final class TestDatabase {
 
-    /** Số lượng bản ghi mẫu nguyên bản trong bảng PERSON. */
+    /** Số lượng bản ghi mẫu nguyên bản trong bảng person. */
     public static final int SAMPLE_RECORD_COUNT = 7;
 
     private TestDatabase() {
@@ -29,15 +29,15 @@ public final class TestDatabase {
     }
 
     /**
-     * Kiểm tra database kiểm thử có sẵn sàng và bảng PERSON có tồn tại hay không.
+     * Kiểm tra database kiểm thử có sẵn sàng và bảng person có tồn tại hay không.
      *
      * @param dbName tên database kiểm thử
-     * @return true nếu kết nối được và truy vấn bảng PERSON thành công
+     * @return true nếu kết nối được và truy vấn bảng person thành công
      */
     public static boolean isAvailable(String dbName) {
         try (Connection conn = TestDatabaseManager.openConnection(dbName);
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM PERSON")) {
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM person")) {
             return rs.next();
         } catch (Exception e) {
             return false;
@@ -53,10 +53,10 @@ public final class TestDatabase {
         try (Connection conn = TestDatabaseManager.openConnection(dbName);
              Statement stmt = conn.createStatement()) {
 
-            stmt.executeUpdate("UPDATE PERSON SET full_name = 'Nguyễn Văn Con', "
+            stmt.executeUpdate("UPDATE person SET full_name = 'Nguyễn Văn Con', "
                     + "birth_year = 1985, gender = 'MALE', father_id = 3, mother_id = 4 WHERE id = 5");
 
-            stmt.executeUpdate("INSERT INTO PERSON (id, full_name, birth_year, gender, photo_path, father_id, mother_id) "
+            stmt.executeUpdate("INSERT INTO person (id, full_name, birth_year, gender, photo_path, father_id, mother_id) "
                     + "VALUES (7, 'Nguyễn Văn Cháu', 2015, 'MALE', NULL, 5, 6) "
                     + "ON DUPLICATE KEY UPDATE full_name = 'Nguyễn Văn Cháu', birth_year = 2015, "
                     + "gender = 'MALE', father_id = 5, mother_id = 6");
@@ -75,7 +75,7 @@ public final class TestDatabase {
      */
     public static void deleteByNamePrefix(String dbName, String prefix) {
         try (Connection conn = TestDatabaseManager.openConnection(dbName);
-             PreparedStatement ps = conn.prepareStatement("DELETE FROM PERSON WHERE full_name LIKE ?")) {
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM person WHERE full_name LIKE ?")) {
             ps.setString(1, prefix + "%");
             ps.executeUpdate();
         } catch (Exception e) {
@@ -85,7 +85,7 @@ public final class TestDatabase {
     }
 
     /**
-     * Đếm số bản ghi hiện có trong bảng PERSON của database kiểm thử.
+     * Đếm số bản ghi hiện có trong bảng person của database kiểm thử.
      *
      * @param dbName tên database kiểm thử
      * @return số bản ghi, hoặc -1 nếu truy vấn thất bại
@@ -93,7 +93,7 @@ public final class TestDatabase {
     public static int countPersons(String dbName) {
         try (Connection conn = TestDatabaseManager.openConnection(dbName);
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM PERSON")) {
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM person")) {
             return rs.next() ? rs.getInt(1) : -1;
         } catch (Exception e) {
             return -1;
@@ -111,7 +111,7 @@ public final class TestDatabase {
     public static String queryString(String dbName, String column, String name) {
         try (Connection conn = TestDatabaseManager.openConnection(dbName);
              PreparedStatement ps = conn.prepareStatement(
-                     "SELECT " + column + " FROM PERSON WHERE full_name = ?")) {
+                     "SELECT " + column + " FROM person WHERE full_name = ?")) {
             ps.setString(1, name);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getString(1) : null;
@@ -132,7 +132,7 @@ public final class TestDatabase {
     public static int queryInt(String dbName, String column, int id) {
         try (Connection conn = TestDatabaseManager.openConnection(dbName);
              PreparedStatement ps = conn.prepareStatement(
-                     "SELECT " + column + " FROM PERSON WHERE id = ?")) {
+                     "SELECT " + column + " FROM person WHERE id = ?")) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt(1) : Integer.MIN_VALUE;
@@ -151,7 +151,7 @@ public final class TestDatabase {
      */
     public static int queryIdByName(String dbName, String name) {
         try (Connection conn = TestDatabaseManager.openConnection(dbName);
-             PreparedStatement ps = conn.prepareStatement("SELECT id FROM PERSON WHERE full_name = ?")) {
+             PreparedStatement ps = conn.prepareStatement("SELECT id FROM person WHERE full_name = ?")) {
             ps.setString(1, name);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt(1) : -1;
@@ -167,12 +167,12 @@ public final class TestDatabase {
      * <p>Chỉ dùng để <b>kiểm chứng</b> rằng dữ liệu chính còn nguyên vẹn sau khi
      * chạy test — KHÔNG dùng để ghi dữ liệu.
      *
-     * @return số bản ghi trong bảng PERSON của database chính, hoặc -1 nếu không truy vấn được
+     * @return số bản ghi trong bảng person của database chính, hoặc -1 nếu không truy vấn được
      */
     public static int countMainDatabasePersons() {
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM PERSON")) {
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM person")) {
             return rs.next() ? rs.getInt(1) : -1;
         } catch (Exception e) {
             return -1;

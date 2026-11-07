@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  *
  * <p><b>Cô lập dữ liệu:</b> database riêng {@code gia_pha_editfail_test}
  * (tên kết thúc bằng {@code _test}), tự tạo ở {@code @BeforeAll} và xóa ở {@code @AfterAll}.
- * Mỗi test được {@code @BeforeEach}/{@code @AfterEach} đưa bảng {@code PERSON} về đúng
+ * Mỗi test được {@code @BeforeEach}/{@code @AfterEach} đưa bảng {@code person} về đúng
  * 7 bản ghi mẫu nguyên bản (bao gồm {@code photo_path = NULL}).
  *
  * <p>Test chạy NGOÀI JavaFX Application Thread nên {@code Alert} chỉ in ra console —
@@ -491,7 +491,7 @@ class EditFailureRollbackTest {
 
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE PERSON SET photo_path = ? WHERE id = ?")) {
+                     "UPDATE person SET photo_path = ? WHERE id = ?")) {
             ps.setString(1, "images/person_" + personId + ".png");
             ps.setInt(2, personId);
             ps.executeUpdate();
@@ -511,7 +511,7 @@ class EditFailureRollbackTest {
     }
 
     /**
-     * Đưa bảng {@code PERSON} về đúng 7 bản ghi mẫu nguyên bản.
+     * Đưa bảng {@code person} về đúng 7 bản ghi mẫu nguyên bản.
      *
      * <p>Bổ sung việc xóa {@code photo_path} (helper dùng chung {@code TestDatabase}
      * không reset cột này) để bảo đảm mỗi test bắt đầu từ trạng thái sạch.
@@ -523,7 +523,7 @@ class EditFailureRollbackTest {
         TestDatabase.resetToSampleState(TEST_DB_NAME);
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate("UPDATE PERSON SET photo_path = NULL");
+            stmt.executeUpdate("UPDATE person SET photo_path = NULL");
         } catch (Exception e) {
             throw new IllegalStateException(
                     "Không thể đặt lại photo_path trong \"" + TEST_DB_NAME + "\": " + e.getMessage(), e);

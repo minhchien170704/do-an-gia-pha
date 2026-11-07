@@ -212,7 +212,7 @@ class DataIntegrityTest {
 
         // Tổng số bản ghi: 7 bản ghi mẫu + 1 bản ghi mới.
         assertEquals(TestDatabase.SAMPLE_RECORD_COUNT + 1, TestDatabase.countPersons(TEST_DB_NAME),
-                "Không được có bản ghi thừa nào trong bảng PERSON");
+                "Không được có bản ghi thừa nào trong bảng person");
     }
 
     @Test
@@ -426,7 +426,7 @@ class DataIntegrityTest {
      */
     private static void cleanupExtraRecords() {
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
-             PreparedStatement ps = conn.prepareStatement("DELETE FROM PERSON WHERE id > 7")) {
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM person WHERE id > 7")) {
             ps.executeUpdate();
         } catch (Exception e) {
             throw new IllegalStateException("Không dọn được bản ghi thử nghiệm: " + e.getMessage(), e);
@@ -436,7 +436,7 @@ class DataIntegrityTest {
     private static void setPhotoPath(int id, String path) {
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE PERSON SET photo_path = ? WHERE id = ?")) {
+                     "UPDATE person SET photo_path = ? WHERE id = ?")) {
             ps.setString(1, path);
             ps.setInt(2, id);
             ps.executeUpdate();
@@ -452,7 +452,7 @@ class DataIntegrityTest {
     private static int countByName(String name) {
         try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
              PreparedStatement ps = conn.prepareStatement(
-                     "SELECT COUNT(*) FROM PERSON WHERE full_name = ?")) {
+                     "SELECT COUNT(*) FROM person WHERE full_name = ?")) {
             ps.setString(1, name);
             try (java.sql.ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt(1) : -1;

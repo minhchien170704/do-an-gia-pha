@@ -90,7 +90,7 @@ class PersonControllerAbstractionTest {
      */
     private static void cleanupExtraRecords() {
         try (java.sql.Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
-             java.sql.PreparedStatement ps = conn.prepareStatement("DELETE FROM PERSON WHERE id > 7")) {
+             java.sql.PreparedStatement ps = conn.prepareStatement("DELETE FROM person WHERE id > 7")) {
             ps.executeUpdate();
         } catch (Exception e) {
             throw new IllegalStateException("Không dọn được bản ghi thử nghiệm: " + e.getMessage(), e);
