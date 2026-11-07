@@ -250,6 +250,116 @@ class AvatarFallbackTest {
         assertTrue(hasClip, "TC-AV-14: ảnh thật được bo tròn bằng clip Circle");
     }
 
+    // ============================================================
+    // GĐ2B.3 — update() cập nhật tại chỗ, không lấp children
+    // ============================================================
+
+    @Test
+    @DisplayName("TC-AV-15 — update() với ảnh hợp lệ → hiển thị ảnh thật")
+    void updateWithValidImageDisplaysImage() throws Exception {
+        AtomicReference<PersonAvatar> ref = new AtomicReference<>();
+        FxTestSupport.runOnFxThread(() -> {
+            PersonAvatar av = new PersonAvatar(null, 60);
+            ref.set(av);
+            av.update(new Person("Nguyễn Văn Update", 1990, Gender.MALE, null), validPng.toFile());
+        });
+        Thread.sleep(1200);
+
+        PersonAvatar av = ref.get();
+        assertNotNull(av, "TC-AV-15: avatar phải được dựng");
+        assertTrue(av.isShowingRealImage(),
+                "TC-AV-15: sau update() với file ảnh hợp lệ phải hiển thị ảnh thật");
+    }
+
+    @Test
+    @DisplayName("TC-AV-16 — update() với file không tồn tại → fallback placeholder, KHÔNG ném exception")
+    void updateWithMissingFileFallsBack() throws Exception {
+        AtomicReference<PersonAvatar> ref = new AtomicReference<>();
+        FxTestSupport.runOnFxThread(() -> {
+            PersonAvatar av = new PersonAvatar(null, 60);
+            ref.set(av);
+            av.update(new Person("Trần Thị Update", 1992, Gender.FEMALE, null),
+                    new File("khong/ton/tai.png"));
+        });
+        Thread.sleep(800);
+
+        PersonAvatar av = ref.get();
+        assertNotNull(av, "TC-AV-16: avatar phải được dựng");
+        assertFalse(av.isShowingRealImage(),
+                "TC-AV-16: file ảnh không tồn tại → phải fallback placeholder");
+    }
+
+    @Test
+    @DisplayName("TC-AV-17 — update() không thêm/bớt node (giữ nguyên cấu trúc scene graph)")
+    void updateKeepsSameNodes() throws Exception {
+        AtomicReference<PersonAvatar> ref = new AtomicReference<>();
+        AtomicReference<Integer> beforeCount = new AtomicReference<>();
+        AtomicReference<Integer> afterCount = new AtomicReference<>();
+        AtomicReference<Object> beforeImage = new AtomicReference<>();
+        AtomicReference<Object> afterImage = new AtomicReference<>();
+
+        FxTestSupport.runOnFxThread(() -> {
+            PersonAvatar av = new PersonAvatar(null, 60);
+            ref.set(av);
+            beforeCount.set(av.getChildren().size());
+            beforeImage.set(av.getChildren().stream()
+                    .filter(n -> n instanceof ImageView)
+                    .findFirst().orElse(null));
+
+            av.update(new Person("Lê Văn Update", 1995, Gender.MALE, null), null);
+
+            afterCount.set(av.getChildren().size());
+            afterImage.set(av.getChildren().stream()
+                    .filter(n -> n instanceof ImageView)
+                    .findFirst().orElse(null));
+        });
+
+        PersonAvatar av = ref.get();
+        assertNotNull(av, "TC-AV-17: avatar phải được dựng");
+        assertEqualsInt(beforeCount.get(), afterCount.get(),
+                "TC-AV-17: update() không được thêm/bớt node — chỉ đổi visible");
+        assertTrue(beforeImage.get() == afterImage.get(),
+                "TC-AV-17: update() phải tái sử dụng ĐÚNG ImageView cũ, không tạo node mới");
+    }
+
+    @Test
+    @DisplayName("TC-AV-18 — update() đổi giới tính → đổi class CSS của placeholder")
+    void updateChangesGenderCssClass() throws Exception {
+        AtomicReference<PersonAvatar> ref = new AtomicReference<>();
+        AtomicReference<Boolean> maleBefore = new AtomicReference<>();
+        AtomicReference<Boolean> maleAfter = new AtomicReference<>();
+
+        FxTestSupport.runOnFxThread(() -> {
+            PersonAvatar av = new PersonAvatar(
+                    new Person("Phạm Thị Dung", 1998, Gender.FEMALE, null), 60);
+            ref.set(av);
+
+            maleBefore.set(av.getStyleClass().contains("avatar-female")
+                    || hasClass(av, "avatar-female"));
+
+            av.update(new Person("Phạm Văn Hùng", 1998, Gender.MALE, null), null);
+
+            maleAfter.set(av.getStyleClass().contains("avatar-male")
+                    || hasClass(av, "avatar-male"));
+        });
+
+        PersonAvatar av = ref.get();
+        assertNotNull(av, "TC-AV-18: avatar phải được dựng");
+        assertTrue(Boolean.TRUE.equals(maleBefore.get()),
+                "TC-AV-18: ban đầu nữ → placeholder phải có class avatar-female");
+        assertTrue(Boolean.TRUE.equals(maleAfter.get()),
+                "TC-AV-18: sau update() nam → placeholder phải có class avatar-male");
+    }
+
+    /**
+     * Kiểm tra một node con nào đó có chứa class CSS cụ thể hay không.
+     */
+    private static boolean hasClass(PersonAvatar avatar, String cssClass) {
+        return avatar.getChildren().stream()
+                .filter(n -> n instanceof javafx.scene.control.Label)
+                .anyMatch(n -> ((javafx.scene.control.Label) n).getStyleClass().contains(cssClass));
+    }
+
     private static void assertEqualsInt(int expected, int actual, String message) {
         org.junit.jupiter.api.Assertions.assertEquals(expected, actual, message);
     }

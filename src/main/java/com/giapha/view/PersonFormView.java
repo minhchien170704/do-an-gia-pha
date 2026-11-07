@@ -331,16 +331,10 @@ public class PersonFormView implements FormDataSource {
             fileToShow = PersonAvatar.resolveImageFile(editingPerson.getPhotoPath());
         }
 
-        PersonAvatar updated = new PersonAvatar(previewPerson, 60, fileToShow);
-
-        // Thay thế nội dung khung xem trước (giữ nguyên vị trí trong layout)
-        avatarPreview.getChildren().setAll(updated.getChildren());
-        avatarPreview.setStyle(updated.getStyle());
-        avatarPreview.setPrefSize(60, 60);
-        avatarPreview.setMinSize(60, 60);
-        avatarPreview.setMaxSize(60, 60);
+        // Cập nhật TẠI CHỖ component hiện có — không tạo component mới và không
+        // lấp children (xem PersonAvatar.update()).
+        avatarPreview.update(previewPerson, fileToShow);
     }
-
     private void setupPersonComboBox(ComboBox<Person> comboBox) {
         comboBox.setConverter(new StringConverter<>() {
             @Override

@@ -72,7 +72,7 @@ public class PersonAvatar extends StackPane {
     private static final String CLASS_TEXT_MD = "avatar-initial-md";
     private static final String CLASS_TEXT_LG = "avatar-initial-lg";
 
-    private final Person person;
+    private Person person;
     private final int size;
 
     /** Khung xoay tròn chứa ảnh (null khi hiển thị placeholder). */
@@ -146,6 +146,50 @@ public class PersonAvatar extends StackPane {
             }
         } catch (Exception ex) {
             // File hỏng → giữ placeholder
+        }
+    }
+
+    /**
+     * Cập nhật nội dung hiển thị của avatar tại chỗ, không cần tạo component mới.
+     *
+     * <p><b>Vì sao cần method này?</b> Trước đây, để cập nhật khung xem trước ảnh,
+     * form phải tạo một {@code PersonAvatar} mới rồi <b>lấp toàn bộ children</b> sang
+     * avatar cũ (và sao chép {@code getStyle()}) — cách làm này rò rỉ trạng thái nội
+     * bộ của component ra ngoài, giòn và khó bảo trì. Nay việc cập nhật được thực
+     * hiện <b>tại chỗ</b> bên trong component: node nào cần hiện/ẩn thì chỉ đổi
+     * {@code visible}, không thêm/bớt node — nhờ đó CSS áp dụng đúng và ổn định.
+     *
+     * @param person    thành viên mới (dùng cho tên + giới tính của placeholder), có thể null
+     * @param imageFile file ảnh cần hiển thị, có thể null → hiển thị placeholder
+     */
+    public void update(Person person, File imageFile) {
+        this.person = person;
+
+        // Bắt đầu từ trạng thái placeholder cho mọi trường hợp.
+        showPlaceholderState();
+
+        // Cập nhật lại nội dung chữ cái đầu (tên có thể đã thay đổi).
+        initialLabel.setText(extractInitial());
+
+        // Cập nhật lại class theo giới tính (màu có thể đã thay đổi).
+        disc.getStyleClass().removeAll(CLASS_MALE, CLASS_FEMALE);
+        disc.getStyleClass().add(genderClass());
+        initialLabel.getStyleClass().removeAll(CLASS_MALE, CLASS_FEMALE);
+        initialLabel.getStyleClass().add(genderClass());
+        ring.getStyleClass().removeAll(CLASS_RING_MALE, CLASS_RING_FEMALE);
+        ring.getStyleClass().add(genderRingClass());
+
+        if (imageFile == null || !imageFile.isFile() || !imageFile.canRead()) {
+            return; // Không có ảnh hợp lệ → giữ placeholder
+        }
+
+        try {
+            Image image = new Image(imageFile.toURI().toString(), true);
+            if (!image.isError()) {
+                attachImage(image);
+            }
+        } catch (Exception ex) {
+            // File hỏng → giữ placeholder, tuyệt đối không ném exception ra UI
         }
     }
 
