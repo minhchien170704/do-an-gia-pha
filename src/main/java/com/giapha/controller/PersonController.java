@@ -357,9 +357,10 @@ public class PersonController {
         Person originalMother = personToUpdate.getMother();
         String originalPhotoPath = personToUpdate.getPhotoPath();
 
+        // ===== BƯỚC 0 — Giữ nguyên đường dẫn ảnh đang lưu trong DB =====
         // Nếu caller truyền vào một Person mà KHÔNG kèm photo_path (null),
         // đường dẫn ảnh đang lưu trong DB vẫn phải được giữ nguyên.
-        // Việc cập nhật ảnh chỉ đi qua updatePhotoPath() ở Bước 4 — không bao giờ
+        // Việc cập nhật ảnh chỉ đi qua updatePhotoPath() ở Bước 5 — không bao giờ
         // đi qua bản ghi UPDATE của thông tin cá nhân.
         if (originalPhotoPath == null) {
             try {
@@ -370,12 +371,11 @@ public class PersonController {
             }
         }
 
-        StringBuilder successMsg = new StringBuilder("Đã cập nhật thành công thông tin thành viên.");
-        StringBuilder errorMsg = new StringBuilder();
-
-        // Bước 1: Copy ảnh đại diện mới (nếu người dùng đã chọn ảnh khác).
-        // Chỉ copy FILE — đường dẫn được ghi vào DB ở Bước 4 bằng updatePhotoPath()
+        // ===== BƯỚC 1 — Copy ảnh đại diện mới (nếu người dùng đã chọn ảnh khác) =====
+        // Chỉ copy FILE — đường dẫn được ghi vào DB ở Bước 5 bằng updatePhotoPath()
         // (chỉ cập nhật cột photo_path), tách khỏi bản ghi thông tin cá nhân.
+        // LỖI ẢNH KHÔNG DỪNG LUỒNG Ở ĐÂY: ảnh là thao tác phụ, chỉ được báo
+        // cảnh báo SAU khi thông tin thành viên đã cập nhật thành công.
         String newPhotoPath = null;
         String imageError = null;
         String sourcePhoto = getSelectedPhotoSourcePath();
@@ -389,7 +389,7 @@ public class PersonController {
             }
         }
 
-        // Bước 2: BR5 — cảnh báo năm sinh cha/mẹ không nhỏ hơn năm sinh con.
+        // ===== BƯỚC 2 — BR5: cảnh báo năm sinh cha/mẹ không nhỏ hơn năm sinh con =====
         // Chỉ hỏi khi quan hệ cha/mẹ THỰC SỰ thay đổi so với bản gốc, và chỉ hỏi
         // với các quan hệ MỚI được chọn.
         if (fatherChanged(originalFather, newFather) || motherChanged(originalMother, newMother)) {
@@ -397,89 +397,115 @@ public class PersonController {
             Person effectiveMother = newMother != null ? newMother : originalMother;
             if (!confirmBirthYearWarning(personToUpdate, effectiveFather, effectiveMother)) {
                 // Người dùng chọn Hủy — KHÔNG lưu gì cả, kể cả ảnh đã copy.
-                if (newPhotoPath != null && !newPhotoPath.equals(originalPhotoPath)) {
-                    ImageManager.deleteImageQuietly(newPhotoPath);
-                }
-                return; // Người dùng chọn Hủy — KHÔNG lưu gì cả
+                discardCopiedImage(newPhotoPath, originalPhotoPath);
+                return;
             }
         }
 
-        // Bước 3: Cập nhật NGUYÊN TỬ — kiểm tra toàn bộ BR trước, rồi ghi MỘT lần.
+        // ===== BƯỚC 3 — Cập nhật NGUYÊN TỬ — kiểm tra toàn bộ BR trước, rồi ghi MỘT lần =====
         // photo_path KHÔNG tham gia vào bản ghi này — giữ nguyên đường dẫn cũ,
-        // việc cập nhật ảnh được thực hiện riêng ở Bước 4.
+        // việc cập nhật ảnh được thực hiện riêng ở Bước 5.
         try {
             familyTreeService.updatePersonWithParents(personToUpdate, newFather, newMother);
-
-            if (fatherChanged(originalFather, newFather)) {
-                successMsg.append(newFather != null
-                        ? "\n• Đã cập nhật cha thành công."
-                        : "\n• Đã gỡ quan hệ cha thành công.");
-            }
-            if (motherChanged(originalMother, newMother)) {
-                successMsg.append(newMother != null
-                        ? "\n• Đã cập nhật mẹ thành công."
-                        : "\n• Đã gỡ quan hệ mẹ thành công.");
-            }
         } catch (SelfParentException e) {
-            errorMsg.append("\n• Không thể tự gán mình làm cha/mẹ: ").append(e.getMessage());
+            // Service đã TỪ CHỐI quan hệ → KHÔNG ghi bất cứ thứ gì.
+            // Dọn ảnh vừa copy (nếu có) để không để lại file rác, giữ nguyên form.
+            discardCopiedImage(newPhotoPath, originalPhotoPath);
+            showErrorAlert("Lỗi quan hệ", "Không thể tự gán mình làm cha hoặc mẹ: " + e.getMessage());
+            return;
         } catch (CycleDetectedException e) {
-            errorMsg.append("\n• Lỗi chu trình khi gán cha/mẹ: ").append(e.getMessage());
+            discardCopiedImage(newPhotoPath, originalPhotoPath);
+            showErrorAlert("Lỗi chu trình", "Thao tác tạo chu trình trong cây gia phả: " + e.getMessage());
+            return;
         } catch (InvalidParentGenderException e) {
-            errorMsg.append("\n• Lỗi giới tính vai trò cha/mẹ: ").append(e.getMessage());
+            discardCopiedImage(newPhotoPath, originalPhotoPath);
+            showErrorAlert("Lỗi giới tính vai trò", e.getMessage());
+            return;
         } catch (SameParentException e) {
-            errorMsg.append("\n• Cha và Mẹ không thể là cùng một người: ").append(e.getMessage());
+            discardCopiedImage(newPhotoPath, originalPhotoPath);
+            showErrorAlert("Lỗi quan hệ", "Cha và Mẹ không thể là cùng một người: " + e.getMessage());
+            return;
         } catch (PersonNotFoundException e) {
-            errorMsg.append("\n• Không tìm thấy cha, mẹ hoặc con chỉ định: ").append(e.getMessage());
+            discardCopiedImage(newPhotoPath, originalPhotoPath);
+            showErrorAlert("Không tìm thấy", "Phụ huynh chỉ định không tồn tại: " + e.getMessage());
+            return;
         } catch (InvalidBirthYearException e) {
+            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Lỗi năm sinh", e.getMessage());
-            if (newPhotoPath != null && !newPhotoPath.equals(originalPhotoPath)) {
-                ImageManager.deleteImageQuietly(newPhotoPath);
-            }
             return;
         } catch (IllegalArgumentException e) {
+            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Lỗi dữ liệu", e.getMessage());
-            if (newPhotoPath != null && !newPhotoPath.equals(originalPhotoPath)) {
-                ImageManager.deleteImageQuietly(newPhotoPath);
-            }
             return;
         } catch (Exception e) {
+            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Lỗi cập nhật", "Không thể cập nhật thông tin thành viên: " + e.getMessage());
-            if (newPhotoPath != null && !newPhotoPath.equals(originalPhotoPath)) {
-                ImageManager.deleteImageQuietly(newPhotoPath);
-            }
             return;
         }
 
-        // Bước 4: Cập nhật ảnh đại diện — CHỈ ghi cột photo_path.
+        // ===== BƯỚC 4 — CHỈ SAU KHI cập nhật thành công mới dựng thông điệp thành công =====
+        StringBuilder successMsg = new StringBuilder("Đã cập nhật thành công thông tin thành viên.");
+        if (fatherChanged(originalFather, newFather)) {
+            successMsg.append(newFather != null
+                    ? "\n• Đã cập nhật cha thành công."
+                    : "\n• Đã gỡ quan hệ cha thành công.");
+        }
+        if (motherChanged(originalMother, newMother)) {
+            successMsg.append(newMother != null
+                    ? "\n• Đã cập nhật mẹ thành công."
+                    : "\n• Đã gỡ quan hệ mẹ thành công.");
+        }
+
+        // ===== BƯỚC 5 — Cập nhật ảnh đại diện — CHỈ ghi cột photo_path =====
         // Tách khỏi Bước 3 để lỗi ảnh không làm hỏng việc cập nhật thông tin
         // thành viên đã thành công.
+        String photoErrorMessage = null;
         if (newPhotoPath != null) {
             try {
                 familyTreeService.updatePhotoPath(personId, newPhotoPath);
                 personToUpdate.setPhotoPath(newPhotoPath);
-                successMsg.append("\n• Đã cập nhật ảnh đại diện thành công.");
 
                 // Dọn file ảnh CŨ nếu đường dẫn đã đổi (ảnh mới có tên file khác).
                 if (originalPhotoPath != null && !originalPhotoPath.equals(newPhotoPath)) {
                     ImageManager.deleteImageQuietly(originalPhotoPath);
                 }
             } catch (Exception e) {
-                errorMsg.append("\n• Không thể cập nhật ảnh đại diện trong cơ sở dữ liệu: ")
-                        .append(e.getMessage());
+                photoErrorMessage = "Không thể cập nhật ảnh đại diện trong cơ sở dữ liệu (" + e.getMessage() + ").";
+                // Ảnh mới đã copy vào images/ nhưng chưa lưu được đường dẫn vào DB
+                // → dọn để không để lại file không được tham chiếu.
+                discardCopiedImage(newPhotoPath, originalPhotoPath);
             }
         } else if (imageError != null) {
-            errorMsg.append("\n• ").append(imageError);
+            photoErrorMessage = imageError;
         }
 
-        // Bước 5: Báo cáo kết quả
-        if (errorMsg.length() > 0) {
-            showErrorAlert("Cảnh báo quan hệ", successMsg.toString() + "\n" + errorMsg.toString());
+        // ===== BƯỚC 6 — Báo cáo kết quả =====
+        if (photoErrorMessage != null) {
+            showWarningAlert("Đã cập nhật thông tin nhưng ảnh đại diện chưa được lưu",
+                    successMsg.toString() + "\n\n"
+                            + "Tuy nhiên ảnh đại diện chưa được lưu: " + photoErrorMessage
+                            + "\n\nBạn có thể chọn lại ảnh sau bằng chức năng Sửa.");
         } else {
             showInfoAlert("Thành công", successMsg.toString());
         }
 
         if (navigator != null) {
             navigator.navigateToPeopleList();
+        }
+    }
+
+    /**
+     * Dọn file ảnh vừa copy khi thao tác cập nhật bị hủy hoặc thất bại.
+     *
+     * <p>Chỉ xóa khi đường dẫn mới KHÁC đường dẫn ảnh gốc đang lưu trong DB —
+     * nếu bằng nhau thì xóa sẽ làm mất ảnh cũ đang được sử dụng.
+     *
+     * @param newPhotoPath     đường dẫn tương đối của ảnh vừa copy (có thể null)
+     * @param originalPhotoPath đường dẫn ảnh gốc đang lưu trong DB (có thể null)
+     */
+    private void discardCopiedImage(String newPhotoPath, String originalPhotoPath) {
+        if (newPhotoPath != null && !newPhotoPath.equals(originalPhotoPath)) {
+            ImageManager.deleteImageQuietly(newPhotoPath);
         }
     }
 

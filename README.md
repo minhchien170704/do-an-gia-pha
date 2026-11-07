@@ -153,7 +153,7 @@ mvn clean package        # đóng gói thành target/do-an-gia-pha-1.0-SNAPSHOT.
 mvn javafx:run
 ```
 
-### 4.3. Chạy toàn bộ kiểm thử (188 test cases)
+### 4.3. Chạy toàn bộ kiểm thử (193 test cases)
 
 ```bash
 mvn clean test
@@ -167,7 +167,9 @@ mvn clean test
 | `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
 | `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
 | `AtomicUpdateAndBr5Test` | 9 | Cập nhật nguyên tử (cha/mẹ + thông tin cá nhân), BR5 trong luồng lưu của form |
+| `GenderTest` | 8 | Hiển thị tên/giới tính và CSS badge của enum `Gender` |
 | `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
+| `EditFailureRollbackTest` | 5 | `handleEdit` rollback khi service từ chối quan hệ (BR1/BR2/BR3/BR6): DB không đổi, ảnh bị dọn, không điều hướng |
 | `JdbcPersonRepositoryConnectionTest` | 5 | Quyền sở hữu `Connection`: repo tự mở thì tự đóng, Connection ngoài thì không đóng |
 | `BackendInitializationTest` | 3 | Kiểm tra kết nối MySQL thật trước khi hiển thị giao diện |
 

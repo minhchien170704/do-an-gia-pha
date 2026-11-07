@@ -160,6 +160,7 @@ src/test/java/com/giapha
 │   ├── PersonControllerTest.java      # 25 test — điều phối View ↔ Service, xử lý exception
 │   ├── PersonControllerAbstractionTest.java # 23 test — fake FormDataSource/Navigator/PeopleListSource (KHÔNG cần JavaFX Toolkit)
 │   ├── DataIntegrityTest.java         # 19 test — GĐ1: toàn vẹn dữ liệu ảnh + đồng nhất BR1–BR6
+│   ├── EditFailureRollbackTest.java   # 5 test — handleEdit rollback khi service từ chối quan hệ
 │   └── AtomicUpdateAndBr5Test.java    # 9 test — cập nhật nguyên tử + BR5 trong luồng lưu của form
 ├── util/
 │   ├── ImageManagerTest.java          # 12 test — định dạng ảnh, copy, dọn file
@@ -178,7 +179,8 @@ src/test/java/com/giapha
 - Mọi test có thay đổi dữ liệu CSDL **phải** có cleanup để trả bảng `PERSON` về đúng 7 bản ghi mẫu.
 - **CÁCH LY DỮ LIỆU (bắt buộc):** **mọi** lớp test đụng tới CSDL **phải** dùng database RIÊNG có tên kết thúc bằng `_test`
   (`gia_pha_service_test`, `gia_pha_controller_test`, `gia_pha_abstraction_test`,
-  `gia_pha_integrity_test`, `gia_pha_atomic_test`, `gia_pha_conn_test`, `gia_pha_javafx_test`, `gia_pha_test`).
+  `gia_pha_integrity_test`, `gia_pha_atomic_test`, `gia_pha_editfail_test`,
+  `gia_pha_conn_test`, `gia_pha_javafx_test`, `gia_pha_test`).
   Tuyệt đối không ghi vào database chính `gia_pha`.
 - Test phụ thuộc MySQL dùng `Assumptions.assumeTrue(...)` → nếu CSDL không sẵn sàng thì test được
   `SKIPPED` kèm thông báo (không tính là `FAILED`).
@@ -234,6 +236,26 @@ luôn đồng bộ.
   2. Chỉ khi **mọi** kiểm tra đạt mới ghi bằng **một** câu `UPDATE` duy nhất.
   3. Nếu bất kỳ kiểm tra nào fail → **không ghi gì cả**.
 - BR5 **phải** chạy trong luồng lưu thật của form: `PersonFormView` (hiện thực `FormDataSource`) đăng ký itself qua `controller.setFormDataSource(this)` rồi gọi `controller.handleAdd()` / `controller.handleEdit()` (overload **không tham số**) — không gọi overload có tham số để tránh bỏ qua kiểm tra BR5.
+
+### 5.2. Khi service TỪ CHỐI quan hệ → rollback trọn vẹn (bắt buộc)
+
+Trong `PersonController.handleEdit(Person, Person, Person)`, khi `familyTreeService.updatePersonWithParents(...)`
+ném bất kỳ exception nào (BR1/BR2/BR3/BR6, validation, lỗi CSDL), luồng **phải dừng ngay**:
+
+1. **Dọn ảnh vừa copy** — xóa file trong `images/` vừa được tạo (nếu khác ảnh gốc đang lưu trong DB).
+2. **Báo lỗi** bằng `showErrorAlert` với tiêu đề tiếng Việt tương ứng (`Lỗi quan hệ`, `Lỗi chu trình`,
+   `Lỗi giới tính vai trò`, `Không tìm thấy`, `Lỗi năm sinh`, `Lỗi dữ liệu`, `Lỗi cập nhật`).
+3. **RETURN** — KHÔNG ghi ảnh, KHÔNG điều hướng về danh sách, người dùng ở lại form.
+
+> ⚠️ **Cấm** gom lỗi vào biến rồi chạy tiếp xuống bước ghi ảnh. Trước đây lỗi này làm ứng dụng hiển thị
+> hộp thoại "Đã cập nhật thành công…" và điều hướng về danh sách dù service đã từ chối —
+> hậu quả là **ảnh đại diện vẫn được ghi vào DB** dù toàn bộ thao tác cập nhật đã thất bại.
+
+Thông điệp thành công chỉ được dựng **sau khi** `updatePersonWithParents` đã thành công.
+Lỗi ở bước ghi ảnh (sau khi thông tin đã cập nhật) phải báo bằng `showWarningAlert`
+("Đã cập nhật thông tin nhưng ảnh đại diện chưa được lưu") — KHÔNG dùng `showErrorAlert`.
+
+Bộ test `EditFailureRollbackTest` (database `gia_pha_editfail_test`) bảo vệ hành vi này.
 
 ---
 
@@ -296,7 +318,7 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 188 test cases):
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 193 test cases):
 ```bash
 mvn clean test
 ```
