@@ -1,4 +1,4 @@
-﻿# TÀI LIỆU ÔN BẢO VỆ — HỆ THỐNG QUẢN LÝ SƠ ĐỒ GIA PHẢ
+# TÀI LIỆU ÔN BẢO VỆ — HỆ THỐNG QUẢN LÝ SƠ ĐỒ GIA PHẢ
 
 > Tài liệu dùng để ôn tập và trả lời câu hỏi giảng viên.
 > Mọi tham chiếu đều trỏ tới **đúng tên file** trong `src/main/java/` và **đúng tên file**
@@ -110,7 +110,7 @@ không phụ thuộc chi tiết. Nhờ đó test có thể thay repository bằn
 | 3 | `controller/PersonController.java` → `handleAdd()` | Đọc dữ liệu từ `FormDataSource` → kiểm tra **BR5** (`confirmBirthYearWarning`) → nếu OK gọi `handleAdd(Person)` → `familyTreeService.addPerson(person)` trong `try/catch` |
 | 4 | `service/FamilyTreeService.java` → `addPerson(Person)` | `validatePerson(person)` → kiểm tra BR2 → kiểm tra BR6 (cha, mẹ) → `personRepository.save(person)` → `person.setId(generatedId)` |
 | 5 | `repository/JdbcPersonRepository.java` → `save(Person)` | `INSERT INTO person (...)` với `Statement.RETURN_GENERATED_KEYS` → trả `generated id` |
-| 6 | `controller/PersonController.java` → `handleAdd(Person)` | Nếu đã chọn ảnh: `persistSelectedImage(sourcePath, added.getId())` → `ImageManager.copyImageToAppDirectory(...)` → `familyTreeService.updatePerson(added)` |
+| 6 | `controller/PersonController.java` → `handleAdd(Person)` | Nếu đã chọn ảnh: `persistImageAfterAdd(added)` → `ImageManager.copyImageToAppDirectory(...)` → `familyTreeService.updatePhotoPath(added.getId(), path)` |
 | 7 | `controller/PersonController.java` | `showInfoAlert("Thành công", ...)` → `navigateToPeopleList.run()` → quay về danh sách |
 
 **Điểm quan trọng cần nhấn mạnh:** ảnh được copy **sau khi** đã có `id` do CSDL sinh,
@@ -120,6 +120,29 @@ vì tên file là `person_<id>.<đuôi>`. Vì vậy `handleAdd()` phải làm **
 **Sơ đồ Activity** (`activity-add-person.puml`) khớp 1-1 với thứ tự trong
 `addPerson()`: validate → BR2 → BR6 (cha) → BR6 (mẹ) → BR5 (cảnh báo) → lưu ảnh →
 ghi DB.
+
+### 2.1.1. Sửa (cập nhật) một thành viên — thứ tự bắt buộc
+
+**Sơ đồ:** `docs/uml/sequence-edit-person.puml`
+
+Hàm: `PersonController.handleEdit(Person, Person, Person)` — đây là **phương thức lưu
+THỰC SỰ** mà form gọi (`PersonFormView` đăng ký itself qua
+`controller.setFormDataSource(this)` rồi gọi overload **không tham số**).
+
+| Bước | Việc |
+|---|---|
+| 1 | **Giữ nguyên** `photo_path` đang lưu trong DB (nạp lại qua `getPersonById` nếu caller truyền vào `Person` không kèm `photo_path`) |
+| 2 | **BR5** — `confirmBirthYearWarning(...)`; người dùng bấm **"Hủy"** → `return` (chưa copy gì → không cần dọn file) |
+| 3 | `familyTreeService.updatePersonWithParents(person, newFather, newMother)` — kiểm tra người tồn tại + BR2 → BR1 → BR6 → BR3 cho **cả cha lẫn mẹ**; **thất bại → `showErrorAlert` + `return`** (không ghi ảnh, không điều hướng, người dùng ở lại form) |
+| 4 | **Chỉ sau khi thành công**: dựng thông điệp thành công → `ImageManager.copyImageToAppDirectory(sourcePath, personId)` → `familyTreeService.updatePhotoPath(personId, path)` → `setPhotoPath` → dọn ảnh cũ nếu đường dẫn đổi |
+| 5 | Báo kết quả (`showInfoAlert` nếu không lỗi ảnh, `showWarningAlert` "Đã cập nhật thông tin nhưng ảnh đại diện chưa được lưu" nếu lỗi ảnh) → `navigator.navigateToPeopleList()` |
+
+**Vì sao ảnh copy SAU (điểm hỏi hay):** `ImageManager` đặt tên file
+`person_<id>.<đuôi>` và copy bằng `REPLACE_EXISTING`. Nếu copy ảnh **trước** khi
+gọi service thì ảnh mới **cùng đuôi** sẽ **ghi đè thẳng** ảnh cũ trên đĩa; khi
+service sau đó từ chối (BR1/BR2/BR3/BR6), `photo_path` trong DB không đổi nhưng
+**nội dung ảnh trên đĩa đã bị thay** → dữ liệu ảnh không nhất quán với DB.
+Cùng lỗi này cũng xảy ra ở nhánh BR5 người dùng bấm "Hủy".
 
 ### 2.2. Gán cha / gán mẹ
 
@@ -492,7 +515,7 @@ Ba ý tưởng quan trọng:
 **Sơ đồ:** `docs/uml/sequence-photo-avatar.puml` + `docs/uml/activity-photo-avatar.puml`
 
 **File/hàm:** `view/PersonFormView.java` → `handleChoosePhoto()`;
-`controller/PersonController.java` → `persistSelectedImage(String, int)`;
+`controller/PersonController.java` → `persistImageAfterAdd(Person)`;
 `util/ImageManager.java` → `isAllowedImage(String)`, `getExtension(String)`,
 `getImageDirectory()`, `copyImageToAppDirectory(String, int)`, `deleteImageQuietly(String)`.
 
@@ -503,9 +526,9 @@ Ba ý tưởng quan trọng:
 | 1 | `PersonFormView.handleChoosePhoto()` | `FileChooser` với bộ lọc `ImageManager.IMAGE_FILTER` = `Ảnh đại diện (*.png, *.jpg, *.jpeg)`. |
 | 2 | `PersonFormView.handleChoosePhoto()` | `ImageManager.isAllowedImage(chosen.getName())` → nếu sai định dạng thì `showAlert("Định dạng ảnh không hợp lệ...")` và dừng. |
 | 3 | `PersonFormView` | Lưu `selectedPhotoSourcePath = chosen.getAbsolutePath()` — **View chỉ giữ đường dẫn nguồn, KHÔNG copy file**. |
-| 4 | `PersonController.persistSelectedImage(sourcePath, personId)` | Kiểm tra `isAllowedImage` lần nữa → `ImageManager.copyImageToAppDirectory(sourcePath, personId)`. |
+| 4 | `PersonController.persistImageAfterAdd(added)` | Kiểm tra `isAllowedImage` lần nữa → `ImageManager.copyImageToAppDirectory(sourcePath, personId)`. |
 | 5 | `ImageManager.copyImageToAppDirectory()` | `Files.copy(source, target, REPLACE_EXISTING)` với `target = images/person_<id>.<đuôi>` → trả về **đường dẫn tương đối** `"images/person_<id>.<đuôi>"`. |
-| 6 | `PersonController` | Gán `added.setPhotoPath(newPhotoPath)` → `familyTreeService.updatePerson(added)` → lưu vào DB. |
+| 6 | `PersonController` | Gán `added.setPhotoPath(newPhotoPath)` → `familyTreeService.updatePhotoPath(added.getId(), newPhotoPath)` → lưu **duy nhất cột `photo_path`** vào DB. |
 
 **Quy ước đường dẫn ảnh:**
 
@@ -527,7 +550,7 @@ Ba ý tưởng quan trọng:
 |---|---|
 | `PersonAvatar(Person, int size)` | Dựng placeholder trước, rồi thử nạp ảnh thật |
 | `PersonAvatar(Person, int size, File imageFile)` | Dùng cho khung xem trước ảnh vừa chọn trong form |
-| `buildPlaceholder()` | Nền tròn + chữ cái đầu của họ tên, màu theo giới tính |
+| `showPlaceholderState()` | Nền tròn + chữ cái đầu của họ tên, màu theo giới tính (hiển thị trạng thái placeholder) |
 | `loadImageIfAvailable()` | `PersonAvatar.resolveImageFile(photoPath)` → nếu file tồn tại & đọc được thì nạp |
 | `attachImage(Image)` | Gắn listener `progressProperty` (nạp xong → `applyImage`) và `errorProperty` (lỗi → `showPlaceholder`) |
 | `applyImage(Image)` | Tạo `ImageView`, bo tròn bằng `Circle` clip, ẩn placeholder |
@@ -565,13 +588,12 @@ Ba ý tưởng quan trọng:
 1. **Ranh giới module (JPMS).** Dự án dùng Java Platform Module System với
    `module-info.java`:
    ```java
-   module com.giapha {
-       requires javafx.controls;
-       requires javafx.graphics;
-       requires javafx.fxml;
-       requires java.sql;
-       ...
-   }
+    module com.giapha {
+        requires javafx.controls;
+        requires javafx.graphics;
+        requires java.sql;
+        ...
+    }
    ```
    - `javax.imageio` thuộc module **`java.desktop`**. Dùng nó sẽ phải thêm
      `requires java.desktop;` — kéo theo toàn bộ hệ sinh thái AWT/Swing (rất nặng)
@@ -649,7 +671,10 @@ nén kiểu khác (chỉ zlib filter 0) → dung lượng lớn hơn `ImageIO` t
   `List<String>` (rỗng = không có vấn đề) — **không ném exception**.
   `PersonController.confirmBirthYearWarning(...)` hiện `Alert` với 2 nút
   **Tiếp tục** / **Hủy**; chỉ khi chọn "Tiếp tục" mới lưu.
-- Với `handleEdit()`, cảnh báo **chỉ** hiện khi quan hệ cha/mẹ thực sự thay đổi
+- **Kiểm tra BR5 nằm trong cả hai phương thức lưu thật của Controller**:
+  `handleAdd(Person)` (thêm mới) và `handleEdit(Person, Person, Person)` (cập nhật).
+  Cả hai đều gọi `confirmBirthYearWarning(...)` **trước** khi ghi bất kỳ thứ gì xuống DB.
+- Với `handleEdit(Person, Person, Person)`, cảnh báo **chỉ** hiện khi quan hệ cha/mẹ thực sự thay đổi
   (`fatherChanged(...)` / `motherChanged(...)`) — sửa tên không gây cảnh báo.
 
 ### 3.6. Vì sao lưu đường dẫn ảnh **tương đối**?
@@ -750,8 +775,8 @@ toàn bộ CRUD với SQL thật mà không sửa Service.
 ### Câu 3 — Mô hình quan hệ cha–mẹ được lưu thế nào? Có cần bảng trung gian không?
 
 **Gợi ý trả lời:**
-Không cần bảng trung gian. Bảng `PERSON` tự tham chiếu: hai cột `father_id` và
-`mother_id`, mỗi cột là FK tới `PERSON(id)`. Ở tầng OOP, `Person` giữ hai tham chiếu
+Không cần bảng trung gian. Bảng `person` tự tham chiếu: hai cột `father_id` và
+`mother_id`, mỗi cột là FK tới `person(id)`. Ở tầng OOP, `Person` giữ hai tham chiếu
 đối tượng `father` / `mother`. Quan hệ này là **quan hệ trực hệ** (mỗi người tối đa
 1 cha, 1 mẹ) nên biểu diễn bằng object reference tự nhiên hơn bảng trung gian.
 Lưu ý: hướng "con → cha" là thuận, nhưng hướng "cha → con" thì **không** thể lưu
@@ -835,8 +860,10 @@ phả lịch sử có thể ghi nhầm năm sinh; chặn cứng sẽ khiến ng�
 dữ liệu thật. Cơ chế: `FamilyTreeService.checkBirthYearWarning(child, father,
 mother)` trả `List<String>` (rỗng = OK) — **không ném exception**;
 `PersonController.confirmBirthYearWarning()` hiện `Alert` với 2 nút **Tiếp tục** /
-**Hủy**, chỉ khi chọn "Tiếp tục" mới lưu. Với `handleEdit()`, cảnh báo chỉ hiện khi
-quan hệ cha/mẹ thực sự thay đổi.
+**Hủy**, chỉ khi chọn "Tiếp tục" mới lưu. Kiểm tra BR5 nằm trong **cả hai** phương
+thức lưu thật của Controller: `handleAdd(Person)` và
+`handleEdit(Person, Person, Person)`. Với `handleEdit(Person, Person, Person)`,
+cảnh báo chỉ hiện khi quan hệ cha/mẹ thực sự thay đổi.
 
 ---
 
@@ -862,8 +889,8 @@ sẽ phải thêm `requires java.desktop;` vào `module-info.java`, kéo theo c�
 thái AWT/Swing vào ứng dụng thuần JavaFX; `javafx.swing` (`SwingFXUtils`) là module
 riêng, cũng phải khai báo thêm. Còn `java.util.zip` (`Deflater` + `CRC32`) thuộc
 `java.base` — có sẵn trong mọi JRE, **không cần khai báo gì**. Nhờ đó
-`module com.giapha` giữ đúng 4 dependency: `javafx.controls`, `javafx.graphics`,
-`javafx.fxml`, `java.sql`. Thêm nữa, tự viết cho thấy hiểu cấu trúc file PNG
+`module com.giapha` giữ đúng 3 dependency: `javafx.controls`, `javafx.graphics`,
+`java.sql`. Thêm nữa, tự viết cho thấy hiểu cấu trúc file PNG
 (chữ ký 8 byte, khối IHDR/IDAT/IEND, byte filter mỗi dòng, CRC32 từng khối), và
 `encodePng(int,int,byte[])` là hàm thuần `java.base` nên `PngWriterTest` kiểm thử
 được trong môi trường headless không cần JavaFX Toolkit. Nhược điểm đã thừa nhận:
@@ -927,7 +954,7 @@ canh giữa; `job.printPage(printable)`; mọi nhánh thành công/thất bại 
 **Gợi ý trả lời:**
 `PersonFormView.handleChoosePhoto()` mở `FileChooser` (chỉ `png`/`jpg`/`jpeg`), kiểm
 `ImageManager.isAllowedImage(...)`, rồi chỉ giữ `selectedPhotoSourcePath` — **View
-không copy file**. `PersonController.persistSelectedImage(sourcePath, personId)` gọi
+không copy file**. `PersonController.persistImageAfterAdd(added)` gọi
 `ImageManager.copyImageToAppDirectory(...)`: copy vào `images/person_<id>.<đuôi>`
 (`REPLACE_EXISTING`) và trả về **đường dẫn tương đối** `images/person_7.png`, đó là
 giá trị lưu vào cột `photo_path`. Việc copy diễn ra **sau khi** đã có `id` (nên
@@ -944,7 +971,7 @@ cài đặt — đánh đổi: ứng dụng phải chạy từ thư mục gốc 
 Không. `view/PersonAvatar.java` có cơ chế **fallback 2 tầng**:
 (1) nếu `photoPath` hợp lệ và file đọc được → hiển thị ảnh thật bo tròn bằng
 `Circle` clip; (2) nếu file không tồn tại / không đọc được / hỏng → hiển thị **chữ
-cái đầu** của họ tên trên nền tròn màu theo giới tính (`buildPlaceholder()`).
+cái đầu** của họ tên trên nền tròn màu theo giới tính (`showPlaceholderState()`).
 Ảnh nạp ở chế độ **background loading** (`new Image(uri, true)`), listener
 `progressProperty` áp ảnh khi nạp xong, listener `errorProperty` quay lại
 placeholder. Mọi lỗi đều bị bọc trong `try/catch (Exception)` → **không bao giờ**
@@ -986,22 +1013,30 @@ cho phép sửa `father_id` trực tiếp thì các quy tắc này sẽ bị byp
 đừng nói "gán cha rồi gán mẹ" như trước nữa. Luồng lưu từ form gọi
 `FamilyTreeService.updatePersonWithParents(person, newFather, newMother)`:
 
-1. **Kiểm tra toàn bộ TRƯỚC khi ghi**: thông tin cá nhân (validate) + BR1/BR2/BR6/BR3
-   cho **cả cha lẫn mẹ**.
+1. **Kiểm tra toàn bộ TRƯỚC khi ghi**: người cần sửa phải tồn tại (`getPersonById`)
+   + thông tin cá nhân (validate) + BR2 → BR1 → BR6 → BR3 cho **cả cha lẫn mẹ**.
 2. **Chỉ khi mọi kiểm tra đạt** mới ghi bằng **một** câu `UPDATE` duy nhất.
 
 Nhờ vậy nếu người dùng chọn cùng một người làm cả cha và mẹ, **không có gì được
 ghi cả** — tránh được trạng thái "cha đã đổi nhưng mẹ vẫn giữ nguyên" (trước đây
 là lỗi thật, đã được sửa và có test `AtomicUpdateAndBr5Test` bảo chứng).
 
+> **Lưu ý trung thực về từ "nguyên tử":** ở đây "nguyên tử" được hiểu theo nghĩa
+> **kiểm tra toàn bộ trước, rồi ghi bằng MỘT câu `UPDATE`** — KHÔNG phải transaction
+> nhiều bước (`BEGIN`/`COMMIT`) và KHÔNG phải khóa ghi. Bản thân bước "kiểm tra" và
+> bước "ghi" **không khóa lẫn nhau**: giữa lúc kiểm tra và lúc `UPDATE` có thể có
+> thay đổi từ người dùng khác. Điều này **chấp nhận được** vì ứng dụng này là
+> desktop **một người dùng**, không có truy cập đồng thời. Nếu mở rộng thành
+> nhiều người dùng cần thêm transaction + khóa tương ứng.
+
 ---
 
 ### Câu 19 — Vì sao có `module-info.java`? Có khó khăn gì khi dùng JUnit 5 không?
 
 **Gợi ý trả lời:**
-`module-info.java` khai báo module `com.giapha` với đúng 4 dependency
-(`javafx.controls`, `javafx.graphics`, `javafx.fxml`, `java.sql`) và `opens`
-cho `javafx.graphics`/`javafx.fxml` — đây là **tính module hóa** đúng nghĩa, mỗi
+`module-info.java` khai báo module `com.giapha` với đúng 3 dependency
+(`javafx.controls`, `javafx.graphics`, `java.sql`) và `opens`
+cho `javafx.graphics` — đây là **tính module hóa** đúng nghĩa, mỗi
 dependency đều có lý do cụ thể ( ví dụ `javafx.graphics` để dùng
 `javafx.scene.input.ScrollEvent` cho cuộn/zoom trong `FamilyTreeDiagram`).
 Khó khăn: `src/main/java` có `module-info.java` (module có tên) còn `src/test/java`
@@ -1101,7 +1136,7 @@ cấu hình hạ tầng, các tầng bên trên không cần (và không đượ
 | `PersonController.handleClearFather(int)` / `handleClearMother(int)` | `controller/PersonController.java` | UC09 |
 | `PersonController.handleViewTree(int)` | `controller/PersonController.java` | UC10 — xác thực focus tồn tại rồi nạp tổ tiên/hậu duệ |
 | `PersonController.confirmBirthYearWarning(...)` | `controller/PersonController.java` | `private` — hiện Alert BR5 (Tiếp tục / Hủy) |
-| `PersonController.persistSelectedImage(String, int)` | `controller/PersonController.java` | `private` — copy ảnh + sinh đường dẫn tương đối |
+| `PersonController.persistImageAfterAdd(Person)` | `controller/PersonController.java` | `private` — copy ảnh + sinh đường dẫn tương đối + `updatePhotoPath` |
 | `PersonController.showErrorAlert/showInfoAlert/showWarningAlert` | `controller/PersonController.java` | `private` — bọc `Alert`, fallback `println` nếu không ở FX thread |
 | `JdbcPersonRepository.findById(int)` | `repository/JdbcPersonRepository.java` | `SELECT` + `LEFT JOIN` cha/mẹ |
 | `JdbcPersonRepository.findAll()` | `repository/JdbcPersonRepository.java` | `SELECT` tất cả, **liên kết cha/mẹ trong bộ nhớ** |
@@ -1151,13 +1186,13 @@ cấu hình hạ tầng, các tầng bên trên không cần (và không đượ
 
 | Con số | Giá trị | Nơi dùng |
 |---|---|---|
-| Tổng test mặc định | **188** (0 fail, 0 error, 0 skip) | `mvn clean test` |
+| Tổng test mặc định | **201** (0 fail, 0 error, 0 skip) | `mvn clean test` |
 | Test tag `javafx` | **30** | `mvn test -Pjavafx-tests` |
 | Test case trong `test-data/test-cases.md` | **22** (22 PASS) | `LargeSampleDataTest` |
 | Lớp exception | **7**, đều `extends RuntimeException` | `com.giapha.exception.*` |
 | Quy tắc nghiệp vụ | **BR1–BR6** | `FamilyTreeService` |
 | Sơ đồ PlantUML | **18** (`.puml` + `.png`) | `docs/uml/` |
-| Module | `com.giapha`, **4** `requires` | `module-info.java` |
+| Module | `com.giapha`, **3** `requires` (`javafx.controls`, `javafx.graphics`, `java.sql`) | `module-info.java` |
 | Năm sinh tối thiểu | `MIN_BIRTH_YEAR = 1000` | `FamilyTreeService` |
 | Năm sinh tối đa | `Year.now().getValue()` (Service) / `2100` (CSDL CHECK) | — |
 | Độ dài họ tên | 1–100 ký tự | `validatePerson()` |

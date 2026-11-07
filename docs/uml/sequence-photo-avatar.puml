@@ -17,7 +17,7 @@ participant "Hệ thống tệp\n(thư mục images/)" as FS
 User -> FormView : bấm nút "Chọn ảnh..."
 activate FormView
 
-FormView -> Chooser : showOpenDialog(window)\nlọc png, jpg, jpeg
+    FormView -> Chooser : showOpenDialog(window)\nlọc png, jpg, jpeg
 activate Chooser
 Chooser --> User : hộp thoại chọn file
 User --> Chooser : chọn file ảnh
@@ -60,7 +60,7 @@ alt Thêm mới
     Repo --> Service : id tự sinh
     Service --> Controller : Person (đã có id)
 
-    Controller -> Controller : persistSelectedImage(sourcePath, id)
+    Controller -> Controller : persistImageAfterAdd(added)
     activate Controller
     Controller -> ImageMgr : isAllowedImage(sourcePath)
     ImageMgr --> Controller : true
@@ -73,8 +73,8 @@ alt Thêm mới
     deactivate ImageMgr
 
     Controller -> Controller : person.setPhotoPath(đường dẫn tương đối)
-    Controller -> Service : updatePerson(person)
-    Service -> Repo : update(person)
+    Controller -> Service : updatePhotoPath(personId, path)
+    Service -> Repo : updatePhotoPath(personId, path)
     Repo --> Service : void
     Service --> Controller : void
     deactivate Controller
@@ -85,6 +85,16 @@ else Cập nhật
     Service --> Controller : bản ghi gốc
     Controller -> Controller : giữ nguyên đường dẫn ảnh cũ\nnếu người dùng không chọn ảnh mới
 
+    Controller -> Service : updatePersonWithParents(person, newFather, newMother)
+    Service --> Controller : void (thành công)
+
+    note right of Controller
+      Ảnh CHỈ được copy SAU khi
+      service đã thành công.
+      Nếu service từ chối quan hệ
+      → dừng, KHÔNG ghi ảnh.
+    end note
+
     Controller -> ImageMgr : copyImageToAppDirectory(sourcePath, personId)
     activate ImageMgr
     ImageMgr -> FS : copy file → images/person_<id>.<đuôi>
@@ -92,8 +102,8 @@ else Cập nhật
     ImageMgr --> Controller : "images/person_<id>.<đuôi>"
     deactivate ImageMgr
 
-    Controller -> Service : updatePerson(person)\n(cập nhật ảnh + thông tin)
-    Service -> Repo : update(person)
+    Controller -> Service : updatePhotoPath(personId, path)
+    Service -> Repo : updatePhotoPath(personId, path)
     Repo --> Service : void
     Service --> Controller : void
 

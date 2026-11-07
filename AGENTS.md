@@ -154,7 +154,7 @@ src/test/java/com/giapha
 │   ├── DatabaseConnectionTest.java    # 7 test — kết nối MySQL, metadata, bảng person, DB chính không bị đổi
 │   └── BackendInitializationTest.java # 3 test — kiểm tra kết nối MySQL thật trước khi hiển thị UI
 ├── service/
-│   └── FamilyTreeServiceTest.java     # 44 test — BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu
+│   └── FamilyTreeServiceTest.java     # 47 test — BR1–BR6, TC01–TC14, TC-CLEAR-01…05, updatePersonWithParents, cô lập dữ liệu
 ├── repository/
 │   └── JdbcPersonRepositoryConnectionTest.java # 5 test — quyền sở hữu Connection
 ├── controller/
@@ -310,7 +310,8 @@ Mỗi khi tạo mới (`addPerson`) hoặc cập nhật (`updatePerson`), đối
 
 ## 8. TÀI LIỆU UML HIỆN CÓ (`docs/uml/`)
 
-Dự án đã được mô hình hóa đầy đủ bằng PlantUML và render sẵn file ảnh `.png`:
+Dự án đã được mô hình hóa đầy đủ bằng PlantUML và render sẵn file ảnh `.png` —
+**18 sơ đồ** (18 file `.puml` + 18 file `.png`):
 - **Class Diagram**: `class-diagram.puml` / `class-diagram.png`
 - **Component Diagram**: `component-diagram.puml` / `component-diagram.png`
 - **Deployment Diagram**: `deployment-diagram.puml` / `deployment-diagram.png`
@@ -339,7 +340,7 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 198 test cases):
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 201 test cases):
 ```bash
 mvn clean test
 ```

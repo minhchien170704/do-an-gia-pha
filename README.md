@@ -1,4 +1,4 @@
-﻿# Hệ Thống Quản Lý Sơ Đồ Gia Phả (Family Tree Management)
+# Hệ Thống Quản Lý Sơ Đồ Gia Phả (Family Tree Management)
 
 Ứng dụng desktop quản lý phả hệ và cây gia phả, xây dựng bằng **Java 25**, **JavaFX 23** và **MySQL/MariaDB**,
 tuân thủ các nguyên lý lập trình hướng đối tượng (OOP) và kiến trúc phân tầng (Layered Architecture).
@@ -56,7 +56,7 @@ thành viên trong cây gia phả. Trọng tâm:
 |---|---|---|
 | **JDK 25** | ✅ | Kiểm tra: `java -version` → phải hiện `25.x`. Không dùng JDK 17/21 — `pom.xml` đặt `source/target = 25` |
 | **Apache Maven 3.9+** | ✅ | Kiểm tra: `mvn -v` |
-| **MySQL Server 8.x / MariaDB 10.x** | ✅ | Có thể dùng bản đi kèm XAMPP. Chạy ở port `3306` |
+| **MySQL Server >= 8.0.16 / MariaDB >= 10.2.1** | ✅ | Có thể dùng bản đi kèm XAMPP. Chạy ở port `3306`. **Bắt buộc phiên bản này** vì ràng buộc `CHECK` chỉ có hiệu lực thật từ MySQL 8.0.16 / MariaDB 10.2.1 (trước đó `CHECK` bị bỏ qua) |
 | MySQL Shell / HeidiSQL / phpMyAdmin | ⬜ | Công cụ để nạp file `.sql` — bất kỳ client nào cũng được |
 | Git | ⬜ | Chỉ cần nếu bạn clone từ repository |
 
@@ -153,7 +153,7 @@ mvn clean package        # đóng gói thành target/do-an-gia-pha-1.0-SNAPSHOT.
 mvn javafx:run
 ```
 
-### 4.3. Chạy toàn bộ kiểm thử (198 test cases)
+### 4.3. Chạy toàn bộ kiểm thử (201 test cases)
 
 ```bash
 mvn clean test
@@ -161,7 +161,7 @@ mvn clean test
 
 | Lớp kiểm thử | Số test | Phạm vi |
 |---|---|---|
-| `FamilyTreeServiceTest` | 44 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu |
+| `FamilyTreeServiceTest` | 47 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, `updatePersonWithParents` (tồn tại → BR2 → BR1 → BR6 → BR3), cô lập dữ liệu |
 | `PersonControllerTest` | 25 | Điều phối View ↔ Service, xử lý exception, callback điều hướng |
 | `LargeSampleDataTest` | 22 | Bộ dữ liệu mẫu 30 người / 5 thế hệ (BR1–BR6, validation, ràng buộc CSDL, an toàn DROP DB) |
 | `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
@@ -227,25 +227,25 @@ mysql -u root -p < database/schema.sql
 
 ### 4.8. Giải thích lệch số liệu khi đọc log Surefire
 
-Nếu bạn cộng tay từng dòng log Surefire (25 + 9 + 19 + 23 + 3 + 7 + 8 + 5 + 44 + 0 + 22 + 12 + 11) thì ra **188**,
-không phải 210. Con số 210 xuất hiện khi **báo cáo cũ** cộng thêm một dòng
+Nếu bạn cộng tay từng dòng log Surefire (25 + 9 + 19 + 23 + 3 + 7 + 8 + 5 + 47 + 0 + 22 + 12 + 11 + 10) thì ra **201**,
+không phải 223. Con số 223 xuất hiện khi **báo cáo cũ** cộng thêm một dòng
 "22 test — FamilyTreeServiceTest (phần lồng)" *cùng* với dòng `FamilyTreeServiceTest$DataIsolation`
-đã chứa 44 test — tức là **đếm trùng** các test của lớp lồng `@Nested`.
+đã chứa 47 test — tức là **đếm trùng** các test của lớp lồng `@Nested`.
 
 Cơ chế thật (đã kiểm chứng qua `target/surefire-reports/TEST-*.xml`):
 
-- `FamilyTreeServiceTest` khai báo **43** `@Test` ở thân lớp + **1** `@Test` trong lớp lồng
-  `@Nested DataIsolation` → **44** test thực thi.
+- `FamilyTreeServiceTest` khai báo **46** `@Test` ở thân lớp + **1** `@Test` trong lớp lồng
+  `@Nested DataIsolation` → **47** test thực thi.
 - Surefire ghi **hai** dòng log cho cùng một lớp:
-  - `... -- in com.giapha.service.FamilyTreeServiceTest$DataIsolation` → **44 test**
-    (chứa cả 43 test thân lớp lẫn 1 test lồng — xác nhận qua thuộc tính `classname` trong XML);
+  - `... -- in com.giapha.service.FamilyTreeServiceTest$DataIsolation` → **47 test**
+    (chứa cả 46 test thân lớp lẫn 1 test lồng — xác nhận qua thuộc tính `classname` trong XML);
   - `... -- in com.giapha.service.FamilyTreeServiceTest` → **0 test**, vì mọi test đã được
     gán cho container lồng. Đây là *vỏ rỗng*, **không phải** test bị mất.
 - Vì vậy **chỉ dòng tổng cuối cùng** là con số chuẩn xác — đó là những gì Surefire thực sự thực thi:
 
 ```
 [INFO] Results:
-[INFO] Tests run: 188, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 201, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
@@ -501,8 +501,10 @@ do-an-gia-pha/
 │               │                             # TestDatabase, FxTestSupport
 │               ├── database/                 # DatabaseConnectionTest
 │               ├── service/                  # FamilyTreeServiceTest
-│               ├── controller/               # PersonControllerTest
+│               ├── controller/               # PersonControllerTest, PersonControllerAbstractionTest,
+│               │                             # DataIntegrityTest, EditFailureRollbackTest, AtomicUpdateAndBr5Test
 │               ├── util/                     # ImageManagerTest, PngWriterTest
+│               ├── model/                     # GenderTest
 │               ├── testdata/                 # LargeSampleDataTest (30 người / 5 thế hệ)
 │               └── view/                     # AvatarFallbackTest, JavaFxViewTest (tag "javafx")
 ```
@@ -511,7 +513,8 @@ do-an-gia-pha/
 
 ## 9. Tài liệu UML
 
-Tất cả sơ đồ nằm tại thư mục `docs/uml/` (mã nguồn `.puml` + ảnh render `.png`).
+Tất cả sơ đồ nằm tại thư mục `docs/uml/` (mã nguồn `.puml` + ảnh render `.png`) —
+**18 sơ đồ** (18 file `.puml` + 18 file `.png`).
 Sơ đồ được đồng bộ với code hiện tại trong `src/main/java` — **không vẽ lớp test**.
 
 | Sơ đồ | File |
@@ -524,6 +527,7 @@ Sơ đồ được đồng bộ với code hiện tại trong `src/main/java` �
 | Triển khai | `deployment-diagram.puml` / `deployment-diagram.png` |
 | Ca sử dụng | `use-case.puml` / `use-case.png` |
 | Tuần tự — thêm người | `sequence-add-person.puml` / `sequence-add-person.png` |
+| Tuần tự — chỉnh sửa thành viên | `sequence-edit-person.puml` / `sequence-edit-person.png` |
 | Tuần tự — gán cha/mẹ | `sequence-assign-parent.puml` / `sequence-assign-parent.png` |
 | Tuần tự — xem cây gia phả | `sequence-family-tree.puml` / `sequence-family-tree.png` |
 | Tuần tự — xuất PNG / In | `sequence-export-print.puml` / `sequence-export-print.png` |
@@ -609,7 +613,7 @@ Sơ đồ lớp gốc có 25 lớp + 7 exception → ảnh render rất rộng. 
 | **6.2** | Xuất PNG (`PngWriter` thuần `java.util.zip`) và In ấn (`javafx.print.PrinterJob`) | ✅ Hoàn thành |
 | **6.3** | Nới validate năm sinh xuống `1000 <= birthYear <= Year.now()` | ✅ Hoàn thành |
 | **6.4** | Custom exception riêng cho BR2 (`SameParentException`) và BR6 (`InvalidParentGenderException`) | ✅ Hoàn thành |
-| **6.5** | Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (188 test mặc định + 30 test tag `javafx`) | ✅ Hoàn thành |
+| **6.5** | Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (201 test mặc định + 30 test tag `javafx`) | ✅ Hoàn thành |
 | **6.6** | Bộ dữ liệu mẫu & bảng test case trong `test-data/` (`LargeSampleDataTest`, 22 test) | ✅ Hoàn thành |
 | **6.7** | **Cách ly dữ liệu test**: mọi lớp test dùng database riêng `*_test`; `TestDatabaseManager` quản lý vòng đời + `assertSafeToDrop` | ✅ Hoàn thành |
 | **6.8** | **Đồng bộ hóa toàn bộ sơ đồ PlantUML với code hiện tại**: class-diagram tách 4 sơ đồ theo gói, component/deployment/use-case cập nhật, thêm sequence + activity cho "Xuất PNG/In" và "Chọn & lưu ảnh đại diện" | ✅ Hoàn thành |
