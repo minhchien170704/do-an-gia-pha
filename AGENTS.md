@@ -59,6 +59,16 @@ MySQL / MariaDB
 2. **Controller (`com.giapha.controller`)**:
    - Điều phối giữa View và Service.
    - Không chứa câu lệnh SQL, không gọi trực tiếp Repository hay JDBC.
+   - **KHÔNG import bất kỳ lớp nào trong `com.giapha.view.*`** (GĐ2B.1 — Dependency Inversion).
+     Mọi tương tác với giao diện đi qua 3 abstraction do Controller sở hữu:
+     - `FormDataSource` — cung cấp dữ liệu form (họ tên, năm sinh, giới tính, cha, mẹ,
+       ảnh nguồn, ảnh hiện có, người đang sửa). Implementor: `PersonFormView`.
+     - `PeopleListSource` — cung cấp dòng đang chọn + `refresh()`. Implementor: `PeopleListView`.
+     - `Navigator` — 3 hành vi điều hướng màn hình. Được nối tại composition root (`Main`).
+   - Các abstraction chỉ dùng kiểu dữ liệu thuần Java (`String`, `Gender`, `Person`) —
+     **không** truyền JavaFX `Node`/`Control` qua interface.
+   - Interface được đặt trong gói `com.giapha.controller` (consumer-owned) để hỗ trợ
+     unit test Controller bằng fake implementation, **không cần JavaFX Toolkit**.
 3. **Service (`com.giapha.service`)**:
    - Đại diện bởi `FamilyTreeService`.
    - **CHỈ** phụ thuộc vào abstraction interface `PersonRepository`.
@@ -110,6 +120,11 @@ com.giapha
 │   └── DatabaseConnection.java        # Factory lấy JDBC Connection
 ├── service/
 │   └── FamilyTreeService.java         # Business Service Layer
+├── controller/
+│   ├── PersonController.java          # Điều phối View ↔ Service (KHÔNG phụ thuộc com.giapha.view.*)
+│   ├── FormDataSource.java            # Abstraction: dữ liệu form (implementor: PersonFormView)
+│   ├── PeopleListSource.java          # Abstraction: dòng đang chọn + refresh (implementor: PeopleListView)
+│   └── Navigator.java                 # Abstraction: điều hướng màn hình (nối tại Main)
 ├── util/
 │   ├── ImageManager.java              # Tiện ích ảnh đại diện: kiểm tra định dạng, copy vào ./images/
 │   └── PngWriter.java                 # Ghi WritableImage ra file PNG (thuần java.util.zip, không thêm dependency)
@@ -143,6 +158,8 @@ src/test/java/com/giapha
 │   └── JdbcPersonRepositoryConnectionTest.java # 5 test — quyền sở hữu Connection
 ├── controller/
 │   ├── PersonControllerTest.java      # 25 test — điều phối View ↔ Service, xử lý exception
+│   ├── PersonControllerAbstractionTest.java # 23 test — fake FormDataSource/Navigator/PeopleListSource (KHÔNG cần JavaFX Toolkit)
+│   ├── DataIntegrityTest.java         # 19 test — GĐ1: toàn vẹn dữ liệu ảnh + đồng nhất BR1–BR6
 │   └── AtomicUpdateAndBr5Test.java    # 9 test — cập nhật nguyên tử + BR5 trong luồng lưu của form
 ├── util/
 │   ├── ImageManagerTest.java          # 12 test — định dạng ảnh, copy, dọn file
@@ -158,7 +175,8 @@ src/test/java/com/giapha
 - Test **không** được nằm trong `src/main/java`.
 - Mọi test có thay đổi dữ liệu CSDL **phải** có cleanup để trả bảng `PERSON` về đúng 7 bản ghi mẫu.
 - **CÁCH LY DỮ LIỆU (bắt buộc):** **mọi** lớp test đụng tới CSDL **phải** dùng database RIÊNG có tên kết thúc bằng `_test`
-  (`gia_pha_service_test`, `gia_pha_controller_test`, `gia_pha_conn_test`, `gia_pha_javafx_test`, `gia_pha_test`).
+  (`gia_pha_service_test`, `gia_pha_controller_test`, `gia_pha_abstraction_test`,
+  `gia_pha_integrity_test`, `gia_pha_atomic_test`, `gia_pha_conn_test`, `gia_pha_javafx_test`, `gia_pha_test`).
   Tuyệt đối không ghi vào database chính `gia_pha`.
 - Test phụ thuộc MySQL dùng `Assumptions.assumeTrue(...)` → nếu CSDL không sẵn sàng thì test được
   `SKIPPED` kèm thông báo (không tính là `FAILED`).
@@ -213,7 +231,7 @@ luôn đồng bộ.
   1. Kiểm tra **toàn bộ** trước: validate thông tin cá nhân + BR1/BR2/BR6/BR3 cho **cả cha lẫn mẹ**.
   2. Chỉ khi **mọi** kiểm tra đạt mới ghi bằng **một** câu `UPDATE` duy nhất.
   3. Nếu bất kỳ kiểm tra nào fail → **không ghi gì cả**.
-- BR5 **phải** chạy trong luồng lưu thật của form: `PersonFormView` đăng ký itself qua `controller.setPersonFormView(this)` rồi gọi `controller.handleAdd()` / `controller.handleEdit()` (overload **không tham số**) — không gọi overload có tham số để tránh bỏ qua kiểm tra BR5.
+- BR5 **phải** chạy trong luồng lưu thật của form: `PersonFormView` (hiện thực `FormDataSource`) đăng ký itself qua `controller.setFormDataSource(this)` rồi gọi `controller.handleAdd()` / `controller.handleEdit()` (overload **không tham số**) — không gọi overload có tham số để tránh bỏ qua kiểm tra BR5.
 
 ---
 
@@ -276,7 +294,7 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 138 test cases):
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 181 test cases):
 ```bash
 mvn clean test
 ```

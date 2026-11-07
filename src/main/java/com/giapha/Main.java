@@ -1,5 +1,6 @@
 package com.giapha;
 
+import com.giapha.controller.Navigator;
 import com.giapha.controller.PersonController;
 import com.giapha.database.DatabaseConnection;
 import com.giapha.model.Person;
@@ -53,10 +54,25 @@ public class Main extends Application {
         mainLayout = new BorderPane();
         mainLayout.getStyleClass().add("root");
 
-        // Đăng ký callback điều hướng để Controller có thể navigate sau CRUD
-        controller.setNavigateToPeopleList(this::showPeopleList);
-        controller.setNavigateToPersonDetail(this::showPersonDetail);
-        controller.setNavigateToFamilyTree(this::showFamilyTree);
+        // Đăng ký bộ điều hướng cho Controller.
+        // Main là composition root — nơi DUY NHẤT được biết cả View lẫn Scene,
+        // nên đây là chỗ nối abstraction Navigator với cơ chế điều hướng thật.
+        controller.setNavigator(new Navigator() {
+            @Override
+            public void navigateToPeopleList() {
+                showPeopleList();
+            }
+
+            @Override
+            public void navigateToPersonDetail(Person person) {
+                showPersonDetail(person);
+            }
+
+            @Override
+            public void navigateToFamilyTree(Person focusPerson) {
+                showFamilyTree(focusPerson);
+            }
+        });
 
         // Sidebar trái nhất quán
         VBox sidebar = createSidebar();
@@ -208,8 +224,9 @@ public class Main extends Application {
         view.setOnViewDetail(this::showPersonDetail);
         view.setOnViewTree(this::showFamilyTree);
 
-        // Cập nhật view reference để controller.handleDelete() có thể gọi view.refresh()
-        controller.setPeopleListView(view);
+        // Đăng ký nguồn dữ liệu danh sách để controller.handleDelete() có thể
+        // đọc dòng đang chọn và gọi refresh() sau khi xóa thành công.
+        controller.setPeopleListSource(view);
 
         mainLayout.setCenter(view.getRoot());
     }
@@ -223,8 +240,8 @@ public class Main extends Application {
         PersonFormView view = new PersonFormView(controller, personToEdit);
         view.setOnCancel(this::showPeopleList);
 
-        // Cập nhật view reference để controller có thể đọc input nếu cần
-        controller.setPersonFormView(view);
+        // Form tự đăng ký làm FormDataSource với Controller trong constructor,
+        // nên không cần đăng ký thêm ở đây.
 
         mainLayout.setCenter(view.getRoot());
     }

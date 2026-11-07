@@ -1,5 +1,6 @@
 package com.giapha.view;
 
+import com.giapha.controller.FormDataSource;
 import com.giapha.controller.PersonController;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
@@ -25,8 +26,12 @@ import java.util.stream.Collectors;
  * Nạp danh sách cha/mẹ từ MySQL thông qua PersonController.
  * Thao tác lưu gọi controller.handleAdd() hoặc controller.handleEdit(),
  * controller xử lý validation nghiệp vụ và điều hướng sau khi thành công.
+ *
+ * <p>Lớp này hiện thực {@link FormDataSource} — abstraction mà
+ * {@link PersonController} dùng để đọc dữ liệu người dùng đang nhập.
+ * Nhờ đó Controller không cần biết (và không import) lớp View cụ thể nào.
  */
-public class PersonFormView {
+public class PersonFormView implements FormDataSource {
 
     private final BorderPane root;
 
@@ -74,7 +79,8 @@ public class PersonFormView {
         // Nhờ vậy Controller có thể ĐỌC dữ liệu người dùng đang nhập (họ tên, năm sinh,
         // giới tính, cha/mẹ đã chọn) khi xử lý lưu — bao gồm cả bước kiểm tra BR5
         // (cảnh báo năm sinh cha/mẹ) trong luồng lưu thực tế từ giao diện.
-        controller.setPersonFormView(this);
+        // Controller chỉ biết interface FormDataSource, không biết lớp View này.
+        controller.setFormDataSource(this);
 
         VBox topHeader = createHeader();
         root.setTop(topHeader);
@@ -468,11 +474,17 @@ public class PersonFormView {
         this.onCancel = handler;
     }
 
+    @Override
     public Person getEditingPerson() { return editingPerson; }
+    @Override
     public String getFullNameInput() { return txtFullName != null ? txtFullName.getText() : ""; }
+    @Override
     public String getBirthYearInput() { return txtBirthYear != null ? txtBirthYear.getText() : ""; }
+    @Override
     public Gender getGenderInput() { return cboGender != null ? cboGender.getValue() : null; }
+    @Override
     public Person getSelectedFather() { return cboFather != null ? cboFather.getValue() : null; }
+    @Override
     public Person getSelectedMother() { return cboMother != null ? cboMother.getValue() : null; }
 
     /**
@@ -483,6 +495,7 @@ public class PersonFormView {
      *
      * @return đường dẫn tuyệt đối tới ảnh nguồn, hoặc null
      */
+    @Override
     public String getSelectedPhotoSourcePath() { return selectedPhotoSourcePath; }
 
     /**
@@ -492,6 +505,7 @@ public class PersonFormView {
      *
      * @return đường dẫn tương đối trong DB, hoặc null nếu thành viên chưa có ảnh
      */
+    @Override
     public String getExistingPhotoPath() {
         return editingPerson != null ? editingPerson.getPhotoPath() : null;
     }

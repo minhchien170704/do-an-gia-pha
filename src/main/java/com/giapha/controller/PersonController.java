@@ -11,8 +11,6 @@ import com.giapha.model.Gender;
 import com.giapha.model.Person;
 import com.giapha.service.FamilyTreeService;
 import com.giapha.util.ImageManager;
-import com.giapha.view.PeopleListView;
-import com.giapha.view.PersonFormView;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -20,13 +18,15 @@ import javafx.scene.control.ButtonType;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /**
  * Controller điều phối luồng nghiệp vụ giữa giao diện JavaFX và FamilyTreeService.
  * Tuân thủ nghiêm ngặt nguyên tắc kiến trúc phân tầng:
  * - Chỉ phụ thuộc duy nhất vào FamilyTreeService.
  * - Không truy cập trực tiếp Repository hay JDBC.
+ * - KHÔNG import bất kỳ lớp nào trong {@code com.giapha.view.*}: mọi tương tác
+ *   với giao diện đi qua các abstraction {@link FormDataSource},
+ *   {@link PeopleListSource} và {@link Navigator}.
  * - Không duplicate quy tắc nghiệp vụ/validation.
  * - Bắt và xử lý các custom exception để hiển thị thông báo thân thiện bằng tiếng Việt.
  */
@@ -34,18 +34,29 @@ public class PersonController {
 
     private final FamilyTreeService familyTreeService;
 
-    // Tham chiếu tới các View hiện hành (nếu có)
-    private PeopleListView peopleListView;
-    private PersonFormView personFormView;
+    // ===== Abstraction tới giao diện (không phụ thuộc lớp View concrete) =====
+
+    /**
+     * Nguồn dữ liệu form nhập liệu — Controller đọc họ tên / năm sinh / giới tính /
+     * cha / mẹ / ảnh từ đây khi xử lý lưu.
+     */
+    private FormDataSource formDataSource;
+
+    /**
+     * Nguồn dữ liệu màn hình danh sách — cung cấp thành viên đang chọn và
+     * nhận yêu cầu làm mới sau khi xóa.
+     */
+    private PeopleListSource peopleListSource;
+
+    /**
+     * Bộ điều hướng màn hình — Controller chỉ yêu cầu chuyển màn hình,
+     * không tự khởi tạo hay quản lý View/Scene.
+     */
+    private Navigator navigator;
 
     // Thành viên được chọn trên danh sách — dùng làm ngữ cảnh mặc định
     // cho các handler không tham số (handleEdit / handleDelete / handleViewDetail).
     private Person selectedPerson;
-
-    // Callbacks điều hướng màn hình
-    private Runnable navigateToPeopleList;
-    private Consumer<Person> navigateToPersonDetail;
-    private Consumer<Person> navigateToFamilyTree;
 
     /**
      * Khởi tạo PersonController với FamilyTreeService.
@@ -67,16 +78,16 @@ public class PersonController {
      * cho phép người dùng chọn tiếp tục hoặc hủy, sau đó gọi {@link #handleAdd(Person)}.
      */
     public void handleAdd() {
-        if (personFormView == null) {
+        if (formDataSource == null) {
             showWarningAlert("Thông báo", "Không tìm thấy giao diện nhập liệu thành viên.");
             return;
         }
 
-        String fullName = personFormView.getFullNameInput();
-        String birthYearStr = personFormView.getBirthYearInput();
-        Gender gender = personFormView.getGenderInput();
-        Person father = personFormView.getSelectedFather();
-        Person mother = personFormView.getSelectedMother();
+        String fullName = formDataSource.getFullNameInput();
+        String birthYearStr = formDataSource.getBirthYearInput();
+        Gender gender = formDataSource.getGenderInput();
+        Person father = formDataSource.getSelectedFather();
+        Person mother = formDataSource.getSelectedMother();
 
         if (fullName == null || fullName.trim().isEmpty()) {
             showWarningAlert("Thông báo", "Họ và tên không được để trống.");
@@ -114,14 +125,14 @@ public class PersonController {
 
         // BR5: cảnh báo nếu năm sinh cha/mẹ không nhỏ hơn năm sinh con.
         // Việc kiểm tra này nằm trong handleAdd(Person) — đúng là phương thức mà
-        // luồng lưu thực tế từ PersonFormView đi qua (không phải chỉ ở handleAdd()).
+        // luồng lưu thực tế từ form nhập liệu đi qua (không phải chỉ ở handleAdd()).
         handleAdd(newPerson);
     }
 
     /**
      * Overloaded: Xử lý thêm đối tượng Person cụ thể vào hệ thống.
      *
-     * <p><b>Đây là phương thức lưu THỰC SỰ của luồng UI</b> — {@link PersonFormView}
+     * <p><b>Đây là phương thức lưu THỰC SỰ của luồng UI</b> — form nhập liệu
      * gọi phương thức này khi người dùng bấm "Lưu thành viên". Vì vậy kiểm tra
      * BR5 (cảnh báo năm sinh cha/mẹ) được đặt ở ĐÂY để mọi lần lưu từ giao diện
      * đều có cảnh báo, không chỉ riêng lời gọi từ {@link #handleAdd()}.
@@ -184,8 +195,8 @@ public class PersonController {
                             + "\n\nBạn có thể chọn lại ảnh sau bằng chức năng Sửa.");
         }
 
-        if (navigateToPeopleList != null) {
-            navigateToPeopleList.run();
+        if (navigator != null) {
+            navigator.navigateToPeopleList();
         }
         return added;
     }
@@ -200,7 +211,7 @@ public class PersonController {
      * @return đường dẫn tuyệt đối của ảnh nguồn, hoặc null nếu không chọn ảnh
      */
     protected String getSelectedPhotoSourcePath() {
-        return (personFormView == null) ? null : personFormView.getSelectedPhotoSourcePath();
+        return (formDataSource == null) ? null : formDataSource.getSelectedPhotoSourcePath();
     }
 
     /**
@@ -250,8 +261,8 @@ public class PersonController {
      */
     public void handleEdit() {
         Person target = null;
-        if (personFormView != null && personFormView.getEditingPerson() != null) {
-            target = personFormView.getEditingPerson();
+        if (formDataSource != null && formDataSource.getEditingPerson() != null) {
+            target = formDataSource.getEditingPerson();
         } else if (selectedPerson != null) {
             target = selectedPerson;
         }
@@ -276,17 +287,17 @@ public class PersonController {
         Person originalMother = original.getMother();
 
         // 2. Đọc các giá trị mới từ form
-        String newFullName = personFormView != null ? personFormView.getFullNameInput() : target.getFullName();
-        String newBirthYearStr = personFormView != null ? personFormView.getBirthYearInput() : String.valueOf(target.getBirthYear());
-        Gender newGender = personFormView != null ? personFormView.getGenderInput() : target.getGender();
+        String newFullName = formDataSource != null ? formDataSource.getFullNameInput() : target.getFullName();
+        String newBirthYearStr = formDataSource != null ? formDataSource.getBirthYearInput() : String.valueOf(target.getBirthYear());
+        Gender newGender = formDataSource != null ? formDataSource.getGenderInput() : target.getGender();
         // Ảnh đại diện: luôn giữ đường dẫn TƯƠNG ĐỐI đã lưu trong DB.
         // Nếu người dùng chọn ảnh mới, ảnh đó được copy + sinh đường dẫn mới trong
         // handleEdit(Person, Person, Person) trước khi ghi xuống DB.
-        String newPhotoPath = personFormView != null
-                ? personFormView.getExistingPhotoPath()
+        String newPhotoPath = formDataSource != null
+                ? formDataSource.getExistingPhotoPath()
                 : target.getPhotoPath();
-        Person newFather = personFormView != null ? personFormView.getSelectedFather() : target.getFather();
-        Person newMother = personFormView != null ? personFormView.getSelectedMother() : target.getMother();
+        Person newFather = formDataSource != null ? formDataSource.getSelectedFather() : target.getFather();
+        Person newMother = formDataSource != null ? formDataSource.getSelectedMother() : target.getMother();
 
         if (newFullName == null || newFullName.trim().isEmpty()) {
             showWarningAlert("Thông báo", "Họ và tên không được để trống.");
@@ -319,7 +330,7 @@ public class PersonController {
 
         // Lưu ý: kiểm tra BR5 (cảnh báo năm sinh) được thực hiện BÊN TRONG
         // handleEdit(Person, Person, Person) — đúng là phương thức mà luồng lưu
-        // thực tế từ PersonFormView đi qua. Ở đây KHÔNG kiểm tra lại để tránh
+        // thực tế từ form nhập liệu đi qua. Ở đây KHÔNG kiểm tra lại để tránh
         // hiện cảnh báo hai lần khi gọi lồng nhau.
         handleEdit(basicUpdatePerson, newFather, newMother);
     }
@@ -333,7 +344,7 @@ public class PersonController {
      * Nhờ vậy nếu một quan hệ không hợp lệ thì KHÔNG có thay đổi nào được ghi —
      * dữ liệu không ở trạng thái "cập nhật một nửa".
      *
-     * <p><b>Đây là phương thức lưu THỰC SỰ của luồng UI</b> — {@link PersonFormView}
+     * <p><b>Đây là phương thức lưu THỰC SỰ của luồng UI</b> — form nhập liệu
      * gọi phương thức này khi người dùng bấm "Lưu thay đổi".
      *
      * @param personToUpdate thông tin thành viên cập nhật (chứa cha mẹ gốc)
@@ -467,8 +478,8 @@ public class PersonController {
             showInfoAlert("Thành công", successMsg.toString());
         }
 
-        if (navigateToPeopleList != null) {
-            navigateToPeopleList.run();
+        if (navigator != null) {
+            navigator.navigateToPeopleList();
         }
     }
 
@@ -477,8 +488,8 @@ public class PersonController {
      */
     public void handleDelete() {
         Person target = selectedPerson;
-        if (target == null && peopleListView != null) {
-            target = peopleListView.getSelectedPerson();
+        if (target == null && peopleListSource != null) {
+            target = peopleListSource.getSelectedPerson();
         }
 
         if (target == null) {
@@ -516,8 +527,8 @@ public class PersonController {
             ImageManager.deleteImageQuietly(photoPath);
 
             showInfoAlert("Thành công", "Đã xóa thành viên có ID = " + id + " khỏi hệ thống gia phả.");
-            if (peopleListView != null) {
-                peopleListView.refresh();
+            if (peopleListSource != null) {
+                peopleListSource.refresh();
             }
         } catch (PersonInUseException e) {
             showErrorAlert("Không thể xóa thành viên",
@@ -565,8 +576,8 @@ public class PersonController {
      */
     public void handleViewDetail() {
         Person target = selectedPerson;
-        if (target == null && peopleListView != null) {
-            target = peopleListView.getSelectedPerson();
+        if (target == null && peopleListSource != null) {
+            target = peopleListSource.getSelectedPerson();
         }
 
         if (target == null) {
@@ -586,8 +597,8 @@ public class PersonController {
     public Person handleViewDetail(int id) {
         try {
             Person person = familyTreeService.getPersonById(id);
-            if (navigateToPersonDetail != null) {
-                navigateToPersonDetail.accept(person);
+            if (navigator != null) {
+                navigator.navigateToPersonDetail(person);
             }
             return person;
         } catch (PersonNotFoundException e) {
@@ -692,8 +703,8 @@ public class PersonController {
         int idToFocus;
         if (selectedPerson != null) {
             idToFocus = selectedPerson.getId();
-        } else if (peopleListView != null && peopleListView.getSelectedPerson() != null) {
-            idToFocus = peopleListView.getSelectedPerson().getId();
+        } else if (peopleListSource != null && peopleListSource.getSelectedPerson() != null) {
+            idToFocus = peopleListSource.getSelectedPerson().getId();
         } else {
             showWarningAlert("Thông báo", "Vui lòng chọn một thành viên làm trung tâm cây gia phả.");
             return;
@@ -714,11 +725,11 @@ public class PersonController {
             Person focusPerson = familyTreeService.getPersonById(focusId);
 
             // Bước 2: Điều hướng sang màn hình cây gia phả.
-            // FamilyTreeView tự tải toàn bộ danh sách (đồ thị liên kết đầy đủ) để dựng
+            // Màn hình cây gia phả tự tải toàn bộ danh sách (đồ thị liên kết đầy đủ) để dựng
             // sơ đồ 2D và danh sách phả hệ — vì vậy Controller KHÔNG cần truy vấn
             // thêm getAncestors()/getDescendants() ở đây (tránh truy vấn thừa).
-            if (navigateToFamilyTree != null) {
-                navigateToFamilyTree.accept(focusPerson);
+            if (navigator != null) {
+                navigator.navigateToFamilyTree(focusPerson);
             }
             return focusPerson;
         } catch (PersonNotFoundException e) {
@@ -814,28 +825,38 @@ public class PersonController {
         return newMother.getId() != originalMother.getId();
     }
 
-    public void setPeopleListView(PeopleListView peopleListView) {
-        this.peopleListView = peopleListView;
+    /**
+     * Đăng ký nguồn dữ liệu form nhập liệu hiện hành.
+     *
+     * <p>Được gọi bởi form khi được khởi tạo. Controller chỉ đọc dữ liệu qua
+     * interface này — không cần biết lớp View cụ thể.
+     *
+     * @param formDataSource nguồn dữ liệu form, hoặc null để gỡ đăng ký
+     */
+    public void setFormDataSource(FormDataSource formDataSource) {
+        this.formDataSource = formDataSource;
     }
 
-    public void setPersonFormView(PersonFormView personFormView) {
-        this.personFormView = personFormView;
+    /**
+     * Đăng ký nguồn dữ liệu màn hình danh sách hiện hành.
+     *
+     * @param peopleListSource nguồn dữ liệu danh sách, hoặc null để gỡ đăng ký
+     */
+    public void setPeopleListSource(PeopleListSource peopleListSource) {
+        this.peopleListSource = peopleListSource;
+    }
+
+    /**
+     * Đăng ký bộ điều hướng màn hình.
+     *
+     * @param navigator bộ điều hướng, hoặc null để gỡ đăng ký
+     */
+    public void setNavigator(Navigator navigator) {
+        this.navigator = navigator;
     }
 
     public void setSelectedPerson(Person selectedPerson) {
         this.selectedPerson = selectedPerson;
-    }
-
-    public void setNavigateToPeopleList(Runnable navigateToPeopleList) {
-        this.navigateToPeopleList = navigateToPeopleList;
-    }
-
-    public void setNavigateToPersonDetail(Consumer<Person> navigateToPersonDetail) {
-        this.navigateToPersonDetail = navigateToPersonDetail;
-    }
-
-    public void setNavigateToFamilyTree(Consumer<Person> navigateToFamilyTree) {
-        this.navigateToFamilyTree = navigateToFamilyTree;
     }
 
     private void showInfoAlert(String title, String content) {

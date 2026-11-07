@@ -359,7 +359,20 @@ class PersonControllerTest {
     @DisplayName("Callback điều hướng được gọi khi xử lý thành công")
     void navigationCallbackIsInvoked() {
         final boolean[] called = {false};
-        controller.setNavigateToPeopleList(() -> called[0] = true);
+        controller.setNavigator(new Navigator() {
+            @Override
+            public void navigateToPeopleList() {
+                called[0] = true;
+            }
+
+            @Override
+            public void navigateToPersonDetail(Person person) {
+            }
+
+            @Override
+            public void navigateToFamilyTree(Person focusPerson) {
+            }
+        });
 
         Person added = controller.handleAdd(new Person("Nguyễn Văn Callback", 1995, Gender.MALE, null));
         assertNotNull(added, "handleAdd phải thành công");

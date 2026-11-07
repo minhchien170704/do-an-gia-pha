@@ -21,14 +21,34 @@ skinparam linetype ortho
 ' ============================================================
 package "com.giapha.controller" {
 
+    interface FormDataSource <<interface>> {
+        + getFullNameInput() : String
+        + getBirthYearInput() : String
+        + getGenderInput() : Gender
+        + getSelectedFather() : Person
+        + getSelectedMother() : Person
+        + getSelectedPhotoSourcePath() : String
+        + getExistingPhotoPath() : String
+        + getEditingPerson() : Person
+    }
+
+    interface PeopleListSource <<interface>> {
+        + getSelectedPerson() : Person
+        + refresh() : void
+    }
+
+    interface Navigator <<interface>> {
+        + navigateToPeopleList() : void
+        + navigateToPersonDetail(person : Person) : void
+        + navigateToFamilyTree(focusPerson : Person) : void
+    }
+
     class PersonController {
         - familyTreeService : FamilyTreeService
-        - peopleListView : PeopleListView
-        - personFormView : PersonFormView
+        - formDataSource : FormDataSource
+        - peopleListSource : PeopleListSource
+        - navigator : Navigator
         - selectedPerson : Person
-        - navigateToPeopleList : Runnable
-        - navigateToPersonDetail : Consumer<Person>
-        - navigateToFamilyTree : Consumer<Person>
         + PersonController(familyTreeService : FamilyTreeService)
         + handleAdd() : void
         + handleAdd(person : Person) : Person
@@ -46,6 +66,10 @@ package "com.giapha.controller" {
         + handleClearMother(childId : int) : void
         + handleViewTree() : void
         + handleViewTree(focusId : int) : Person
+        + setFormDataSource(formDataSource : FormDataSource) : void
+        + setPeopleListSource(peopleListSource : PeopleListSource) : void
+        + setNavigator(navigator : Navigator) : void
+        + setSelectedPerson(selectedPerson : Person) : void
     }
 }
 
@@ -83,7 +107,6 @@ package "com.giapha.view" {
         + getSelectedPhotoSourcePath() : String
         + getExistingPhotoPath() : String
     }
-
     class PersonDetailView {
         - controller : PersonController
         - person : Person
@@ -168,9 +191,22 @@ note right of PersonController
   sang thông báo tiếng Việt (Alert)
 end note
 
-' Controller ↔ View (2 chiều: setter đăng ký View hiện hành)
-PersonController --> PeopleListView : giữ tham chiếu View\n(dùng để refresh sau khi xóa)
-PersonController --> PersonFormView : giữ tham chiếu View\n(dùng để đọc dữ liệu form khi lưu)
+' Controller → Abstraction (DIP — không phụ thuộc lớp View concrete)
+PersonController --> FormDataSource : đọc dữ liệu form
+PersonController --> PeopleListSource : dòng đang chọn + làm mới danh sách
+PersonController --> Navigator : yêu cầu chuyển màn hình
+
+' View → Abstraction (adapter hiện thực)
+PersonFormView ..|> FormDataSource : hiện thực
+PeopleListView ..|> PeopleListSource : hiện thực
+note bottom of FormDataSource
+  Dữ liệu thuần Java (String/Gender/Person)
+  — không truyền JavaFX Control/Node
+end note
+note bottom of Navigator
+  Được nối tại composition root (Main)
+  với cơ chế Scene/Stage thật
+end note
 
 ' View ↔ View
 FamilyTreeView *-- FamilyTreeDiagram : chứa (composition)

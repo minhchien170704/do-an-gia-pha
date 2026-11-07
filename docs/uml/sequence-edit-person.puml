@@ -3,7 +3,7 @@
 title Sequence Diagram - Chỉnh sửa thành viên (cập nhật NGUYÊN TỬ)
 
 actor "Người dùng" as User
-participant "PersonFormView" as FormView
+participant "PersonFormView\n(implements FormDataSource)" as FormView
 participant "PersonController" as Controller
 participant "FamilyTreeService" as Service
 participant "PersonRepository" as Repo
@@ -30,8 +30,8 @@ JdbcRepo --> Repo : Person (cha/mẹ đã liên kết)
 Repo --> Service : Person (bản gốc)
 Service --> Controller : Person (bản gốc)
 
-Controller -> FormView : getFullNameInput() / getBirthYearInput()\ngetGenderInput() / getSelectedFather() / getSelectedMother()
-FormView --> Controller : dữ liệu mới người dùng nhập
+Controller -> FormView : (qua FormDataSource)\ngetFullNameInput() / getBirthYearInput()\ngetGenderInput() / getSelectedFather() / getSelectedMother()
+FormView --> Controller : dữ liệu mới người dùng nhập\n(kiểu thuần: String / Gender / Person)
 
 Controller -> Controller : validate input\n(tên rỗng / năm sinh rỗng / không phải số / giới tính null)
 
@@ -109,7 +109,7 @@ deactivate Service
 == Giai đoạn 5: Hoàn tất ==
 
 Controller --> User : Alert "Đã cập nhật thành công"
-Controller --> FormView : điều hướng về danh sách
+Controller --> FormView : navigator.navigateToPeopleList()\n(quay về danh sách)
 deactivate Controller
 
 @enduml

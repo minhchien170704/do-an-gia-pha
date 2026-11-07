@@ -1,5 +1,6 @@
 package com.giapha.view;
 
+import com.giapha.controller.PeopleListSource;
 import com.giapha.controller.PersonController;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
@@ -22,8 +23,12 @@ import java.util.Map;
  * Màn hình danh sách thành viên gia phả — People List View.
  * Tải dữ liệu thực từ MySQL thông qua PersonController (không còn dùng SampleData).
  * FilteredList client-side cho phép tìm kiếm tức thì trên tập đã nạp.
+ *
+ * <p>Lớp này hiện thực {@link PeopleListSource} — abstraction cho biết thành viên
+ * đang được chọn và yêu cầu làm mới danh sách, dùng bởi
+ * {@link PersonController} mà không cần biết lớp View cụ thể nào.
  */
-public class PeopleListView {
+public class PeopleListView implements PeopleListSource {
 
     private final BorderPane root;
     private final TableView<Person> tableView;
@@ -403,10 +408,12 @@ public class PeopleListView {
      * Làm mới danh sách bằng cách tải lại từ MySQL.
      * Được gọi bởi PersonController sau thao tác xóa thành công.
      */
+    @Override
     public void refresh() {
         reloadData();
     }
 
+    @Override
     public Person getSelectedPerson() {
         return tableView != null ? tableView.getSelectionModel().getSelectedItem() : null;
     }

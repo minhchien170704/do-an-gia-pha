@@ -107,7 +107,7 @@ không phụ thuộc chi tiết. Nhờ đó test có thể thay repository bằn
 |---|---|---|
 | 1 | `view/PersonFormView.java` → `handleSave()` | Validate ở tầng View: họ tên rỗng, năm sinh rỗng/không phải số, giới tính null → `showAlert(...)` và dừng |
 | 2 | `view/PersonFormView.java` → `handleSave()` | Tạo `Person`, `setFather(newFather)`, `setMother(newMother)` → `controller.handleAdd()` (overload không tham số — nhờ vậy **BR5 luôn chạy** trong luồng lưu thật của form) |
-| 3 | `controller/PersonController.java` → `handleAdd()` | Đọc dữ liệu từ `personFormView` → kiểm tra **BR5** (`confirmBirthYearWarning`) → nếu OK gọi `handleAdd(Person)` → `familyTreeService.addPerson(person)` trong `try/catch` |
+| 3 | `controller/PersonController.java` → `handleAdd()` | Đọc dữ liệu từ `FormDataSource` → kiểm tra **BR5** (`confirmBirthYearWarning`) → nếu OK gọi `handleAdd(Person)` → `familyTreeService.addPerson(person)` trong `try/catch` |
 | 4 | `service/FamilyTreeService.java` → `addPerson(Person)` | `validatePerson(person)` → kiểm tra BR2 → kiểm tra BR6 (cha, mẹ) → `personRepository.save(person)` → `person.setId(generatedId)` |
 | 5 | `repository/JdbcPersonRepository.java` → `save(Person)` | `INSERT INTO person (...)` với `Statement.RETURN_GENERATED_KEYS` → trả `generated id` |
 | 6 | `controller/PersonController.java` → `handleAdd(Person)` | Nếu đã chọn ảnh: `persistSelectedImage(sourcePath, added.getId())` → `ImageManager.copyImageToAppDirectory(...)` → `familyTreeService.updatePerson(added)` |

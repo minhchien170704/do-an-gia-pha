@@ -44,7 +44,7 @@ else Thành viên tồn tại
       → tránh 2 truy vấn DB thừa mỗi lần mở cây gia phả.
     end note
 
-    Controller --> TreeView : navigateToFamilyTree.accept(focusPerson)
+    Controller --> TreeView : navigator.navigateToFamilyTree(focusPerson)
     deactivate Controller
 
     activate TreeView
