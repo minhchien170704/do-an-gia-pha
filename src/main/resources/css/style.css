@@ -1,96 +1,153 @@
 /* ======================================================
-   Sơ đồ Gia phả — Redesigned Stylesheet
-   Design: Modern Genealogy / Warm Professional
+   Sơ đồ Gia phả — Modern Light Design System
+   ------------------------------------------------------------
+   Toàn bộ màu sắc được khai báo dưới dạng looked-up color
+   trong `.root` để Java View KHÔNG còn hardcode màu.
+   Mọi class đang được Java sử dụng đều được giữ nguyên tên.
+
+   Lưu ý cú pháp: chỉ dùng cú pháp CSS hợp lệ của JavaFX
+   (không display:flex, không box-shadow, không gap,
+    không --token, không linear-gradient kiểu trình duyệt).
+   Looked-up color chỉ mang giá trị MÀU — không dùng cho
+   -fx-effect (Effect) nên các dropshadow được viết trực tiếp.
    ====================================================== */
 
+/* ======================================================
+   1. DESIGN TOKEN
+   ====================================================== */
 .root {
-    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    /* ---- Typography ---- */
+    -fx-font-family: "Inter", "Segoe UI", "Noto Sans", "Arial", "Tahoma";
     -fx-font-size: 13px;
-    -primary: #3D5A80;
-    -primary-hover: #2C4A6E;
-    -primary-light: #EBF0F7;
-    -bg: #F7F6F3;
-    -card: #FFFFFF;
-    -border: #E5E2DC;
-    -text: #1E1E1E;
-    -text-secondary: #71717A;
-    -text-muted: #A1A1AA;
-    -danger: #C53030;
-    -danger-hover: #9B2C2C;
-    -success: #2F855A;
+
+    /* ---- Surface ---- */
+    -bg: #F6F8FC;
+    -surface: #FFFFFF;
+    -surface-alt: #F8FAFC;
+    -surface-sunken: #EEF2F9;
+
+    /* ---- Primary ---- */
+    -primary: #2563EB;
+    -primary-hover: #1D4ED8;
+    -primary-active: #1E40AF;
+    -primary-light: #EFF6FF;
+    -primary-border: #BFDBFE;
+
+    /* ---- Sidebar ---- */
+    -sidebar: #172B4D;
+    -sidebar-hover: #1E3A5F;
+    -sidebar-active: #223E63;
+    -sidebar-text: #94A3B8;
+    -sidebar-text-active: #FFFFFF;
+    -sidebar-accent: #3B82F6;
+
+    /* ---- Text ---- */
+    -text: #172033;
+    -text-secondary: #64748B;
+    -text-muted: #94A3B8;
+    -text-inverse: #FFFFFF;
+
+    /* ---- Border ---- */
+    -border: #E2E8F0;
+    -border-strong: #CBD5E1;
+
+    /* ---- Semantic ---- */
+    -danger: #DC2626;
+    -danger-hover: #B91C1C;
+    -danger-light: #FEF2F2;
+    -success: #16A34A;
+    -success-light: #F0FDF4;
+    -warning: #D97706;
+    -warning-light: #FFFBEB;
+
+    /* ---- Gender ---- */
+    -male-bg: #EFF6FF;
+    -male-text: #1D4ED8;
+    -female-bg: #FDF2F8;
+    -female-text: #BE185D;
+
+    /* ---- Nền mặc định ---- */
+    -fx-background-color: -bg;
+    -fx-text-fill: -text;
 }
 
-/* ---- SIDEBAR ---- */
+/* ======================================================
+   2. SIDEBAR
+   ====================================================== */
 .sidebar {
-    -fx-background-color: #1A2636;
+    -fx-background-color: -sidebar;
 }
 
 .sidebar-brand {
-    -fx-padding: 28 24 20 24;
+    -fx-padding: 26 22 18 22;
 }
 
 .sidebar-title {
-    -fx-font-size: 13px;
-    -fx-text-fill: #94A3B8;
+    -fx-font-size: 11px;
+    -fx-text-fill: -sidebar-text;
     -fx-font-weight: normal;
+    -fx-padding: 0 0 2 0;
 }
 
 .sidebar-app-name {
     -fx-font-size: 19px;
     -fx-font-weight: bold;
-    -fx-text-fill: #E2E8F0;
+    -fx-text-fill: -sidebar-text-active;
 }
 
 .nav-section-label {
-    -fx-text-fill: #4A5568;
+    -fx-text-fill: #64748B;
     -fx-font-size: 10px;
     -fx-font-weight: bold;
-    -fx-padding: 20 24 6 24;
+    -fx-padding: 18 22 6 22;
 }
 
 .nav-item {
-    -fx-padding: 11 24;
+    -fx-padding: 11 22;
     -fx-cursor: hand;
     -fx-background-color: transparent;
     -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 0 3;
 }
 
 .nav-item:hover {
-    -fx-background-color: rgba(255,255,255,0.04);
+    -fx-background-color: -sidebar-hover;
 }
 
 .nav-item-active {
-    -fx-background-color: rgba(255,255,255,0.07);
+    -fx-background-color: -sidebar-active;
     -fx-border-width: 0 0 0 3;
-    -fx-border-color: transparent transparent transparent #5B9BD5;
+    -fx-border-color: transparent transparent transparent -sidebar-accent;
 }
 
 .nav-item-label {
-    -fx-text-fill: #7A8BA0;
+    -fx-text-fill: -sidebar-text;
     -fx-font-size: 13px;
 }
 
 .nav-item-active .nav-item-label {
-    -fx-text-fill: #E2E8F0;
+    -fx-text-fill: -sidebar-text-active;
     -fx-font-weight: bold;
 }
 
 .sidebar-footer {
-    -fx-padding: 16 24;
+    -fx-padding: 14 22;
 }
 
 .sidebar-version {
-    -fx-text-fill: #3D4F63;
+    -fx-text-fill: #52657A;
     -fx-font-size: 10px;
 }
 
-/* ---- CONTENT AREA ---- */
+/* ======================================================
+   3. CONTENT AREA / PAGE HEADER
+   ====================================================== */
 .content-area {
     -fx-background-color: -bg;
-    -fx-padding: 32 36;
+    -fx-padding: 28 32;
 }
 
-/* ---- PAGE HEADER ---- */
 .page-title {
     -fx-font-size: 22px;
     -fx-font-weight: bold;
@@ -109,29 +166,32 @@
     -fx-padding: 0 0 4 0;
     -fx-cursor: hand;
     -fx-border-color: transparent;
+    -fx-background-radius: 4;
 }
 
 .back-link:hover {
     -fx-text-fill: -primary;
 }
 
-/* ---- CARDS ---- */
+/* ======================================================
+   4. CARD
+   ====================================================== */
 .card {
-    -fx-background-color: -card;
-    -fx-background-radius: 8;
+    -fx-background-color: -surface;
+    -fx-background-radius: 10;
     -fx-border-color: -border;
-    -fx-border-radius: 8;
+    -fx-border-radius: 10;
     -fx-padding: 20 24;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 4, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.06), 4, 0, 0, 1);
 }
 
 .stat-card {
-    -fx-background-color: -card;
-    -fx-background-radius: 8;
+    -fx-background-color: -surface;
+    -fx-background-radius: 10;
     -fx-border-color: -border;
-    -fx-border-radius: 8;
+    -fx-border-radius: 10;
     -fx-padding: 14 18;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.02), 2, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.05), 3, 0, 0, 1);
 }
 
 .stat-value {
@@ -145,7 +205,9 @@
     -fx-text-fill: -text-secondary;
 }
 
-/* ---- TABLE ---- */
+/* ======================================================
+   5. TABLE VIEW
+   ====================================================== */
 .table-view {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
@@ -153,7 +215,7 @@
 }
 
 .table-view .column-header-background {
-    -fx-background-color: transparent;
+    -fx-background-color: -surface-alt;
 }
 
 .table-view .column-header-background .filler {
@@ -163,8 +225,8 @@
 
 .table-view .column-header {
     -fx-background-color: transparent;
-    -fx-border-color: transparent transparent #EDEBE8 transparent;
-    -fx-padding: 8 14;
+    -fx-border-color: transparent transparent -border transparent;
+    -fx-padding: 10 14;
 }
 
 .table-view .column-header .label {
@@ -175,7 +237,7 @@
 
 .table-view .table-row-cell {
     -fx-background-color: transparent;
-    -fx-border-color: transparent transparent #F2F0ED transparent;
+    -fx-border-color: transparent transparent -border transparent;
     -fx-cell-size: 44;
 }
 
@@ -184,7 +246,7 @@
 }
 
 .table-view .table-row-cell:hover {
-    -fx-background-color: #FAFAF8;
+    -fx-background-color: -surface-alt;
 }
 
 .table-view .table-row-cell:selected {
@@ -199,20 +261,29 @@
     -fx-text-fill: -text;
 }
 
+.table-view .table-cell {
+    -fx-border-color: transparent;
+    -fx-alignment: center-left;
+    -fx-padding: 0 14;
+}
+
 .table-view .placeholder .label {
     -fx-text-fill: -text-muted;
     -fx-font-size: 13px;
 }
 
-/* ---- BUTTONS ---- */
+/* ======================================================
+   6. BUTTONS
+   ====================================================== */
 .btn-primary {
     -fx-background-color: -primary;
-    -fx-text-fill: #FFFFFF;
+    -fx-text-fill: -text-inverse;
     -fx-font-weight: bold;
     -fx-font-size: 13px;
-    -fx-padding: 8 18;
+    -fx-padding: 9 18;
     -fx-background-radius: 6;
     -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.22), 4, 0, 0, 1);
 }
 
 .btn-primary:hover {
@@ -220,22 +291,28 @@
 }
 
 .btn-primary:pressed {
-    -fx-background-color: #1E3554;
+    -fx-background-color: -primary-active;
 }
 
 .btn-secondary {
-    -fx-background-color: transparent;
+    -fx-background-color: -surface;
     -fx-text-fill: -text;
     -fx-font-size: 13px;
     -fx-padding: 8 16;
     -fx-background-radius: 6;
-    -fx-border-color: -border;
+    -fx-border-color: -border-strong;
     -fx-border-radius: 6;
     -fx-cursor: hand;
 }
 
 .btn-secondary:hover {
-    -fx-background-color: #F3F1EE;
+    -fx-background-color: -surface-alt;
+    -fx-border-color: -primary-border;
+    -fx-text-fill: -primary-hover;
+}
+
+.btn-secondary:pressed {
+    -fx-background-color: -surface-sunken;
 }
 
 .btn-ghost {
@@ -249,13 +326,13 @@
 }
 
 .btn-ghost:hover {
-    -fx-background-color: #F3F1EE;
+    -fx-background-color: -surface-sunken;
     -fx-text-fill: -text;
 }
 
 .btn-danger-ghost {
     -fx-background-color: transparent;
-    -fx-text-fill: #B91C1C;
+    -fx-text-fill: -danger;
     -fx-font-size: 13px;
     -fx-padding: 8 12;
     -fx-background-radius: 6;
@@ -264,67 +341,133 @@
 }
 
 .btn-danger-ghost:hover {
-    -fx-background-color: #FEF2F2;
-    -fx-text-fill: -danger;
+    -fx-background-color: -danger-light;
+    -fx-text-fill: -danger-hover;
 }
 
-/* ---- SEARCH ---- */
+/* ======================================================
+   7. INPUT — SEARCH FIELD / FORM FIELD / COMBO BOX
+   ====================================================== */
 .search-field {
-    -fx-background-color: -card;
-    -fx-border-color: -border;
+    -fx-background-color: -surface;
+    -fx-border-color: -border-strong;
     -fx-border-radius: 6;
     -fx-background-radius: 6;
-    -fx-padding: 8 14;
+    -fx-padding: 9 14;
     -fx-pref-width: 240;
     -fx-prompt-text-fill: -text-muted;
+    -fx-font-size: 13px;
 }
 
 .search-field:focused {
     -fx-border-color: -primary;
-    -fx-effect: dropshadow(gaussian, rgba(61,90,128,0.1), 4, 0, 0, 0);
-}
-
-/* ---- FORM ---- */
-.form-label {
-    -fx-font-size: 12px;
-    -fx-font-weight: bold;
-    -fx-text-fill: -text-secondary;
-    -fx-padding: 0 0 2 0;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.18), 6, 0, 0, 0);
 }
 
 .form-field {
-    -fx-background-color: -card;
-    -fx-border-color: -border;
+    -fx-background-color: -surface;
+    -fx-border-color: -border-strong;
     -fx-border-radius: 6;
     -fx-background-radius: 6;
     -fx-padding: 9 12;
+    -fx-font-size: 13px;
 }
 
 .form-field:focused {
     -fx-border-color: -primary;
-    -fx-effect: dropshadow(gaussian, rgba(61,90,128,0.1), 4, 0, 0, 0);
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.18), 6, 0, 0, 0);
 }
 
-/* ---- BADGES ---- */
+.text-field {
+    -fx-background-color: -surface;
+    -fx-border-color: -border-strong;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-size: 13px;
+}
+
+.text-field:focused {
+    -fx-border-color: -primary;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.18), 6, 0, 0, 0);
+}
+
+.combo-box {
+    -fx-background-color: -surface;
+    -fx-border-color: -border-strong;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-size: 13px;
+}
+
+.combo-box:focused {
+    -fx-border-color: -primary;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.18), 6, 0, 0, 0);
+}
+
+.combo-box .arrow-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+}
+
+.combo-box .list-cell {
+    -fx-padding: 7 10;
+    -fx-text-fill: -text;
+    -fx-background-color: transparent;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -surface;
+    -fx-border-color: -border;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.12), 10, 0, 0, 3);
+}
+
+.combo-box-popup .list-cell {
+    -fx-padding: 8 12;
+    -fx-background-color: transparent;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: -primary-light;
+}
+
+.combo-box-popup .list-cell:filled:selected {
+    -fx-background-color: -primary-light;
+    -fx-text-fill: -primary-active;
+}
+
+/* ======================================================
+   8. BADGE — GIỚI TÍNH
+   ====================================================== */
 .badge-male {
-    -fx-background-color: #EBF0F7;
-    -fx-text-fill: #3D5A80;
-    -fx-padding: 2 8;
-    -fx-background-radius: 4;
+    -fx-background-color: -male-bg;
+    -fx-text-fill: -male-text;
+    -fx-padding: 3 9;
+    -fx-background-radius: 999;
     -fx-font-size: 11px;
     -fx-font-weight: bold;
 }
 
 .badge-female {
-    -fx-background-color: #F3EBF0;
-    -fx-text-fill: #7A4D6E;
-    -fx-padding: 2 8;
-    -fx-background-radius: 4;
+    -fx-background-color: -female-bg;
+    -fx-text-fill: -female-text;
+    -fx-padding: 3 9;
+    -fx-background-radius: 999;
     -fx-font-size: 11px;
     -fx-font-weight: bold;
 }
 
-/* ---- SECTION TITLE ---- */
+/* ======================================================
+   9. FORM / SECTION
+   ====================================================== */
+.form-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-secondary;
+    -fx-padding: 0 0 4 0;
+}
+
 .section-title {
     -fx-font-size: 14px;
     -fx-font-weight: bold;
@@ -332,7 +475,16 @@
     -fx-padding: 0 0 4 0;
 }
 
-/* ---- DETAIL ---- */
+.form-separator {
+    -fx-padding: 4 0;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* ======================================================
+   10. DETAIL VIEW
+   ====================================================== */
 .detail-label {
     -fx-font-size: 12px;
     -fx-text-fill: -text-muted;
@@ -355,80 +507,169 @@
     -fx-text-fill: -text-secondary;
 }
 
-/* ---- PERSON AVATAR (ảnh đại diện bo tròn) ---- */
+/* ======================================================
+   11. PERSON AVATAR (ảnh đại diện bo tròn)
+   ------------------------------------------------------------
+   Container luôn trong suốt — màu theo giới tính nằm ở
+   CHILD (nền tròn / chữ cái đầu / vòng tròn viền) để cơ chế
+   thay thế children của PersonFormView vẫn giữ đúng màu.
+   ====================================================== */
 .person-avatar {
+    -fx-background-color: transparent;
     -fx-background-radius: 999;
-    -fx-border-width: 1.5;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
 }
 
-/* ---- SƠ ĐỒ CÂY GIA PHẢ 2D ---- */
+/* Nền tròn của placeholder */
+.avatar-disc {
+    -fx-stroke-width: 0;
+}
+
+/* Chữ cái đầu (placeholder) */
+.avatar-initial {
+    -fx-background-color: transparent;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
+    -fx-font-weight: bold;
+    -fx-padding: 0;
+}
+
+/* Màu nền + màu chữ theo giới tính.
+   - Circle (nền tròn) dùng -fx-fill; Label (chữ cái đầu) dùng -fx-text-fill. */
+.avatar-male {
+    -fx-background-color: -male-bg;
+    -fx-text-fill: -male-text;
+}
+
+.avatar-female {
+    -fx-background-color: -female-bg;
+    -fx-text-fill: -female-text;
+}
+
+/* Nền tròn (Circle) tô màu theo giới tính */
+.avatar-disc.avatar-male {
+    -fx-fill: -male-bg;
+}
+
+.avatar-disc.avatar-female {
+    -fx-fill: -female-bg;
+}
+
+/* Cỡ chữ của chữ cái đầu theo kích thước avatar */
+.avatar-initial-sm {
+    -fx-font-size: 11px;
+}
+
+.avatar-initial-md {
+    -fx-font-size: 20px;
+}
+
+.avatar-initial-lg {
+    -fx-font-size: 23px;
+}
+
+/* Vòng tròn viền quanh ảnh thật */
+.avatar-ring {
+    -fx-fill: transparent;
+    -fx-stroke-width: 1.5;
+}
+
+.avatar-ring-male {
+    -fx-stroke: -male-text;
+}
+
+.avatar-ring-female {
+    -fx-stroke: -female-text;
+}
+
+/* ======================================================
+   12. SƠ ĐỒ CÂY GIA PHẢ 2D
+   ====================================================== */
 .family-tree-diagram {
-    -fx-background-color: #FAFAF8;
-    -fx-border-color: #E2E0DC;
-    -fx-border-radius: 8;
+    -fx-background-color: -surface-alt;
+    -fx-border-color: -border;
+    -fx-border-radius: 10;
 }
 
 .tree2d-edge {
-    -fx-stroke: #B8C4D0;
+    -fx-stroke: -border-strong;
     -fx-stroke-width: 1.6;
 }
 
 .tree2d-node {
-    -fx-background-color: #FFFFFF;
+    -fx-background-color: -surface;
     -fx-background-radius: 10;
-    -fx-border-color: #CBD5E1;
+    -fx-border-color: -border-strong;
     -fx-border-radius: 10;
     -fx-border-width: 1.2;
     -fx-padding: 8 10;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.10), 6, 0.2, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.10), 6, 0.2, 0, 2);
     -fx-cursor: hand;
 }
 
 .tree2d-node:hover {
-    -fx-border-color: #3D5A80;
+    -fx-border-color: -primary;
     -fx-border-width: 1.8;
 }
 
 .tree2d-node-focus {
-    -fx-background-color: #EBF0F7;
-    -fx-border-color: #3D5A80;
+    -fx-background-color: -primary-light;
+    -fx-border-color: -primary;
     -fx-border-width: 2.2;
 }
 
 .tree2d-node-ancestor {
-    -fx-border-color: #CBD5E1;
+    -fx-border-color: -border-strong;
 }
 
 .tree2d-node-descendant {
-    -fx-border-color: #D8C9D6;
+    -fx-border-color: -primary-border;
 }
 
 .tree2d-name {
     -fx-font-size: 12px;
     -fx-font-weight: bold;
-    -fx-text-fill: #1F2937;
+    -fx-text-fill: -text;
 }
 
 .tree2d-meta {
     -fx-font-size: 10px;
-    -fx-text-fill: #64748B;
+    -fx-text-fill: -text-secondary;
 }
 
-/* ---- TAB CÂY GIA PHẢ ---- */
+/* ======================================================
+   13. TAB CÂY GIA PHẢ
+   ====================================================== */
 .tree-tab-pane {
     -fx-background-color: transparent;
+    -fx-border-color: transparent;
 }
 
 .tree-tab {
     -fx-font-size: 13px;
+    -fx-padding: 10 20;
+    -fx-background-radius: 6 6 0 0;
 }
 
-/* ---- PARENT & MINI CARDS ---- */
+.tree-tab:selected {
+    -fx-background-color: -surface;
+    -fx-text-fill: -primary-active;
+    -fx-font-weight: bold;
+}
+
+.tree-tab:hover {
+    -fx-text-fill: -primary-hover;
+}
+
+/* ======================================================
+   14. PARENT / MINI CARD
+   ====================================================== */
 .parent-card {
-    -fx-background-color: #FAFAF8;
-    -fx-background-radius: 6;
-    -fx-border-color: #E2E0DC;
-    -fx-border-radius: 6;
+    -fx-background-color: -surface-alt;
+    -fx-background-radius: 8;
+    -fx-border-color: -border;
+    -fx-border-radius: 8;
     -fx-padding: 14 18;
 }
 
@@ -450,15 +691,16 @@
 }
 
 .person-mini-card {
-    -fx-background-color: #FAFAF8;
-    -fx-background-radius: 6;
-    -fx-border-color: #EDEBE8;
-    -fx-border-radius: 6;
+    -fx-background-color: -surface-alt;
+    -fx-background-radius: 8;
+    -fx-border-color: -border;
+    -fx-border-radius: 8;
     -fx-padding: 10 16;
 }
 
 .person-mini-card:hover {
-    -fx-background-color: #F4F2EE;
+    -fx-background-color: -surface-sunken;
+    -fx-border-color: -primary-border;
 }
 
 .empty-text {
@@ -468,7 +710,9 @@
     -fx-padding: 6 0;
 }
 
-/* ---- TREE VIEW ---- */
+/* ======================================================
+   15. TREE VIEW (danh sách phả hệ)
+   ====================================================== */
 .tree-view {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
@@ -488,20 +732,24 @@
     -fx-background-color: transparent;
 }
 
+.tree-view .tree-cell > .tree-disclosure-node > .arrow {
+    -fx-fill: -text-muted;
+}
+
 .tree-person-card {
-    -fx-background-color: -card;
+    -fx-background-color: -surface;
     -fx-border-color: -border;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-padding: 8 14;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.02), 2, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.05), 3, 0, 0, 1);
 }
 
 .tree-person-card-focus {
     -fx-background-color: -primary-light;
     -fx-border-color: -primary;
     -fx-border-width: 1.5;
-    -fx-effect: dropshadow(gaussian, rgba(61,90,128,0.12), 6, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.18), 6, 0, 0, 1);
 }
 
 .tree-person-name {
@@ -527,7 +775,9 @@
     -fx-text-fill: -text-muted;
 }
 
-/* ---- EMPTY STATE ---- */
+/* ======================================================
+   16. EMPTY STATE
+   ====================================================== */
 .empty-state {
     -fx-text-fill: -text-muted;
     -fx-font-size: 13px;
@@ -535,29 +785,27 @@
     -fx-alignment: center;
 }
 
-/* ---- SEPARATOR ---- */
-.form-separator {
-    -fx-padding: 4 0;
-}
-
-/* ---- SCROLLBAR ---- */
+/* ======================================================
+   17. SCROLLBAR
+   ====================================================== */
 .scroll-bar:vertical .track {
     -fx-background-color: transparent;
 }
 
 .scroll-bar:vertical .thumb {
-    -fx-background-color: #D4D0CB;
-    -fx-background-radius: 4;
+    -fx-background-color: -border-strong;
+    -fx-background-radius: 999;
 }
 
 .scroll-bar:vertical .thumb:hover {
-    -fx-background-color: #B0ACA7;
+    -fx-background-color: -text-muted;
 }
 
 .scroll-bar:vertical .increment-button,
 .scroll-bar:vertical .decrement-button {
     -fx-padding: 0;
     -fx-pref-height: 0;
+    -fx-opacity: 0;
 }
 
 .scroll-bar:horizontal .track {
@@ -565,42 +813,50 @@
 }
 
 .scroll-bar:horizontal .thumb {
-    -fx-background-color: #D4D0CB;
-    -fx-background-radius: 4;
+    -fx-background-color: -border-strong;
+    -fx-background-radius: 999;
 }
 
-/* ---- COMBO BOX ---- */
-.combo-box .list-cell {
-    -fx-padding: 6 10;
-    -fx-text-fill: -text;
+.scroll-bar:horizontal .increment-button,
+.scroll-bar:horizontal .decrement-button {
+    -fx-padding: 0;
+    -fx-pref-width: 0;
+    -fx-opacity: 0;
 }
 
-.combo-box-popup .list-view {
-    -fx-background-color: -card;
-    -fx-border-color: -border;
-    -fx-border-radius: 6;
-    -fx-background-radius: 6;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 8, 0, 0, 2);
-}
-
-.combo-box-popup .list-cell {
-    -fx-padding: 8 12;
-    -fx-background-color: transparent;
-}
-
-.combo-box-popup .list-cell:hover {
-    -fx-background-color: -primary-light;
-}
-
-.combo-box-popup .list-cell:filled:selected {
-    -fx-background-color: -primary-light;
-    -fx-text-fill: -text;
-}
-
-/* ---- TOOLBAR SEPARATOR ---- */
+/* ======================================================
+   18. TOOLBAR DIVIDER
+   ====================================================== */
 .toolbar-divider {
     -fx-background-color: -border;
     -fx-pref-width: 1;
     -fx-max-width: 1;
     -fx-pref-height: 24;
+}
+
+/* ======================================================
+   19. DIALOG / ALERT
+   ====================================================== */
+.dialog-pane {
+    -fx-background-color: -surface;
+    -fx-background-radius: 12;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: -surface-alt;
+}
+
+.dialog-pane .header-panel .label {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text;
+}
+
+.dialog-pane .content.label {
+    -fx-text-fill: -text-secondary;
+}
+
+.dialog-pane .button-bar {
+    -fx-background-color: -surface-alt;
+    -fx-padding: 12 16;
 }
