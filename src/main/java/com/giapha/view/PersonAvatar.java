@@ -6,7 +6,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.control.Label;
 
 import java.io.File;
@@ -20,7 +19,7 @@ import java.nio.file.Paths;
  * <p>Được dùng lại ở nhiều màn hình: danh sách thành viên, chi tiết hồ sơ,
  * node của cây gia phả và form thêm/sửa.
  *
- * <p>Cơ chế fallback (KHÔNG BAO GIỜ ném exception ra giao diện):
+ * <p>Cơ chế fallback (KHÔNG BAO GIỚ ném exception ra giao diện):
  * <ol>
  *     <li>Nếu {@code photoPath} hợp lệ, file tồn tại và đọc được → hiển thị ảnh thật (bo tròn).</li>
  *     <li>Nếu file không tồn tại, không đọc được, hoặc file hỏng → hiển thị chữ cái đầu
@@ -29,6 +28,21 @@ import java.nio.file.Paths;
  *
  * <p>Ảnh được nạp ở chế độ background loading; nếu nạp lỗi (file hỏng) thì component
  * tự chuyển sang placeholder. Việc này giúp UI không bị treo hay văng lỗi.
+ *
+ * <p><b>Về màu sắc:</b> component KHÔNG dùng {@code setStyle()} để gán màu nữa.
+ * Mọi màu đều do CSS class đảm nhiệm (xem {@code style.css}):
+ * <ul>
+ *     <li>Container dùng class {@code person-avatar} (hoàn toàn trong suốt).</li>
+ *     <li>Nền tròn của placeholder dùng {@code avatar-disc} + {@code avatar-male}
+ *         hoặc {@code avatar-female}.</li>
+ *     <li>Chữ cái đầu dùng {@code avatar-initial} + {@code avatar-male}
+ *         hoặc {@code avatar-female} (màu chữ) + {@code avatar-initial-sm/md/lg} (cỡ chữ).</li>
+ *     <li>Vòng tròn viền quanh ảnh thật dùng {@code avatar-ring} + {@code avatar-ring-male}
+ *         hoặc {@code avatar-ring-female}.</li>
+ * </ul>
+ *
+ * <p>Nhờ vậy màu nằm trên các <i>child</i> nên vẫn được sao chép đúng khi
+ * {@code PersonFormView} cập nhật khung xem trước bằng cách thay thế children.
  */
 public class PersonAvatar extends StackPane {
 
@@ -38,10 +52,25 @@ public class PersonAvatar extends StackPane {
     /** Kích thước avatar nhỏ dùng cho node cây gia phả. */
     public static final int SMALL_SIZE = 34;
 
-    private static final String MALE_BG = "#EBF0F7";
-    private static final String MALE_BORDER = "#3D5A80";
-    private static final String FEMALE_BG = "#F3EBF0";
-    private static final String FEMALE_BORDER = "#7A4D6E";
+    /** Ngưỡng kích thước để chọn cỡ chữ của chữ cái đầu. */
+    private static final int SMALL_TEXT_MAX = 40;
+    private static final int MEDIUM_TEXT_MAX = 55;
+
+    /** CSS class áp dụng cho placeholder theo giới tính. */
+    private static final String CLASS_INITIAL = "avatar-initial";
+    private static final String CLASS_DISC = "avatar-disc";
+    private static final String CLASS_MALE = "avatar-male";
+    private static final String CLASS_FEMALE = "avatar-female";
+
+    /** CSS class áp dụng cho vòng tròn viền quanh ảnh thật. */
+    private static final String CLASS_RING = "avatar-ring";
+    private static final String CLASS_RING_MALE = "avatar-ring-male";
+    private static final String CLASS_RING_FEMALE = "avatar-ring-female";
+
+    /** CSS class áp dụng cho cỡ chữ của chữ cái đầu. */
+    private static final String CLASS_TEXT_SM = "avatar-initial-sm";
+    private static final String CLASS_TEXT_MD = "avatar-initial-md";
+    private static final String CLASS_TEXT_LG = "avatar-initial-lg";
 
     private final Person person;
     private final int size;
@@ -51,6 +80,12 @@ public class PersonAvatar extends StackPane {
 
     /** Nhãn chữ cái đầu dùng làm placeholder. */
     private Label initialLabel;
+
+    /** Nền tròn của placeholder — luôn nằm trong scene graph để CSS áp dụng đúng. */
+    private Circle disc;
+
+    /** Vòng tròn viền quanh ảnh thật — luôn nằm trong scene graph để CSS áp dụng đúng. */
+    private Circle ring;
 
     public PersonAvatar(Person person) {
         this(person, DEFAULT_SIZE);
@@ -71,7 +106,7 @@ public class PersonAvatar extends StackPane {
         setMinSize(size, size);
         setMaxSize(size, size);
 
-        buildPlaceholder();
+        buildNodes();
 
         // Thử nạp ảnh thật — nếu thất bại thì giữ nguyên placeholder
         try {
@@ -100,7 +135,7 @@ public class PersonAvatar extends StackPane {
         setMinSize(size, size);
         setMaxSize(size, size);
 
-        buildPlaceholder();
+        buildNodes();
 
         try {
             if (imageFile != null && imageFile.isFile() && imageFile.canRead()) {
@@ -115,23 +150,65 @@ public class PersonAvatar extends StackPane {
     }
 
     /**
-     * Dựng phần placeholder: nền tròn + chữ cái đầu của họ tên.
+     * Dựng sẵn toàn bộ node con của avatar.
+     *
+     * <p>Tất cả node được đưa vào scene graph NGAY TỪ ĐẦU (kể cả khi đang ở chế độ
+     * placeholder) để đảm bảo JavaFX CSS áp dụng màu cho chúng đúng một lần.
+     * Việc chuyển chế độ chỉ đổi {@code visible} — không thêm/bớt node.
+     *
+     * <p>Thứ tự vẽ: {@code imageView → disc → ring → initialLabel}
+     * (node sau nằm đè lên node trước).
      */
-    private void buildPlaceholder() {
-        boolean isMale = person == null || person.getGender() == Gender.MALE;
-        String bg = isMale ? MALE_BG : FEMALE_BG;
-        String border = isMale ? MALE_BORDER : FEMALE_BORDER;
+    private void buildNodes() {
+        // Ảnh thật — ẩn cho tới khi nạp xong
+        imageView = new ImageView();
+        imageView.setPreserveRatio(true);
+        imageView.setSmooth(true);
+        imageView.setFitWidth(size);
+        imageView.setFitHeight(size);
+        imageView.setVisible(false);
 
-        setStyle("-fx-background-color: " + bg + "; "
-                + "-fx-background-radius: " + (size / 2) + "; "
-                + "-fx-border-color: " + border + "; "
-                + "-fx-border-radius: " + (size / 2) + "; "
-                + "-fx-border-width: 1.5;");
+        // Bo tròn ảnh bằng clip hình tròn
+        Circle clip = new Circle(size / 2.0);
+        imageView.setClip(clip);
 
+        // Nền tròn của placeholder — màu do CSS class quyết định theo giới tính
+        disc = new Circle(Math.max(1.0, size / 2.0 - 1));
+        disc.getStyleClass().add(CLASS_DISC);
+        disc.getStyleClass().add(genderClass());
+        disc.setMouseTransparent(true);
+        disc.setVisible(false);
+
+        // Vòng tròn viền quanh ảnh thật — màu do CSS class quyết định theo giới tính
+        ring = new Circle(Math.max(1.0, size / 2.0 - 1));
+        ring.getStyleClass().add(CLASS_RING);
+        ring.getStyleClass().add(genderRingClass());
+        ring.setMouseTransparent(true);
+        ring.setVisible(false);
+
+        // Chữ cái đầu — màu chữ theo giới tính, cỡ chữ theo kích thước avatar
         initialLabel = new Label(extractInitial());
-        initialLabel.setStyle("-fx-font-size: " + Math.max(11, size / 3) + "px; "
-                + "-fx-font-weight: bold; -fx-text-fill: " + border + ";");
-        getChildren().setAll(initialLabel);
+        initialLabel.getStyleClass().add(CLASS_INITIAL);
+        initialLabel.getStyleClass().add(genderClass());
+        initialLabel.getStyleClass().add(textSizeClass());
+        initialLabel.setMouseTransparent(true);
+
+        getChildren().setAll(imageView, disc, ring, initialLabel);
+
+        showPlaceholderState();
+    }
+
+    /**
+     * Chuyển sang chế độ hiển thị placeholder (chữ cái đầu trên nền tròn).
+     */
+    private void showPlaceholderState() {
+        if (imageView != null) {
+            imageView.setImage(null);
+            imageView.setVisible(false);
+        }
+        disc.setVisible(true);
+        ring.setVisible(false);
+        initialLabel.setVisible(true);
     }
 
     /**
@@ -202,7 +279,7 @@ public class PersonAvatar extends StackPane {
     }
 
     /**
-     * Áp dụng ảnh đã nạp lên component: tạo ImageView, bo tròn, ẩn placeholder.
+     * Áp dụng ảnh đã nạp lên component: hiển thị ImageView, ẩn placeholder.
      *
      * @param image đối tượng Image hợp lệ
      */
@@ -211,30 +288,19 @@ public class PersonAvatar extends StackPane {
             return;
         }
 
-        imageView = new ImageView(image);
-        imageView.setPreserveRatio(true);
-        imageView.setSmooth(true);
-        imageView.setFitWidth(size);
-        imageView.setFitHeight(size);
+        imageView.setImage(image);
+        imageView.setVisible(true);
 
-        // Bo tròn ảnh bằng clip hình tròn
-        Circle clip = new Circle(size / 2.0);
-        imageView.setClip(clip);
-
-        getChildren().setAll(imageView);
-        setStyle("-fx-background-color: transparent; "
-                + "-fx-border-color: " + (person != null && person.getGender() == Gender.FEMALE
-                    ? FEMALE_BORDER : MALE_BORDER) + "; "
-                + "-fx-border-radius: " + (size / 2) + "; "
-                + "-fx-border-width: 1.5;");
+        disc.setVisible(false);
+        ring.setVisible(true);
+        initialLabel.setVisible(false);
     }
 
     /**
      * Quay lại hiển thị placeholder (chữ cái đầu).
      */
     private void showPlaceholder() {
-        imageView = null;
-        buildPlaceholder();
+        showPlaceholderState();
     }
 
     /**
@@ -292,7 +358,7 @@ public class PersonAvatar extends StackPane {
      * @return true nếu đang hiển thị ảnh thật
      */
     public boolean isShowingRealImage() {
-        return imageView != null;
+        return imageView != null && imageView.getImage() != null;
     }
 
     /**
@@ -302,5 +368,40 @@ public class PersonAvatar extends StackPane {
      */
     public int getAvatarSize() {
         return size;
+    }
+
+    /**
+     * CSS class theo giới tính cho placeholder (nền tròn + chữ cái đầu).
+     * Người không xác định giới tính được xem là nam (nhất quán với hành vi cũ).
+     */
+    private String genderClass() {
+        return isFemale() ? CLASS_FEMALE : CLASS_MALE;
+    }
+
+    /**
+     * CSS class theo giới tính cho vòng tròn viền quanh ảnh thật.
+     */
+    private String genderRingClass() {
+        return isFemale() ? CLASS_RING_FEMALE : CLASS_RING_MALE;
+    }
+
+    /**
+     * Kiểm tra thành viên có giới tính nữ hay không.
+     */
+    private boolean isFemale() {
+        return person != null && person.getGender() == Gender.FEMALE;
+    }
+
+    /**
+     * CSS class quy định cỡ chữ của chữ cái đầu theo kích thước avatar.
+     */
+    private String textSizeClass() {
+        if (size <= SMALL_TEXT_MAX) {
+            return CLASS_TEXT_SM;
+        }
+        if (size <= MEDIUM_TEXT_MAX) {
+            return CLASS_TEXT_MD;
+        }
+        return CLASS_TEXT_LG;
     }
 }
