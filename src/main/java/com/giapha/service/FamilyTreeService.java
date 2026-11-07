@@ -183,6 +183,24 @@ public class FamilyTreeService {
      *         {@code father_id} và {@code mother_id} trong MỘT câu lệnh UPDATE.</li>
      * </ol>
      *
+     * <p><b>Thứ tự kiểm tra (quan trọng — quyết định exception nào được ném):</b>
+     * <ol>
+     *     <li>{@code validatePerson(person)} — dữ liệu cá nhân hợp lệ
+     *         ({@link IllegalArgumentException}, {@link InvalidBirthYearException}).</li>
+     *     <li>{@code person.getId() > 0} — id phải là số nguyên dương
+     *         ({@link IllegalArgumentException}).</li>
+     *     <li><b>Người cần sửa phải TỒN TẠI</b> — {@code getPersonById(person.getId())}
+     *         ném {@link PersonNotFoundException}. Bước này đặt TRƯỚC mọi kiểm tra
+     *         BR2/BR1/BR6/BR3 để không bao giờ xảy ra tình huống "UPDATE ghi 0 hàng im lặng"
+     *         với id không tồn tại.</li>
+     *     <li>BR2 — cha mới và mẹ mới không được là cùng một người
+     *         ({@link SameParentException}).</li>
+     *     <li>BR1 — không tự gán mình làm cha/mẹ ({@link SelfParentException}).</li>
+     *     <li>BR6 — giới tính cha/mẹ đúng vai trò ({@link InvalidParentGenderException}).</li>
+     *     <li>BR3 — không tạo chu trình ({@link CycleDetectedException}).</li>
+     *     <li>Ghi — {@code personRepository.update(person)} đúng MỘT lần.</li>
+     * </ol>
+     *
      * <p><b>Ngữ nghĩa tham số:</b> {@code newFather} / {@code newMother} là trạng thái
      * mong muốn CUỐI CÙNG. Truyền {@code null} nghĩa là GỠ quan hệ đó (đặt {@code NULL});
      * truyền một {@link Person} nghĩa là đặt quan hệ cha/mẹ về người đó.
@@ -192,7 +210,8 @@ public class FamilyTreeService {
      * @param newMother  mẹ mong muốn, hoặc {@code null} để gỡ mẹ
      * @throws IllegalArgumentException nếu dữ liệu không hợp lệ
      * @throws InvalidBirthYearException nếu năm sinh không hợp lệ
-     * @throws PersonNotFoundException nếu chính người, cha hoặc mẹ không tồn tại
+     * @throws PersonNotFoundException nếu chính người cần sửa không tồn tại, hoặc cha/mẹ
+     *                                không tồn tại (được kiểm tra TRƯỚC BR2/BR1/BR6/BR3)
      * @throws SelfParentException nếu tự gán làm cha/mẹ chính mình (BR1)
      * @throws SameParentException nếu cha và mẹ là cùng một người (BR2)
      * @throws InvalidParentGenderException nếu giới tính cha/mẹ sai vai trò (BR6)
@@ -206,6 +225,13 @@ public class FamilyTreeService {
         }
 
         int personId = person.getId();
+
+        // ===== BƯỚC 0 — Người cần sửa PHẢI tồn tại trong DB =====
+        // Nếu bỏ qua bước này, câu UPDATE sẽ "ghi 0 hàng" một cách im lặng
+        // (không ném lỗi, không đổi dữ liệu) — người dùng tưởng đã lưu thành công
+        // nhưng thực tế không có gì được ghi. Gọi getPersonById() để ném
+        // PersonNotFoundException ngay khi id không tồn tại.
+        getPersonById(personId);
 
         // ===== BƯỚC 1 — Kiểm tra TOÀN Bộ quy tắc trước khi ghi bất cứ thứ gì =====
 

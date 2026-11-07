@@ -616,11 +616,78 @@ class FamilyTreeServiceTest {
     }
 
     // ============================================================
-    // NHÓM 14 — Constructor & null-safety
+    // NHÓM 13B — updatePersonWithParents (cập nhật nguyên tử)
     // ============================================================
 
     @Test
     @Order(43)
+    @DisplayName("updatePersonWithParents với id không tồn tại ném PersonNotFoundException, dữ liệu không đổi")
+    void updatePersonWithParentsNonExistentIdThrowsAndDataUnchanged() {
+        int countBefore = TestDatabase.countPersons(TEST_DB_NAME);
+
+        Person updated = new Person("Người Không Tồn Tại", 1995, Gender.MALE, null);
+        updated.setId(99999);
+
+        // Dữ liệu cá nhân HOÀN TOÀN hợp lệ — lỗi phải đến từ việc id không tồn tại,
+        // KHÔNG phải từ validation.
+        assertThrows(PersonNotFoundException.class,
+                () -> service.updatePersonWithParents(updated, null, null));
+
+        assertEquals(countBefore, TestDatabase.countPersons(TEST_DB_NAME),
+                "Số bản ghi trong DB không được thay đổi khi id không tồn tại");
+    }
+
+    @Test
+    @Order(44)
+    @DisplayName("updatePersonWithParents — id không tồn tại được kiểm tra TRƯỚC BR6, vẫn ném PersonNotFoundException")
+    void updatePersonWithParentsExistenceCheckPrecedesGenderRule() {
+        int countBefore = TestDatabase.countPersons(TEST_DB_NAME);
+
+        Person updated = new Person("Người Không Tồn Tại", 1995, Gender.MALE, null);
+        updated.setId(99999);
+
+        // id 2 là FEMALE → làm cha sẽ vi phạm BR6 (InvalidParentGenderException).
+        // Nhưng vì id của người cần sửa không tồn tại, exception phải là
+        // PersonNotFoundException — chứng minh thứ tự kiểm tra.
+        Person femaleAsFather = service.getPersonById(2);
+
+        assertThrows(PersonNotFoundException.class,
+                () -> service.updatePersonWithParents(updated, femaleAsFather, null),
+                "Kiểm tra tồn tại phải diễn ra TRƯỚC kiểm tra BR6 giới tính vai trò");
+
+        assertEquals(countBefore, TestDatabase.countPersons(TEST_DB_NAME),
+                "Số bản ghi trong DB không được thay đổi khi id không tồn tại");
+    }
+
+    @Test
+    @Order(45)
+    @DisplayName("updatePersonWithParents — ca hợp lệ vẫn cập nhật thành công")
+    void updatePersonWithParentsValidCaseStillWorks() {
+        int countBefore = TestDatabase.countPersons(TEST_DB_NAME);
+
+        Person updated = new Person("Nguyễn Văn Con Cập Nhật", 1986, Gender.MALE, null);
+        updated.setId(5);
+
+        assertDoesNotThrow(() -> service.updatePersonWithParents(
+                updated, service.getPersonById(3), service.getPersonById(4)));
+
+        Person verify = service.getPersonById(5);
+        assertEquals("Nguyễn Văn Con Cập Nhật", verify.getFullName());
+        assertEquals(1986, verify.getBirthYear());
+        assertNotNull(verify.getFather());
+        assertEquals(3, verify.getFather().getId());
+        assertNotNull(verify.getMother());
+        assertEquals(4, verify.getMother().getId());
+        assertEquals(countBefore, TestDatabase.countPersons(TEST_DB_NAME),
+                "Cập nhật hợp lệ không được tạo hay xoá bản ghi");
+    }
+
+    // ============================================================
+    // NHÓM 14 — Constructor & null-safety
+    // ============================================================
+
+    @Test
+    @Order(46)
     @DisplayName("Constructor với repository null ném NullPointerException")
     void constructorRejectsNullRepository() {
         assertThrows(NullPointerException.class, () -> new FamilyTreeService(null));
