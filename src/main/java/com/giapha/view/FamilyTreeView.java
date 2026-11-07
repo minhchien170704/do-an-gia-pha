@@ -169,7 +169,7 @@ public class FamilyTreeView {
 
         Label lblSelect = new Label("Người trung tâm:");
         lblSelect.getStyleClass().add("form-label");
-        lblSelect.setStyle("-fx-font-size: 13px; -fx-padding: 6 0 0 0;");
+        lblSelect.getStyleClass().add("tree-focus-label");
 
         cboFocusPerson = new ComboBox<>(FXCollections.observableArrayList(allPersons));
         cboFocusPerson.getStyleClass().add("form-field");
@@ -435,16 +435,13 @@ public class FamilyTreeView {
         box.setAlignment(Pos.CENTER_RIGHT);
 
         Label legFocus = new Label("★ Trọng tâm");
-        legFocus.setStyle("-fx-background-color: #EBF0F7; -fx-text-fill: #3D5A80; -fx-padding: 4 10; "
-                + "-fx-background-radius: 6; -fx-font-size: 11px; -fx-font-weight: bold; -fx-border-color: #3D5A80; -fx-border-radius: 6;");
+        legFocus.getStyleClass().add("tree-legend-focus");
 
         Label legAncestor = new Label("↑ Nhánh Tổ tiên");
-        legAncestor.setStyle("-fx-background-color: #F8FAFC; -fx-text-fill: #475569; -fx-padding: 4 10; "
-                + "-fx-background-radius: 6; -fx-font-size: 11px; -fx-border-color: #CBD5E1; -fx-border-radius: 6;");
+        legAncestor.getStyleClass().add("tree-legend-branch");
 
         Label legDescendant = new Label("↓ Nhánh Hậu duệ");
-        legDescendant.setStyle("-fx-background-color: #F8FAFC; -fx-text-fill: #475569; -fx-padding: 4 10; "
-                + "-fx-background-radius: 6; -fx-font-size: 11px; -fx-border-color: #CBD5E1; -fx-border-radius: 6;");
+        legDescendant.getStyleClass().add("tree-legend-branch");
 
         box.getChildren().addAll(legFocus, legAncestor, legDescendant);
         return box;
@@ -458,11 +455,13 @@ public class FamilyTreeView {
                 if (empty || item == null) {
                     setGraphic(null);
                     setText(null);
-                    setStyle("-fx-background-color: transparent;");
+                    getStyleClass().remove("tree-cell-content");
+                    getStyleClass().add("tree-cell-transparent");
                 } else {
                     setGraphic(item.renderGraphic());
                     setText(null);
-                    setStyle("-fx-background-color: transparent; -fx-padding: 3 0;");
+                    getStyleClass().remove("tree-cell-transparent");
+                    getStyleClass().add("tree-cell-content");
                 }
             }
         });
@@ -602,9 +601,9 @@ public class FamilyTreeView {
             if (type == Type.ROOT) {
                 HBox rootBox = new HBox(8);
                 rootBox.setAlignment(Pos.CENTER_LEFT);
-                rootBox.setStyle("-fx-padding: 4 8;");
+                rootBox.getStyleClass().add("tree-root-box");
                 Label title = new Label(titleText);
-                title.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -primary;");
+                title.getStyleClass().add("tree-root-title");
                 rootBox.getChildren().add(title);
                 return rootBox;
             }
@@ -612,7 +611,7 @@ public class FamilyTreeView {
             if (type == Type.SECTION) {
                 HBox secBox = new HBox(8);
                 secBox.setAlignment(Pos.CENTER_LEFT);
-                secBox.setStyle("-fx-padding: 6 8 2 8;");
+                secBox.getStyleClass().add("tree-section-box");
                 Label lbl = new Label(titleText);
                 lbl.getStyleClass().add("tree-section-label");
                 secBox.getChildren().add(lbl);
@@ -635,11 +634,9 @@ public class FamilyTreeView {
             if (roleLabel != null) {
                 Label rolePill = new Label(roleLabel.toUpperCase());
                 if (type == Type.FOCUS) {
-                    rolePill.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #FFFFFF; "
-                            + "-fx-background-color: -primary; -fx-padding: 2 6; -fx-background-radius: 4;");
+                    rolePill.getStyleClass().add("tree-role-pill-focus");
                 } else {
-                    rolePill.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: -text-muted; "
-                            + "-fx-background-color: #F1EFEB; -fx-padding: 2 6; -fx-background-radius: 4;");
+                    rolePill.getStyleClass().add("tree-role-pill-branch");
                 }
                 card.getChildren().add(rolePill);
             }
@@ -648,7 +645,7 @@ public class FamilyTreeView {
             Label nameLabel = new Label(person.getFullName());
             nameLabel.getStyleClass().add("tree-person-name");
             if (type == Type.FOCUS) {
-                nameLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -primary;");
+                nameLabel.getStyleClass().add("tree-person-name-focus");
             }
 
             // Details: Year + Gender

@@ -38,7 +38,7 @@ public class PersonDetailView {
         // Center Content ScrollPane
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        scrollPane.getStyleClass().add("scroll-transparent");
 
         VBox contentBox = new VBox(18);
         contentBox.setMaxWidth(720);
@@ -192,7 +192,7 @@ public class PersonDetailView {
         List<Person> children = getChildrenFromDB();
         Label childrenTitle = new Label("Các con" + (!children.isEmpty() ? " (" + children.size() + ")" : ""));
         childrenTitle.getStyleClass().add("section-title");
-        childrenTitle.setStyle("-fx-font-size: 13px;");
+        childrenTitle.getStyleClass().add("section-title-sm");
 
         VBox childrenSection = new VBox(8);
         if (children.isEmpty()) {

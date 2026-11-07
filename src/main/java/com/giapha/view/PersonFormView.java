@@ -87,7 +87,7 @@ public class PersonFormView implements FormDataSource {
 
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        scrollPane.getStyleClass().add("scroll-transparent");
 
         VBox formContainer = new VBox(20);
         formContainer.setMaxWidth(620);

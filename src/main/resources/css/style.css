@@ -776,6 +776,115 @@
 }
 
 /* ======================================================
+   15b. TREE — CHI TIẾT BỔ SUNG (GĐ2B.4)
+   Chuyển style inline trong FamilyTreeView sang CSS class.
+   ====================================================== */
+
+/* Nhãn "Người trung tâm:" trên thanh chọn trọng tâm */
+.tree-focus-label {
+    -fx-font-size: 13px;
+    -fx-padding: 6 0 0 0;
+}
+
+/* Chú thích (legend) — Trọng tâm */
+.tree-legend-focus {
+    -fx-background-color: #EBF0F7;
+    -fx-text-fill: #3D5A80;
+    -fx-padding: 4 10;
+    -fx-background-radius: 6;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-border-color: #3D5A80;
+    -fx-border-radius: 6;
+}
+
+/* Chú thích (legend) — Nhánh Tổ tiên / Nhánh Hậu duệ */
+.tree-legend-branch {
+    -fx-background-color: #F8FAFC;
+    -fx-text-fill: #475569;
+    -fx-padding: 4 10;
+    -fx-background-radius: 6;
+    -fx-font-size: 11px;
+    -fx-border-color: #CBD5E1;
+    -fx-border-radius: 6;
+}
+
+/* Ô cell của TreeView — nền trong suốt để không lộ màu mặc định */
+.tree-cell-transparent {
+    -fx-background-color: transparent;
+}
+
+.tree-cell-transparent .tree-disclosure-node > .arrow {
+    -fx-fill: -text-muted;
+}
+
+/* Ô cell của TreeView khi có nội dung — thêm khoảng đệm dọc */
+.tree-cell-content {
+    -fx-background-color: transparent;
+    -fx-padding: 3 0;
+}
+
+/* Khối gốc trong TreeView */
+.tree-root-box {
+    -fx-padding: 4 8;
+}
+
+.tree-root-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -primary;
+}
+
+/* Khối tiêu đề nhóm trong TreeView */
+.tree-section-box {
+    -fx-padding: 6 8 2 8;
+}
+
+/* Role pill — nền trung tâm (nổi bật) */
+.tree-role-pill-focus {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-inverse;
+    -fx-background-color: -primary;
+    -fx-padding: 2 6;
+    -fx-background-radius: 4;
+}
+
+/* Role pill — nền tổ tiên / hậu duệ (trung tính) */
+.tree-role-pill-branch {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -text-muted;
+    -fx-background-color: #F1EFEB;
+    -fx-padding: 2 6;
+    -fx-background-radius: 4;
+}
+
+/* Tên thành viên trung tâm — nổi bật hơn tên thường */
+.tree-person-name-focus {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -primary;
+}
+
+/* ======================================================
+   15c. SCROLL PANE TRANSPARENT (GĐ2B.4)
+   ====================================================== */
+.scroll-transparent {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.scroll-transparent > .viewport {
+    -fx-background-color: transparent;
+}
+
+/* Tiêu đề nhóm nhỏ (dùng ở màn hình chi tiết) */
+.section-title-sm {
+    -fx-font-size: 13px;
+}
+
+/* ======================================================
    16. EMPTY STATE
    ====================================================== */
 .empty-state {
