@@ -160,7 +160,7 @@ src/test/java/com/giapha
 │   ├── PersonControllerTest.java      # 25 test — điều phối View ↔ Service, xử lý exception
 │   ├── PersonControllerAbstractionTest.java # 23 test — fake FormDataSource/Navigator/PeopleListSource (KHÔNG cần JavaFX Toolkit)
 │   ├── DataIntegrityTest.java         # 19 test — GĐ1: toàn vẹn dữ liệu ảnh + đồng nhất BR1–BR6
-│   ├── EditFailureRollbackTest.java   # 5 test — handleEdit rollback khi service từ chối quan hệ
+│   ├── EditFailureRollbackTest.java   # 10 test — handleEdit rollback khi service từ chối quan hệ
 │   └── AtomicUpdateAndBr5Test.java    # 9 test — cập nhật nguyên tử + BR5 trong luồng lưu của form
 ├── util/
 │   ├── ImageManagerTest.java          # 12 test — định dạng ảnh, copy, dọn file
@@ -242,20 +242,40 @@ luôn đồng bộ.
 Trong `PersonController.handleEdit(Person, Person, Person)`, khi `familyTreeService.updatePersonWithParents(...)`
 ném bất kỳ exception nào (BR1/BR2/BR3/BR6, validation, lỗi CSDL), luồng **phải dừng ngay**:
 
-1. **Dọn ảnh vừa copy** — xóa file trong `images/` vừa được tạo (nếu khác ảnh gốc đang lưu trong DB).
-2. **Báo lỗi** bằng `showErrorAlert` với tiêu đề tiếng Việt tương ứng (`Lỗi quan hệ`, `Lỗi chu trình`,
+1. **Báo lỗi** bằng `showErrorAlert` với tiêu đề tiếng Việt tương ứng (`Lỗi quan hệ`, `Lỗi chu trình`,
    `Lỗi giới tính vai trò`, `Không tìm thấy`, `Lỗi năm sinh`, `Lỗi dữ liệu`, `Lỗi cập nhật`).
-3. **RETURN** — KHÔNG ghi ảnh, KHÔNG điều hướng về danh sách, người dùng ở lại form.
+2. **RETURN** — KHÔNG ghi ảnh, KHÔNG điều hướng về danh sách, người dùng ở lại form.
 
 > ⚠️ **Cấm** gom lỗi vào biến rồi chạy tiếp xuống bước ghi ảnh. Trước đây lỗi này làm ứng dụng hiển thị
 > hộp thoại "Đã cập nhật thành công…" và điều hướng về danh sách dù service đã từ chối —
 > hậu quả là **ảnh đại diện vẫn được ghi vào DB** dù toàn bộ thao tác cập nhật đã thất bại.
 
+### 5.3. Ảnh đại diện: COPY **SAU** khi service thành công (bắt buộc)
+
+`ImageManager.copyImageToAppDirectory()` đặt tên file theo `person_<id>.<đuôi>` và copy bằng
+`REPLACE_EXISTING`. Vì vậy **KHÔNG** được copy ảnh trước khi gọi `updatePersonWithParents()`:
+
+- Nếu copy trước, ảnh mới **cùng đuôi** sẽ GHI ĐÈ thẳng ảnh cũ trên đĩa. Khi service sau đó
+  từ chối, `photo_path` trong DB không đổi nhưng **nội dung ảnh trên đĩa đã bị thay** →
+  dữ liệu ảnh không nhất quán với DB.
+- Lỗi tương tự xảy ra ở nhánh BR5 người dùng bấm "Hủy".
+
+Thứ tự bắt buộc trong `handleEdit(Person, Person, Person)`:
+
+1. Nạp `photo_path` hiện có từ DB (nếu `personToUpdate.getPhotoPath() == null`).
+2. BR5 — `confirmBirthYearWarning`; người dùng "Hủy" → `return` (chưa copy gì → không cần dọn).
+3. `updatePersonWithParents(...)` — thất bại → `showErrorAlert` + `return` (chưa copy gì).
+4. **Chỉ sau khi thành công**: dựng `successMsg`, rồi mới `copyImageToAppDirectory` +
+   `updatePhotoPath` + `setPhotoPath` + dọn ảnh cũ nếu đường dẫn đổi.
+5. Nếu `updatePhotoPath` lỗi: dọn ảnh vừa copy **chỉ khi** `newPhotoPath != originalPhotoPath`
+   (nếu bằng nhau thì DB vẫn đang trỏ tới chính file đó → không được xóa).
+
 Thông điệp thành công chỉ được dựng **sau khi** `updatePersonWithParents` đã thành công.
 Lỗi ở bước ghi ảnh (sau khi thông tin đã cập nhật) phải báo bằng `showWarningAlert`
 ("Đã cập nhật thông tin nhưng ảnh đại diện chưa được lưu") — KHÔNG dùng `showErrorAlert`.
 
-Bộ test `EditFailureRollbackTest` (database `gia_pha_editfail_test`) bảo vệ hành vi này.
+Bộ test `EditFailureRollbackTest` (database `gia_pha_editfail_test`) bảo vệ hành vi này —
+gồm cả ca "ảnh cùng đuôi" so sánh **byte nội dung file** trên đĩa trước/sau.
 
 ---
 
@@ -318,7 +338,7 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 193 test cases):
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 198 test cases):
 ```bash
 mvn clean test
 ```

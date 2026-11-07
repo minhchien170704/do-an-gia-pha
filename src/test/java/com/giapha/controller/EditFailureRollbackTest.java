@@ -12,8 +12,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -56,6 +59,14 @@ class EditFailureRollbackTest {
 
     /** Thư mục {@code images/} sinh ra cạnh ứng dụng (nơi {@code ImageManager} copy ảnh). */
     private static final Path IMAGE_DIR = Paths.get(System.getProperty("user.dir"), "images");
+
+    /** Nội dung byte đặc trưng của ảnh CŨ (ảnh đang lưu sẵn trong {@code images/}). */
+    private static final byte[] IMAGE_BYTE_A =
+            new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 'A', 'A', 'A', 'A'};
+
+    /** Nội dung byte đặc trưng của ảnh MỚI (ảnh nguồn người dùng chọn) — khác hẳn byte A. */
+    private static final byte[] IMAGE_BYTE_B =
+            new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 'B', 'B', 'B', 'B'};
 
     private static FamilyTreeService service;
 
@@ -218,8 +229,176 @@ class EditFailureRollbackTest {
     }
 
     // ============================================================
+    // NHÓM 2 — ẢNH CÙNG ĐUÔI: ảnh cũ KHÔNG được ghi đè khi service từ chối
+    // ============================================================
+
+    @Test
+    @Order(6)
+    @DisplayName("BR3 + ảnh cùng đuôi → nội dung ảnh CŨ trên đĩa KHÔNG đổi, DB không đổi, KHÔNG điều hướng")
+    void cycleWithSameExtensionKeepsOldImageContent() throws IOException {
+        // Người đã có ảnh: file images/person_1.png chứa byte A, DB trỏ tới file này.
+        byte[] originalBytes = createPersonImage(1, IMAGE_BYTE_A);
+        Person original = service.getPersonById(1);
+
+        FakeFormDataSource form = new FakeFormDataSource();
+        // Ảnh nguồn CÙNG ĐUÔI .png nhưng chứa byte B (khác A).
+        form.photoSourcePath = createTempImageWithContent("cycle-sameext", IMAGE_BYTE_B);
+
+        RecordingNavigator navigator = new RecordingNavigator();
+        PersonController controller = new PersonController(service);
+        controller.setFormDataSource(form);
+        controller.setNavigator(navigator);
+
+        Person updated = buildUpdate(1, "Tên Mới Nhưng Bị Từ Chối", 1930, original);
+        controller.handleEdit(updated, service.getPersonById(7), null);
+
+        assertImageUnchanged(1, originalBytes, navigator, "BR3 chu trình");
+    }
+
+    @Test
+    @Order(7)
+    @DisplayName("BR6 + ảnh cùng đuôi → nội dung ảnh CŨ trên đĩa KHÔNG đổi, DB không đổi, KHÔNG điều hướng")
+    void invalidParentGenderWithSameExtensionKeepsOldImageContent() throws IOException {
+        byte[] originalBytes = createPersonImage(7, IMAGE_BYTE_A);
+        Person original = service.getPersonById(7);
+
+        FakeFormDataSource form = new FakeFormDataSource();
+        form.photoSourcePath = createTempImageWithContent("gender-sameext", IMAGE_BYTE_B);
+
+        RecordingNavigator navigator = new RecordingNavigator();
+        PersonController controller = new PersonController(service);
+        controller.setFormDataSource(form);
+        controller.setNavigator(navigator);
+
+        Person updated = buildUpdate(7, "Tên Mới Nhưng Sai Giới Tính Cha", 2015, original);
+        controller.handleEdit(updated, service.getPersonById(2), original.getMother());
+
+        assertImageUnchanged(7, originalBytes, navigator, "BR6 sai giới tính vai trò");
+    }
+
+    @Test
+    @Order(8)
+    @DisplayName("BR2 + ảnh cùng đuôi → nội dung ảnh CŨ trên đĩa KHÔNG đổi, DB không đổi, KHÔNG điều hướng")
+    void sameParentWithSameExtensionKeepsOldImageContent() throws IOException {
+        byte[] originalBytes = createPersonImage(5, IMAGE_BYTE_A);
+        Person original = service.getPersonById(5);
+
+        FakeFormDataSource form = new FakeFormDataSource();
+        form.photoSourcePath = createTempImageWithContent("sameparent-sameext", IMAGE_BYTE_B);
+
+        RecordingNavigator navigator = new RecordingNavigator();
+        PersonController controller = new PersonController(service);
+        controller.setFormDataSource(form);
+        controller.setNavigator(navigator);
+
+        Person updated = buildUpdate(5, "Tên Mới Nhưng Cha Mẹ Trùng Nhau", 1985, original);
+        controller.handleEdit(updated, service.getPersonById(1), service.getPersonById(1));
+
+        assertImageUnchanged(5, originalBytes, navigator, "BR2 cha mẹ trùng nhau");
+    }
+
+    @Test
+    @Order(9)
+    @DisplayName("BR1 + ảnh cùng đuôi → nội dung ảnh CŨ trên đĩa KHÔNG đổi, DB không đổi, KHÔNG điều hướng")
+    void selfParentWithSameExtensionKeepsOldImageContent() throws IOException {
+        byte[] originalBytes = createPersonImage(5, IMAGE_BYTE_A);
+        Person original = service.getPersonById(5);
+
+        FakeFormDataSource form = new FakeFormDataSource();
+        form.photoSourcePath = createTempImageWithContent("selfparent-sameext", IMAGE_BYTE_B);
+
+        RecordingNavigator navigator = new RecordingNavigator();
+        PersonController controller = new PersonController(service);
+        controller.setFormDataSource(form);
+        controller.setNavigator(navigator);
+
+        Person updated = buildUpdate(5, "Tên Mới Nhưng Tự Gán Làm Cha", 1985, original);
+        controller.handleEdit(updated, service.getPersonById(5), original.getMother());
+
+        assertImageUnchanged(5, originalBytes, navigator, "BR1 tự gán làm cha");
+    }
+
+    @Test
+    @Order(10)
+    @DisplayName("Cập nhật hợp lệ + ảnh cùng đuôi → nội dung ảnh trên đĩa ĐƯỢC thay bằng ảnh mới, Navigator gọi 1 lần")
+    void validUpdateWithSameExtensionReplacesImageContent() throws IOException {
+        byte[] originalBytes = createPersonImage(5, IMAGE_BYTE_A);
+        Person original = service.getPersonById(5);
+
+        FakeFormDataSource form = new FakeFormDataSource();
+        form.photoSourcePath = createTempImageWithContent("success-sameext", IMAGE_BYTE_B);
+
+        RecordingNavigator navigator = new RecordingNavigator();
+        PersonController controller = new PersonController(service);
+        controller.setFormDataSource(form);
+        controller.setNavigator(navigator);
+
+        Person updated = buildUpdate(5, "Nguyễn Văn Con Đã Sửa", 1985, original);
+        controller.handleEdit(updated, service.getPersonById(3), service.getPersonById(4));
+
+        // 1. Nội dung ảnh trên đĩa đã được thay bằng ảnh MỚI (byte B).
+        Path imageFile = IMAGE_DIR.resolve("person_5.png");
+        assertTrue(Files.isRegularFile(imageFile), "File ảnh phải tồn tại trong thư mục images/");
+        assertArrayEquals(IMAGE_BYTE_B, readBytes(imageFile),
+                "Nội dung ảnh phải được thay bằng ảnh mới khi cập nhật thành công");
+        assertFalse(Arrays.equals(originalBytes, IMAGE_BYTE_B),
+                "Byte A và byte B phải khác nhau để test có ý nghĩa");
+
+        // 2. photo_path trong DB vẫn trỏ tới đúng file (đường dẫn không đổi vì cùng đuôi).
+        assertEquals("images/person_5.png", service.getPersonById(5).getPhotoPath(),
+                "photo_path phải vẫn là images/person_5.png");
+
+        // 3. Điều hướng đúng 1 lần.
+        assertEquals(1, navigator.peopleListCount,
+                "Navigator phải nhận đúng 1 lệnh quay lại danh sách sau khi sửa thành công");
+        assertEquals(0, navigator.detailCount);
+        assertEquals(0, navigator.treeCount);
+    }
+
+    // ============================================================
     // HELPER METHODS
     // ============================================================
+
+    /**
+     * Khẳng định ảnh CŨ trên đĩa KHÔNG bị ghi đè khi service TỪ CHỐI quan hệ.
+     *
+     * <p>Đây là ca then chốt của nhóm test "ảnh cùng đuôi": {@code ImageManager} đặt
+     * tên file {@code person_<id>.<đuôi>} và copy bằng {@code REPLACE_EXISTING}. Nếu
+     * controller copy ảnh TRƯỚC khi service chạy, ảnh cùng đuôi sẽ ghi đè thẳng
+     * ảnh cũ trên đĩa — kể cả khi service sau đó từ chối và DB không đổi.
+     *
+     * @param personId      id của thành viên đang có ảnh
+     * @param expectedBytes nội dung byte mong đợi vẫn còn nguyên trên đĩa
+     * @param navigator     navigator để khẳng định KHÔNG điều hướng
+     * @param context       mô tả ngữ cảnh để hiển thị khi assert fail
+     */
+    private void assertImageUnchanged(int personId, byte[] expectedBytes,
+                                      RecordingNavigator navigator, String context) throws IOException {
+
+        // 1. Nội dung file ảnh trên đĩa phải Y NGUYÊN (không bị ghi đè).
+        Path imageFile = IMAGE_DIR.resolve("person_" + personId + ".png");
+        assertTrue(Files.isRegularFile(imageFile),
+                context + " — file ảnh gốc phải vẫn tồn tại: " + imageFile);
+        assertArrayEquals(expectedBytes, readBytes(imageFile),
+                context + " — nội dung ảnh cũ KHÔNG được ghi đè khi thao tác bị từ chối");
+
+        // 2. photo_path trong DB không đổi.
+        assertEquals("images/person_" + personId + ".png", service.getPersonById(personId).getPhotoPath(),
+                context + " — photo_path KHÔNG được đổi khi thao tác bị từ chối");
+
+        // 3. KHÔNG được điều hướng — người dùng phải ở lại form.
+        assertEquals(0, navigator.peopleListCount,
+                context + " — KHÔNG được điều hướng về danh sách khi thao tác bị từ chối");
+        assertEquals(0, navigator.detailCount,
+                context + " — KHÔNG được điều hướng tới chi tiết khi thao tác bị từ chối");
+        assertEquals(0, navigator.treeCount,
+                context + " — KHÔNG được điều hướng tới cây gia phả khi thao tác bị từ chối");
+
+        // 4. Không phát sinh file lạ trong thư mục images/.
+        assertEquals(1, listImageFiles().size(),
+                context + " — không được phát sinh file ảnh lạ trong thư mục images/: "
+                        + listImageFiles());
+    }
 
     /**
      * Khẳng định trạng thái sau khi service TỪ CHỐI quan hệ:
@@ -275,6 +454,60 @@ class EditFailureRollbackTest {
         Path image = dir.resolve("source.png");
         Files.write(image, new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A});
         return image.toAbsolutePath().toString();
+    }
+
+    /**
+     * Tạo một file ảnh PNG trong thư mục tạm với nội dung byte XÁC ĐỊNH — dùng làm
+     * "ảnh nguồn" mà người dùng chọn, để so sánh byte với ảnh đang có sẵn.
+     *
+     * @param prefix  tiền tố tên thư mục tạm
+     * @param content nội dung byte cần ghi vào file
+     * @return đường dẫn tuyệt đối của file ảnh nguồn
+     */
+    private String createTempImageWithContent(String prefix, byte[] content) throws IOException {
+        Path dir = Files.createTempDirectory("editfail-" + prefix + "-");
+        Path image = dir.resolve("source.png");
+        Files.write(image, content);
+        return image.toAbsolutePath().toString();
+    }
+
+    /**
+     * Dựng một thành viên "đã có ảnh": tạo file {@code images/person_<id>.png} với nội dung
+     * byte XÁC ĐỊNH và trỏ {@code photo_path} của họ tới file đó.
+     *
+     * <p>Mô phỏng đúng tình huống thật: người dùng đã lưu ảnh .png, sau đó chọn một
+     * ảnh .png khác (cùng đuôi) để thay thế. Vì {@code ImageManager} đặt tên file theo
+     * {@code person_<id>.<đuôi>} và copy bằng {@code REPLACE_EXISTING}, bước copy có thể
+     * ghi đè thẳng ảnh cũ trên đĩa — đây chính là lỗi cần chống.
+     *
+     * @param personId id của thành viên sẽ được gán ảnh
+     * @param content  nội dung byte ghi vào file ảnh
+     * @return nội dung byte đã ghi (để dùng làm kỳ vọng)
+     */
+    private byte[] createPersonImage(int personId, byte[] content) throws IOException {
+        Files.createDirectories(IMAGE_DIR);
+        Path image = IMAGE_DIR.resolve("person_" + personId + ".png");
+        Files.write(image, content);
+
+        try (Connection conn = TestDatabaseManager.openConnection(TEST_DB_NAME);
+             PreparedStatement ps = conn.prepareStatement(
+                     "UPDATE PERSON SET photo_path = ? WHERE id = ?")) {
+            ps.setString(1, "images/person_" + personId + ".png");
+            ps.setInt(2, personId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Không thể gán photo_path cho id = " + personId + ": " + e.getMessage(), e);
+        }
+
+        return content;
+    }
+
+    /**
+     * Đọc toàn bộ nội dung byte của một file.
+     */
+    private static byte[] readBytes(Path file) throws IOException {
+        return Files.readAllBytes(file);
     }
 
     /**

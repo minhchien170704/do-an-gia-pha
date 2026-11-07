@@ -360,7 +360,7 @@ public class PersonController {
         // ===== BƯỚC 0 — Giữ nguyên đường dẫn ảnh đang lưu trong DB =====
         // Nếu caller truyền vào một Person mà KHÔNG kèm photo_path (null),
         // đường dẫn ảnh đang lưu trong DB vẫn phải được giữ nguyên.
-        // Việc cập nhật ảnh chỉ đi qua updatePhotoPath() ở Bước 5 — không bao giờ
+        // Việc cập nhật ảnh chỉ đi qua updatePhotoPath() ở Bước 4 — không bao giờ
         // đi qua bản ghi UPDATE của thông tin cá nhân.
         if (originalPhotoPath == null) {
             try {
@@ -371,79 +371,59 @@ public class PersonController {
             }
         }
 
-        // ===== BƯỚC 1 — Copy ảnh đại diện mới (nếu người dùng đã chọn ảnh khác) =====
-        // Chỉ copy FILE — đường dẫn được ghi vào DB ở Bước 5 bằng updatePhotoPath()
-        // (chỉ cập nhật cột photo_path), tách khỏi bản ghi thông tin cá nhân.
-        // LỖI ẢNH KHÔNG DỪNG LUỒNG Ở ĐÂY: ảnh là thao tác phụ, chỉ được báo
-        // cảnh báo SAU khi thông tin thành viên đã cập nhật thành công.
-        String newPhotoPath = null;
-        String imageError = null;
-        String sourcePhoto = getSelectedPhotoSourcePath();
-        if (sourcePhoto != null && !sourcePhoto.trim().isEmpty()) {
-            try {
-                newPhotoPath = ImageManager.copyImageToAppDirectory(sourcePhoto, personId);
-            } catch (IOException e) {
-                imageError = "Không thể lưu ảnh vào thư mục images (" + e.getMessage() + ").";
-            } catch (IllegalArgumentException e) {
-                imageError = "Định dạng ảnh không hợp lệ (" + e.getMessage() + ").";
-            }
-        }
-
-        // ===== BƯỚC 2 — BR5: cảnh báo năm sinh cha/mẹ không nhỏ hơn năm sinh con =====
+        // ===== BƯỚC 1 — BR5: cảnh báo năm sinh cha/mẹ không nhỏ hơn năm sinh con =====
         // Chỉ hỏi khi quan hệ cha/mẹ THỰC SỰ thay đổi so với bản gốc, và chỉ hỏi
         // với các quan hệ MỚI được chọn.
+        //
+        // LƯU Ý THỨ TỰ: bước này chạy TRƯỚC khi copy ảnh. Nếu người dùng chọn
+        // "Hủy" thì chưa có file nào bị ghi đè → không cần dọn dẹp gì.
         if (fatherChanged(originalFather, newFather) || motherChanged(originalMother, newMother)) {
             Person effectiveFather = newFather != null ? newFather : originalFather;
             Person effectiveMother = newMother != null ? newMother : originalMother;
             if (!confirmBirthYearWarning(personToUpdate, effectiveFather, effectiveMother)) {
                 // Người dùng chọn Hủy — KHÔNG lưu gì cả, kể cả ảnh đã copy.
-                discardCopiedImage(newPhotoPath, originalPhotoPath);
                 return;
             }
         }
 
-        // ===== BƯỚC 3 — Cập nhật NGUYÊN TỬ — kiểm tra toàn bộ BR trước, rồi ghi MỘT lần =====
+        // ===== BƯỚC 2 — Cập nhật NGUYÊN TỬ — kiểm tra toàn bộ BR trước, rồi ghi MỘT lần =====
         // photo_path KHÔNG tham gia vào bản ghi này — giữ nguyên đường dẫn cũ,
-        // việc cập nhật ảnh được thực hiện riêng ở Bước 5.
+        // việc cập nhật ảnh được thực hiện riêng ở Bước 4.
+        //
+        // ẢNH CHƯA ĐƯỢC COPY TẠI ĐÂY. Đây là điểm mấu chốt: `ImageManager` đặt tên
+        // file `person_<id>.<đuôi>` và copy bằng REPLACE_EXISTING, nên nếu copy ảnh
+        // TRƯỚC khi service chạy thì ảnh cùng đuôi sẽ GHI ĐÈ thẳng ảnh cũ trên
+        // đĩa. Khi service sau đó từ chối, ảnh cũ đã mất dù DB không đổi.
         try {
             familyTreeService.updatePersonWithParents(personToUpdate, newFather, newMother);
         } catch (SelfParentException e) {
-            // Service đã TỪ CHỐI quan hệ → KHÔNG ghi bất cứ thứ gì.
-            // Dọn ảnh vừa copy (nếu có) để không để lại file rác, giữ nguyên form.
-            discardCopiedImage(newPhotoPath, originalPhotoPath);
+            // Service đã TỪ CHỐI quan hệ → KHÔNG ghi bất cứ thứ gì, ảnh cũ giữ nguyên.
             showErrorAlert("Lỗi quan hệ", "Không thể tự gán mình làm cha hoặc mẹ: " + e.getMessage());
             return;
         } catch (CycleDetectedException e) {
-            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Lỗi chu trình", "Thao tác tạo chu trình trong cây gia phả: " + e.getMessage());
             return;
         } catch (InvalidParentGenderException e) {
-            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Lỗi giới tính vai trò", e.getMessage());
             return;
         } catch (SameParentException e) {
-            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Lỗi quan hệ", "Cha và Mẹ không thể là cùng một người: " + e.getMessage());
             return;
         } catch (PersonNotFoundException e) {
-            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Không tìm thấy", "Phụ huynh chỉ định không tồn tại: " + e.getMessage());
             return;
         } catch (InvalidBirthYearException e) {
-            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Lỗi năm sinh", e.getMessage());
             return;
         } catch (IllegalArgumentException e) {
-            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Lỗi dữ liệu", e.getMessage());
             return;
         } catch (Exception e) {
-            discardCopiedImage(newPhotoPath, originalPhotoPath);
             showErrorAlert("Lỗi cập nhật", "Không thể cập nhật thông tin thành viên: " + e.getMessage());
             return;
         }
 
-        // ===== BƯỚC 4 — CHỈ SAU KHI cập nhật thành công mới dựng thông điệp thành công =====
+        // ===== BƯỚC 3 — CHỈ SAU KHI cập nhật thành công mới dựng thông điệp thành công =====
         StringBuilder successMsg = new StringBuilder("Đã cập nhật thành công thông tin thành viên.");
         if (fatherChanged(originalFather, newFather)) {
             successMsg.append(newFather != null
@@ -456,30 +436,45 @@ public class PersonController {
                     : "\n• Đã gỡ quan hệ mẹ thành công.");
         }
 
-        // ===== BƯỚC 5 — Cập nhật ảnh đại diện — CHỈ ghi cột photo_path =====
-        // Tách khỏi Bước 3 để lỗi ảnh không làm hỏng việc cập nhật thông tin
+        // ===== BƯỚC 4 — Xử lý ảnh đại diện — CHỈ SAU KHI thông tin đã cập nhật thành công =====
+        // Tách khỏi Bước 2 để lỗi ảnh không làm hỏng việc cập nhật thông tin
         // thành viên đã thành công.
         String photoErrorMessage = null;
-        if (newPhotoPath != null) {
+        String sourcePhoto = getSelectedPhotoSourcePath();
+        if (sourcePhoto != null && !sourcePhoto.trim().isEmpty()) {
+            String newPhotoPath = null;
             try {
-                familyTreeService.updatePhotoPath(personId, newPhotoPath);
-                personToUpdate.setPhotoPath(newPhotoPath);
-
-                // Dọn file ảnh CŨ nếu đường dẫn đã đổi (ảnh mới có tên file khác).
-                if (originalPhotoPath != null && !originalPhotoPath.equals(newPhotoPath)) {
-                    ImageManager.deleteImageQuietly(originalPhotoPath);
-                }
-            } catch (Exception e) {
-                photoErrorMessage = "Không thể cập nhật ảnh đại diện trong cơ sở dữ liệu (" + e.getMessage() + ").";
-                // Ảnh mới đã copy vào images/ nhưng chưa lưu được đường dẫn vào DB
-                // → dọn để không để lại file không được tham chiếu.
-                discardCopiedImage(newPhotoPath, originalPhotoPath);
+                // Copy ảnh mới — chỉ khi thông tin thành viên đã lưu thành công.
+                newPhotoPath = ImageManager.copyImageToAppDirectory(sourcePhoto, personId);
+            } catch (IOException e) {
+                photoErrorMessage = "Không thể lưu ảnh vào thư mục images (" + e.getMessage() + ").";
+            } catch (IllegalArgumentException e) {
+                photoErrorMessage = "Định dạng ảnh không hợp lệ (" + e.getMessage() + ").";
             }
-        } else if (imageError != null) {
-            photoErrorMessage = imageError;
+
+            if (newPhotoPath != null) {
+                try {
+                    // Chỉ cập nhật cột photo_path — không đụng tới họ tên / năm sinh /
+                    // giới tính / quan hệ cha mẹ (đã lưu ở Bước 2).
+                    familyTreeService.updatePhotoPath(personId, newPhotoPath);
+                    personToUpdate.setPhotoPath(newPhotoPath);
+
+                    // Dọn file ảnh CŨ nếu đường dẫn đã đổi (ảnh mới có tên file khác).
+                    if (originalPhotoPath != null && !originalPhotoPath.equals(newPhotoPath)) {
+                        ImageManager.deleteImageQuietly(originalPhotoPath);
+                    }
+                } catch (Exception e) {
+                    photoErrorMessage = "Không thể cập nhật ảnh đại diện trong cơ sở dữ liệu (" + e.getMessage() + ").";
+                    // Ảnh mới đã copy vào images/ nhưng chưa lưu được đường dẫn vào DB.
+                    // Nếu đường dẫn khác ảnh gốc → dọn để không để lại file không được
+                    // tham chiếu. Nếu BẰNG ảnh gốc (cùng đuôi) → KHÔNG xóa, vì DB vẫn
+                    // đang trỏ tới chính file này.
+                    discardCopiedImage(newPhotoPath, originalPhotoPath);
+                }
+            }
         }
 
-        // ===== BƯỚC 6 — Báo cáo kết quả =====
+        // ===== BƯỚC 5 — Báo cáo kết quả =====
         if (photoErrorMessage != null) {
             showWarningAlert("Đã cập nhật thông tin nhưng ảnh đại diện chưa được lưu",
                     successMsg.toString() + "\n\n"
@@ -495,10 +490,10 @@ public class PersonController {
     }
 
     /**
-     * Dọn file ảnh vừa copy khi thao tác cập nhật bị hủy hoặc thất bại.
+     * Dọn file ảnh vừa copy khi bước ghi ảnh đại diện vào CSDL thất bại.
      *
      * <p>Chỉ xóa khi đường dẫn mới KHÁC đường dẫn ảnh gốc đang lưu trong DB —
-     * nếu bằng nhau thì xóa sẽ làm mất ảnh cũ đang được sử dụng.
+     * nếu bằng nhau (cùng đuôi file) thì xóa sẽ làm mất chính file mà DB đang trỏ tới.
      *
      * @param newPhotoPath     đường dẫn tương đối của ảnh vừa copy (có thể null)
      * @param originalPhotoPath đường dẫn ảnh gốc đang lưu trong DB (có thể null)
