@@ -28,6 +28,8 @@ package "com.giapha.model" {
     enum Gender {
         MALE
         FEMALE
+        + getDisplayName() : String
+        + getBadgeCssClass() : String
     }
 
     class Person {

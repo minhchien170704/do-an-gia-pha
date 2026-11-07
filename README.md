@@ -153,7 +153,7 @@ mvn clean package        # đóng gói thành target/do-an-gia-pha-1.0-SNAPSHOT.
 mvn javafx:run
 ```
 
-### 4.3. Chạy toàn bộ kiểm thử (138 test cases)
+### 4.3. Chạy toàn bộ kiểm thử (188 test cases)
 
 ```bash
 mvn clean test
@@ -176,7 +176,7 @@ mvn clean test
 `gia_pha` **không bao giờ** bị test ghi vào. Nếu CSDL không sẵn sàng, các test đó được đánh dấu
 `SKIPPED` (không tính là `FAILED`).
 
-### 4.4. Chạy riêng các test cần JavaFX Toolkit (tag `javafx` — 26 test cases)
+### 4.4. Chạy riêng các test cần JavaFX Toolkit (tag `javafx` — 30 test cases)
 
 ```bash
 mvn test -Pjavafx-tests
@@ -225,8 +225,8 @@ mysql -u root -p < database/schema.sql
 
 ### 4.8. Giải thích lệch số liệu khi đọc log Surefire
 
-Nếu bạn cộng tay từng dòng log Surefire (25 + 7 + 44 + 0 + 22 + 12 + 11 + 9 + 5 + 3) thì ra **138**,
-không phải 142. Con số 142 xuất hiện khi **báo cáo cũ** cộng thêm một dòng
+Nếu bạn cộng tay từng dòng log Surefire (25 + 9 + 19 + 23 + 3 + 7 + 8 + 5 + 44 + 0 + 22 + 12 + 11) thì ra **188**,
+không phải 210. Con số 210 xuất hiện khi **báo cáo cũ** cộng thêm một dòng
 "22 test — FamilyTreeServiceTest (phần lồng)" *cùng* với dòng `FamilyTreeServiceTest$DataIsolation`
 đã chứa 44 test — tức là **đếm trùng** các test của lớp lồng `@Nested`.
 
@@ -243,11 +243,11 @@ Cơ chế thật (đã kiểm chứng qua `target/surefire-reports/TEST-*.xml`):
 
 ```
 [INFO] Results:
-[INFO] Tests run: 138, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 188, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
-Dòng tổng này **không** bao gồm 26 test tag `javafx` (chạy riêng qua `mvn test -Pjavafx-tests`).
+Dòng tổng này **không** bao gồm 30 test tag `javafx` (chạy riêng qua `mvn test -Pjavafx-tests`).
 
 ### 4.9. Ghi chú về xung đột JPMS ↔ JUnit 5
 
@@ -608,7 +608,7 @@ Sơ đồ lớp gốc có 25 lớp + 7 exception → ảnh render rất rộng. 
 | **6.2** | Xuất PNG (`PngWriter` thuần `java.util.zip`) và In ấn (`javafx.print.PrinterJob`) | ✅ Hoàn thành |
 | **6.3** | Nới validate năm sinh xuống `1000 <= birthYear <= Year.now()` | ✅ Hoàn thành |
 | **6.4** | Custom exception riêng cho BR2 (`SameParentException`) và BR6 (`InvalidParentGenderException`) | ✅ Hoàn thành |
-| **6.5** | Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (138 test mặc định + 26 test tag `javafx`) | ✅ Hoàn thành |
+| **6.5** | Chuyển toàn bộ kiểm thử sang **JUnit 5** + `maven-surefire-plugin` (188 test mặc định + 30 test tag `javafx`) | ✅ Hoàn thành |
 | **6.6** | Bộ dữ liệu mẫu & bảng test case trong `test-data/` (`LargeSampleDataTest`, 22 test) | ✅ Hoàn thành |
 | **6.7** | **Cách ly dữ liệu test**: mọi lớp test dùng database riêng `*_test`; `TestDatabaseManager` quản lý vòng đời + `assertSafeToDrop` | ✅ Hoàn thành |
 | **6.8** | **Đồng bộ hóa toàn bộ sơ đồ PlantUML với code hiện tại**: class-diagram tách 4 sơ đồ theo gói, component/deployment/use-case cập nhật, thêm sequence + activity cho "Xuất PNG/In" và "Chọn & lưu ảnh đại diện" | ✅ Hoàn thành |

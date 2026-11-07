@@ -154,6 +154,7 @@ package "com.giapha.view" {
         + PersonAvatar(person : Person)
         + PersonAvatar(person : Person, size : int)
         + PersonAvatar(person : Person, size : int, imageFile : File)
+        + update(person : Person, imageFile : File) : void
         + resolveImageFile(photoPath : String) : File
         + isShowingRealImage() : boolean
         + getAvatarSize() : int

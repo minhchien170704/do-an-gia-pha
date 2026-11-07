@@ -1151,8 +1151,8 @@ cấu hình hạ tầng, các tầng bên trên không cần (và không đượ
 
 | Con số | Giá trị | Nơi dùng |
 |---|---|---|
-| Tổng test mặc định | **138** (0 fail, 0 error, 0 skip) | `mvn clean test` |
-| Test tag `javafx` | **26** | `mvn test -Pjavafx-tests` |
+| Tổng test mặc định | **188** (0 fail, 0 error, 0 skip) | `mvn clean test` |
+| Test tag `javafx` | **30** | `mvn test -Pjavafx-tests` |
 | Test case trong `test-data/test-cases.md` | **22** (22 PASS) | `LargeSampleDataTest` |
 | Lớp exception | **7**, đều `extends RuntimeException` | `com.giapha.exception.*` |
 | Quy tắc nghiệp vụ | **BR1–BR6** | `FamilyTreeService` |

@@ -33,7 +33,7 @@
 | 3:35 – 3:55 | **LỖI 3** — Tạo chu trình gia phả (BR3) | Thấy DFS phát hiện chu trình |
 | 3:55 – 4:15 | **LỖI 4** — Xóa người đang làm cha/mẹ (BR4) | Thấy chặn xóa |
 | 4:15 – 4:30 | **CẢNH BÁO** — Năm sinh cha ≥ con (BR5) | Thấy cảnh báo không chặn |
-| 4:30 – 4:50 | Chạy `mvn clean test` (nếu có môi trường) | Thấy 138 test PASS |
+| 4:30 – 4:50 | Chạy `mvn clean test` (nếu có môi trường) | Thấy 188 test PASS |
 | 4:50 – 5:00 | Tổng kết, mở câu hỏi | |
 
 > **Mẹo:** nếu bị hỏi giữa lúc demo, hãy nhảy sang phần **"Câu hỏi thường gặp
@@ -383,12 +383,12 @@ mvn clean test
 **Kết quả mong đợi (cuối output):**
 
 ```
-[INFO] Tests run: 138, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 188, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
 ```
 
 **Cách nói:**
-> "Bộ test dùng JUnit 5, 138 test mặc định (thêm 26 test JavaFX chạy riêng bằng `mvn test -Pjavafx-tests`), tất cả PASS. Điểm quan trọng: **mọi** test ghi
+> "Bộ test dùng JUnit 5, 188 test mặc định (thêm 30 test JavaFX chạy riêng bằng `mvn test -Pjavafx-tests`), tất cả PASS. Điểm quan trọng: **mọi** test ghi
 > vào CSDL đều dùng database riêng tên kết thúc bằng `_test` — được tự tạo ở
 > `@BeforeAll` và tự xóa ở `@AfterAll`. Ngoài ra `TestDatabaseManager.assertSafeToDrop()`
 > bắt buộc tên database phải kết thúc bằng `_test`, nếu không khớp thì ném

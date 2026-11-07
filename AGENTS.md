@@ -103,7 +103,7 @@ MySQL / MariaDB
 com.giapha
 ├── Main.java                          # Điểm khởi chạy ứng dụng JavaFX
 ├── model/
-│   ├── Gender.java                    # Enum: MALE, FEMALE
+│   ├── Gender.java                    # Enum: MALE, FEMALE + getDisplayName() / getBadgeCssClass()
 │   └── Person.java                    # Entity chứa thông tin cá nhân & tham chiếu cha/mẹ
 ├── exception/
 │   ├── CycleDetectedException.java    # Ném khi phát hiện chu trình gia phả (BR3)
@@ -164,10 +164,12 @@ src/test/java/com/giapha
 ├── util/
 │   ├── ImageManagerTest.java          # 12 test — định dạng ảnh, copy, dọn file
 │   └── PngWriterTest.java             # 11 test — chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib
+├── model/
+│   └── GenderTest.java                # 8 test — nhãn hiển thị + CSS class (KHÔNG cần JavaFX Toolkit)
 ├── testdata/
 │   └── LargeSampleDataTest.java       # 22 test — bộ dữ liệu mẫu 30 người / 5 thế hệ (DB riêng gia_pha_test)
 └── view/
-    ├── AvatarFallbackTest.java        # 14 test (tag "javafx") — cơ chế fallback ảnh đại diện
+    ├── AvatarFallbackTest.java        # 18 test (tag "javafx") — cơ chế fallback ảnh đại diện + update() tại chỗ
     └── JavaFxViewTest.java            # 12 test (tag "javafx") — tích hợp UI → MySQL
 ```
 
@@ -294,7 +296,7 @@ mvn clean compile
 mvn javafx:run
 ```
 
-### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 181 test cases):
+### Chạy toàn bộ kiểm thử tự động (JUnit 5 — 188 test cases):
 ```bash
 mvn clean test
 ```
@@ -303,7 +305,7 @@ mvn clean test
 >
 > Bộ test mặc định **KHÔNG** chạy các test cần JavaFX Toolkit (tag `javafx`) — xem phần bên dưới.
 
-### Chạy riêng các test cần JavaFX Toolkit (tag `javafx` — 26 test cases):
+### Chạy riêng các test cần JavaFX Toolkit (tag `javafx` — 30 test cases):
 ```bash
 mvn test -Pjavafx-tests
 ```

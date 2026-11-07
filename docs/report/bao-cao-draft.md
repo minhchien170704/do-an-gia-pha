@@ -12,7 +12,7 @@
 | **Ngôn ngữ / nền tảng** | Java 25, JavaFX 23, MySQL/MariaDB, JDBC thuần, Maven |
 | **Mô hình kiến trúc** | Kiến trúc phân tầng (Layered Architecture) + MVC |
 | **Module hệ thống** | JPMS — module `com.giapha` (`module-info.java`) |
-| **Kiểm thử** | JUnit 5 — 138 test mặc định + 26 test tag `javafx` |
+| **Kiểm thử** | JUnit 5 — 188 test mặc định + 30 test tag `javafx` |
 | **Mã nguồn** | <https://github.com/minhchien170704/do-an-gia-pha> |
 
 ---
@@ -693,15 +693,18 @@ Bộ kiểm thử dùng **JUnit 5** (`junit-jupiter` 5.10.2) + `maven-surefire-p
 |---|---|---|
 | `FamilyTreeServiceTest` | 44 | BR1–BR6, TC01–TC14, TC-CLEAR-01…05, cô lập dữ liệu |
 | `PersonControllerTest` | 25 | Điều phối View ↔ Service, xử lý exception, callback điều hướng |
+| `PersonControllerAbstractionTest` | 23 | Fake `FormDataSource`/`Navigator`/`PeopleListSource` — KHÔNG cần JavaFX Toolkit |
 | `LargeSampleDataTest` | 22 | Bộ dữ liệu mẫu 30 người / 5 thế hệ (BR1–BR6, validation, ràng buộc CSDL, an toàn DROP DB) |
+| `DataIntegrityTest` | 19 | GĐ1: toàn vẹn dữ liệu ảnh + đồng nhất BR1–BR6 |
 | `ImageManagerTest` | 12 | Định dạng ảnh, copy vào `./images/`, dọn file an toàn |
 | `PngWriterTest` | 11 | Chữ ký PNG, khối IHDR/IDAT/IEND, CRC32, nén zlib |
 | `AtomicUpdateAndBr5Test` | 9 | Cập nhật nguyên tử (cha/mẹ + thông tin cá nhân), BR5 trong luồng lưu của form |
+| `GenderTest` | 8 | Nhãn hiển thị + CSS class của enum `Gender` — KHÔNG cần JavaFX Toolkit |
 | `DatabaseConnectionTest` | 7 | Kết nối MySQL, metadata, bảng `PERSON`, kiểm chứng DB chính không bị đổi |
 | `JdbcPersonRepositoryConnectionTest` | 5 | Quyền sở hữu `Connection`: repo tự mở thì tự đóng, Connection ngoài thì không đóng |
 | `BackendInitializationTest` | 3 | Kiểm tra kết nối MySQL thật trước khi hiển thị giao diện |
-| **Tổng (mặc định)** | **138** | `mvn clean test` |
-| `AvatarFallbackTest` + `JavaFxViewTest` (tag `javafx`) | 26 | Chạy riêng bằng `mvn test -Pjavafx-tests` |
+| **Tổng (mặc định)** | **188** | `mvn clean test` |
+| `AvatarFallbackTest` + `JavaFxViewTest` (tag `javafx`) | 30 | Chạy riêng bằng `mvn test -Pjavafx-tests` |
 
 ### 5.3. Bảng test case — bộ dữ liệu mẫu 30 người / 5 thế hệ
 
@@ -768,10 +771,13 @@ mvn clean test
 Kết quả thu được trên môi trường phát triển (Windows, JDK 25, MySQL/MariaDB đang chạy):
 
 ```
-[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.controller.PersonControllerTest
 [INFO] Tests run:  9, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.controller.AtomicUpdateAndBr5Test
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.controller.DataIntegrityTest
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.controller.PersonControllerAbstractionTest
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.controller.PersonControllerTest
 [INFO] Tests run:  3, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.database.BackendInitializationTest
 [INFO] Tests run:  7, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.database.DatabaseConnectionTest
+[INFO] Tests run:  8, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.model.GenderTest
 [INFO] Tests run:  5, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.repository.JdbcPersonRepositoryConnectionTest
 [INFO] Tests run: 44, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.service.FamilyTreeServiceTest$DataIsolation
 [INFO] Tests run:  0, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.service.FamilyTreeServiceTest
@@ -779,25 +785,25 @@ Kết quả thu được trên môi trường phát triển (Windows, JDK 25, My
 [INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.util.ImageManagerTest
 [INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0 -- in com.giapha.util.PngWriterTest
 [INFO] Results:
-[INFO] Tests run: 138, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 188, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS
-[INFO] Total time:  20.801 s
+[INFO] Total time:  13.162 s
 ```
 
 | Chỉ số | Giá trị |
 |---|---|
-| Tổng test thực thi | **138** |
+| Tổng test thực thi | **188** |
 | Failures | **0** |
 | Errors | **0** |
 | Skipped | **0** |
-| Thời gian | ~21 giây |
+| Thời gian | ~13 giây |
 | Kết quả | **BUILD SUCCESS** |
 
 **Ghi chú về cách đọc log Surefire:** Surefire ghi **hai** dòng cho cùng một lớp
 khi lớp đó có test lồng `@Nested` — dòng `FamilyTreeServiceTest$DataIsolation`
 (44 test) và dòng `FamilyTreeServiceTest` (0 test, là *vỏ rỗng* vì mọi test đã
-được gán cho container lồng). **Chỉ dòng tổng cuối cùng (121) là con số chuẩn xác.**
-Dòng này **không** bao gồm 26 test tag `javafx` (chạy riêng bằng
+được gán cho container lồng). **Chỉ dòng tổng cuối cùng (188) là con số chuẩn xác.**
+Dòng này **không** bao gồm 30 test tag `javafx` (chạy riêng bằng
 `mvn test -Pjavafx-tests`).
 
 ### 5.6. Chạy các nhóm test riêng
@@ -849,7 +855,7 @@ Hệ thống đã hoàn thành đầy đủ các yêu cầu của đề tài:
   tầng CSDL bằng `CHECK` constraint + `TRIGGER` + `ON DELETE RESTRICT`.
 - Sơ đồ cây gia phả 2D có zoom/pan, xuất PNG toàn sơ đồ và in ấn qua `PrinterJob`.
 - Kiến trúc phân tầng rõ ràng, tuân thủ Dependency Inversion, không phụ thuộc framework.
-- 138 test tự động + 26 test JavaFX, tất cả đều PASS; database chính `gia_pha` được
+- 188 test tự động + 30 test JavaFX, tất cả đều PASS; database chính `gia_pha` được
   bảo vệ khỏi mọi thao tác ghi của test.
 - Cập nhật thành viên là **nguyên tử**: kiểm tra toàn bộ (cha/mẹ + thông tin cá nhân)
   trước, ghi bằng một câu `UPDATE` duy nhất — không có trạng thái "cập nhật một nửa".
@@ -864,7 +870,7 @@ Hệ thống đã hoàn thành đầy đủ các yêu cầu của đề tài:
 | **Không phụ thuộc framework, dễ trình bày trong đồ án OOP** | Chỉ JDK + JavaFX + JDBC thuần — mọi lớp, mọi mối quan hệ đều do tay viết, phù hợp mục tiêu môn học. |
 | **Thông báo lỗi thân thiện** | Mỗi quy tắc có exception riêng → thông báo tiếng Việt đúng nguyên nhân, không lộ stack trace kỹ thuật ra UI. |
 | **Mô hình hóa quan hệ phả hệ bằng OOP thuần** | `Person.father` / `Person.mother` là tham chiếu đối tượng; thuật toán DFS/BFS chạy trên object graph, không phải trên SQL phức tạp. |
-| **Kiểm thử tự động đầy đủ và an toàn** | 164 test (138 + 26 JavaFX); mọi test ghi vào DB riêng `*_test` tự tạo/tự xóa; có bảo vệ chống DROP nhầm database chính. |
+| **Kiểm thử tự động đầy đủ và an toàn** | 218 test (188 + 30 JavaFX); mọi test ghi vào DB riêng `*_test` tự tạo/tự xóa; có bảo vệ chống DROP nhầm database chính. |
 | **Sơ đồ 2D đẹp và linh hoạt** | Gom khối gia đình cha–mẹ, canh giữa con giữa hai vị trí, vẽ đường nối ở mức cá nhân (không nối nhầm vợ/chồng), hỗ trợ zoom 0.25×–2.5× và pan. |
 | **Tự quản lý ảnh đại diện** | `PersonAvatar` fallback về chữ cái đầu khi thiếu ảnh / ảnh hỏng — **không bao giờ** ném exception ra giao diện; ảnh lưu bằng đường dẫn tương đối nên CSDL không phụ thuộc vị trí cài đặt. |
 | **Tài liệu đầy đủ, đồng bộ** | 18 sơ đồ PlantUML render sẵn, README chi tiết, bộ test data + bảng test case, 3 tài liệu báo cáo/bảo vệ/demo trong `docs/report/`. |
