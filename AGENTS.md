@@ -16,7 +16,8 @@ Xây dựng ứng dụng desktop quản lý cây gia phả (Family Tree Manageme
 ## 2. CÔNG NGHỆ & PHIÊN BẢN (TECH STACK)
 - **Ngôn ngữ**: Java 25 (OpenJDK 25.0.2)
 - **Hệ thống module**: Java Platform Module System (`module-info.java`, module `com.giapha`)
-- **Giao diện (UI)**: JavaFX 23.0.2 (`javafx-controls`, `javafx-fxml`)
+- **Giao diện (UI)**: JavaFX 23.0.2 (`javafx-controls`)
+  - UI dùng Programmatic JavaFX (Java + CSS), không dùng FXML
 - **Quản lý dự án / Build Tool**: Apache Maven 3.9.16
 - **Cơ sở dữ liệu**: MySQL / MariaDB (mặc định port `3306`, database `gia_pha`, charset `utf8mb4`)
 - **Kết nối CSDL**: JDBC thuần với `mysql-connector-j` 9.2.0 (KHÔNG dùng ORM/Hibernate/JPA/Spring)

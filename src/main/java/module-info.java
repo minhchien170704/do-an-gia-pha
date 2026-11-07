@@ -1,12 +1,11 @@
 module com.giapha {
     requires javafx.controls;
     requires javafx.graphics;
-    requires javafx.fxml;
     requires java.sql;
 
-    opens com.giapha to javafx.graphics, javafx.fxml;
+    opens com.giapha to javafx.graphics;
     opens com.giapha.model to javafx.base;
-    opens com.giapha.view to javafx.graphics, javafx.fxml;
+    opens com.giapha.view to javafx.graphics;
 
     exports com.giapha;
     exports com.giapha.model;

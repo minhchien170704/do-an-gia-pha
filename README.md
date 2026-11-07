@@ -39,7 +39,7 @@ thành viên trong cây gia phả. Trọng tâm:
 |---|---|
 | Ngôn ngữ | Java 25 (OpenJDK 25) |
 | Module system | Java Platform Module System — `module-info.java`, module `com.giapha` |
-| Giao diện | JavaFX 23.0.2 (`javafx-controls`, `javafx-fxml`) |
+| Giao diện | JavaFX 23.0.2 (`javafx-controls`) — UI dùng Programmatic JavaFX (Java + CSS), không dùng FXML |
 | Build tool | Apache Maven 3.9+ |
 | CSDL | MySQL 8.x hoặc MariaDB 10.x — port `3306`, charset `utf8mb4` |
 | Kết nối CSDL | JDBC thuần, `mysql-connector-j` 9.2.0 (**không** dùng ORM/Hibernate/JPA/Spring) |
@@ -492,7 +492,6 @@ do-an-gia-pha/
 │   │   │       └── view/                     # JavaFX Views + FamilyTreeDiagram + PersonAvatar
 │   │   └── resources/
 │   │       ├── css/                          # style.css
-│   │       ├── fxml/                         # FXML layouts
 │   │       └── images/                       # Icon & ảnh tĩnh
 │   │                                       # (ảnh đại diện người dùng copy vào ./images/ lúc runtime)
 │   └── test/

@@ -33,13 +33,6 @@
             <version>${javafx.version}</version>
         </dependency>
 
-        <!-- JavaFX FXML -->
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-
         <!-- MySQL JDBC Connector -->
         <dependency>
             <groupId>com.mysql</groupId>
@@ -132,7 +125,7 @@
             Profile chạy RIÊNG các test cần JavaFX Toolkit.
             Cách dùng:  mvn test -Pjavafx-tests
                         mvn test -Pjavafx-tests -Dtest=JavaFxViewTest
-            Yêu cầu: MySQL đang chạy, bảng PERSON có đúng 7 bản ghi mẫu.
+            Yêu cầu: MySQL đang chạy, bảng person có đúng 7 bản ghi mẫu.
         -->
         <profile>
             <id>javafx-tests</id>
