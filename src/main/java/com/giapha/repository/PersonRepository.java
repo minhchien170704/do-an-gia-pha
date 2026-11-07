@@ -49,6 +49,20 @@ public interface PersonRepository {
     void update(Person person);
 
     /**
+     * Cập nhật CHỈ cột {@code photo_path} của một Person.
+     *
+     * <p>Tách riêng khỏi {@link #update(Person)} để việc lưu đường dẫn ảnh đại diện
+     * không ghi đè các cột khác (họ tên, năm sinh, giới tính, quan hệ cha/mẹ).
+     * Nhờ vậy thao tác lưu ảnh không thể gây ra trạng thái "cập nhật một nửa"
+     * nếu có thao tác sửa thông tin cá nhân đang diễn ra đồng thời.
+     *
+     * @param id        mã định danh của Person cần cập nhật ảnh
+     * @param photoPath đường dẫn tương đối của ảnh (ví dụ {@code images/person_7.png}),
+     *                  hoặc {@code null} / chuỗi rỗng để xoá ảnh đại diện
+     */
+    void updatePhotoPath(int id, String photoPath);
+
+    /**
      * Xóa một Person khỏi cơ sở dữ liệu theo mã định danh (id).
      *
      * @param id mã định danh của Person cần xóa

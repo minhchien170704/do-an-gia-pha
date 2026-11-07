@@ -147,42 +147,108 @@ public class PersonController {
             }
         }
 
+        // ===== BƯỚC 1 — Lưu thông tin thành viên vào DB =====
+        // Lỗi ở bước này = thành viên KHÔNG được tạo → báo lỗi và dừng.
+        Person added;
         try {
-            Person added = familyTreeService.addPerson(person);
-
-            // Copy ảnh đại diện vào thư mục images (sau khi có id để đặt tên file)
-            if (personFormView != null) {
-                String newPhotoPath = persistSelectedImage(
-                        personFormView.getSelectedPhotoSourcePath(), added.getId());
-                if (newPhotoPath != null) {
-                    added.setPhotoPath(newPhotoPath);
-                    familyTreeService.updatePerson(added);
-                }
-            }
-
-            showInfoAlert("Thành công", "Đã thêm thành viên \"" + added.getFullName() + "\" vào gia phả thành công.");
-            if (navigateToPeopleList != null) {
-                navigateToPeopleList.run();
-            }
-            return added;
+            added = familyTreeService.addPerson(person);
         } catch (InvalidBirthYearException e) {
             showErrorAlert("Lỗi năm sinh", e.getMessage());
+            return null;
         } catch (PersonNotFoundException e) {
             showErrorAlert("Không tìm thấy", "Phụ huynh chỉ định không tồn tại: " + e.getMessage());
+            return null;
         } catch (SelfParentException e) {
             showErrorAlert("Lỗi quan hệ", "Không thể tự gán mình làm cha hoặc mẹ: " + e.getMessage());
+            return null;
         } catch (CycleDetectedException e) {
             showErrorAlert("Lỗi chu trình", "Thao tác tạo chu trình trong cây gia phả: " + e.getMessage());
+            return null;
         } catch (SameParentException e) {
             showErrorAlert("Lỗi quan hệ", "Cha và Mẹ không thể là cùng một người: " + e.getMessage());
+            return null;
         } catch (InvalidParentGenderException e) {
             showErrorAlert("Lỗi giới tính vai trò", e.getMessage());
+            return null;
         } catch (IllegalArgumentException e) {
             showErrorAlert("Lỗi dữ liệu", e.getMessage());
+            return null;
         } catch (Exception e) {
             showErrorAlert("Lỗi", "Không thể thêm thành viên: " + e.getMessage());
+            return null;
         }
-        return null;
+
+        // ===== BƯỚC 2 — Xử lý ảnh đại diện (tách biệt hoàn toàn với BƯỚC 1) =====
+        // Thành viên ĐÃ được lưu thành công vào DB. Lỗi ở bước này KHÔNG được
+        // báo như "thêm thành viên thất bại" — chỉ báo ảnh chưa lưu được.
+        String imageErrorMessage = persistImageAfterAdd(added);
+
+        if (imageErrorMessage == null) {
+            showInfoAlert("Thành công",
+                    "Đã thêm thành viên \"" + added.getFullName() + "\" vào gia phả thành công.");
+        } else {
+            showWarningAlert("Đã thêm thành viên nhưng ảnh đại diện chưa được lưu",
+                    "Thành viên \"" + added.getFullName() + "\" đã được thêm vào gia phả thành công.\n\n"
+                            + "Tuy nhiên ảnh đại diện chưa được lưu: " + imageErrorMessage
+                            + "\n\nBạn có thể chọn lại ảnh sau bằng chức năng Sửa.");
+        }
+
+        if (navigateToPeopleList != null) {
+            navigateToPeopleList.run();
+        }
+        return added;
+    }
+
+    /**
+     * Lấy đường dẫn file ảnh NGUỒN do người dùng chọn trong form.
+     *
+     * <p>Được tách thành phương thức riêng để tầng kiểm thử có thể kiểm tra
+     * luồng xử lý ảnh (copy file, cập nhật {@code photo_path}) mà không cần
+     * khởi tạo JavaFX Toolkit.
+     *
+     * @return đường dẫn tuyệt đối của ảnh nguồn, hoặc null nếu không chọn ảnh
+     */
+    protected String getSelectedPhotoSourcePath() {
+        return (personFormView == null) ? null : personFormView.getSelectedPhotoSourcePath();
+    }
+
+    /**
+     * Xử lý ảnh đại diện sau khi thành viên đã được lưu thành công vào DB.
+     *
+     * <p>Ảnh được copy vào thư mục {@code images/} và đường dẫn tương đối được ghi
+     * bằng {@link FamilyTreeService#updatePhotoPath(int, String)} — chỉ cập nhật
+     * <b>duy nhất</b> cột {@code photo_path}, KHÔNG ghi đè các cột khác.
+     *
+     * @param added thành viên vừa được thêm (đã có id)
+     * @return {@code null} nếu không có ảnh nào cần xử lý hoặc xử lý thành công;
+     *         ngược lại là thông điệp mô tả lỗi để hiển thị cho người dùng
+     */
+    private String persistImageAfterAdd(Person added) {
+        String sourcePhoto = getSelectedPhotoSourcePath();
+        if (sourcePhoto == null || sourcePhoto.trim().isEmpty()) {
+            return null; // Người dùng không chọn ảnh — không phải lỗi
+        }
+
+        String newPhotoPath;
+        try {
+            newPhotoPath = ImageManager.copyImageToAppDirectory(sourcePhoto, added.getId());
+        } catch (IOException e) {
+            return "Không thể lưu ảnh vào thư mục images (" + e.getMessage() + ").";
+        } catch (IllegalArgumentException e) {
+            return "Định dạng ảnh không hợp lệ (" + e.getMessage() + ").";
+        }
+
+        try {
+            // Chỉ cập nhật cột photo_path — không đụng tới họ tên / năm sinh /
+            // giới tính / quan hệ cha mẹ.
+            familyTreeService.updatePhotoPath(added.getId(), newPhotoPath);
+            added.setPhotoPath(newPhotoPath);
+            return null;
+        } catch (Exception e) {
+            // Thành viên đã lưu thành công → KHÔNG báo "thêm thất bại".
+            // Ảnh trong DB vẫn giữ giá trị cũ (null), không phá vỡ dữ liệu.
+            return "Không thể cập nhật đường dẫn ảnh trong cơ sở dữ liệu (" + e.getMessage() + ").";
+        }
     }
 
     /**
@@ -287,18 +353,37 @@ public class PersonController {
         int personId = personToUpdate.getId();
         Person originalFather = personToUpdate.getFather();
         Person originalMother = personToUpdate.getMother();
+        String originalPhotoPath = personToUpdate.getPhotoPath();
+
+        // Nếu caller truyền vào một Person mà KHÔNG kèm photo_path (null),
+        // đường dẫn ảnh đang lưu trong DB vẫn phải được giữ nguyên.
+        // Việc cập nhật ảnh chỉ đi qua updatePhotoPath() ở Bước 4 — không bao giờ
+        // đi qua bản ghi UPDATE của thông tin cá nhân.
+        if (originalPhotoPath == null) {
+            try {
+                originalPhotoPath = familyTreeService.getPersonById(personId).getPhotoPath();
+                personToUpdate.setPhotoPath(originalPhotoPath);
+            } catch (PersonNotFoundException ignored) {
+                // Không tìm thấy → để nguyên null, các bước sau sẽ báo lỗi phù hợp.
+            }
+        }
 
         StringBuilder successMsg = new StringBuilder("Đã cập nhật thành công thông tin thành viên.");
         StringBuilder errorMsg = new StringBuilder();
 
         // Bước 1: Copy ảnh đại diện mới (nếu người dùng đã chọn ảnh khác).
-        // Đường dẫn tương đối của ảnh mới được ghi vào DB ngay trong lần lưu đó.
-        if (personFormView != null) {
-            String sourcePhoto = personFormView.getSelectedPhotoSourcePath();
-            String newPhotoPath = persistSelectedImage(sourcePhoto, personId);
-            if (newPhotoPath != null) {
-                personToUpdate.setPhotoPath(newPhotoPath);
-                successMsg.append("\n• Đã cập nhật ảnh đại diện thành công.");
+        // Chỉ copy FILE — đường dẫn được ghi vào DB ở Bước 4 bằng updatePhotoPath()
+        // (chỉ cập nhật cột photo_path), tách khỏi bản ghi thông tin cá nhân.
+        String newPhotoPath = null;
+        String imageError = null;
+        String sourcePhoto = getSelectedPhotoSourcePath();
+        if (sourcePhoto != null && !sourcePhoto.trim().isEmpty()) {
+            try {
+                newPhotoPath = ImageManager.copyImageToAppDirectory(sourcePhoto, personId);
+            } catch (IOException e) {
+                imageError = "Không thể lưu ảnh vào thư mục images (" + e.getMessage() + ").";
+            } catch (IllegalArgumentException e) {
+                imageError = "Định dạng ảnh không hợp lệ (" + e.getMessage() + ").";
             }
         }
 
@@ -309,11 +394,17 @@ public class PersonController {
             Person effectiveFather = newFather != null ? newFather : originalFather;
             Person effectiveMother = newMother != null ? newMother : originalMother;
             if (!confirmBirthYearWarning(personToUpdate, effectiveFather, effectiveMother)) {
+                // Người dùng chọn Hủy — KHÔNG lưu gì cả, kể cả ảnh đã copy.
+                if (newPhotoPath != null && !newPhotoPath.equals(originalPhotoPath)) {
+                    ImageManager.deleteImageQuietly(newPhotoPath);
+                }
                 return; // Người dùng chọn Hủy — KHÔNG lưu gì cả
             }
         }
 
         // Bước 3: Cập nhật NGUYÊN TỬ — kiểm tra toàn bộ BR trước, rồi ghi MỘT lần.
+        // photo_path KHÔNG tham gia vào bản ghi này — giữ nguyên đường dẫn cũ,
+        // việc cập nhật ảnh được thực hiện riêng ở Bước 4.
         try {
             familyTreeService.updatePersonWithParents(personToUpdate, newFather, newMother);
 
@@ -339,16 +430,46 @@ public class PersonController {
             errorMsg.append("\n• Không tìm thấy cha, mẹ hoặc con chỉ định: ").append(e.getMessage());
         } catch (InvalidBirthYearException e) {
             showErrorAlert("Lỗi năm sinh", e.getMessage());
+            if (newPhotoPath != null && !newPhotoPath.equals(originalPhotoPath)) {
+                ImageManager.deleteImageQuietly(newPhotoPath);
+            }
             return;
         } catch (IllegalArgumentException e) {
             showErrorAlert("Lỗi dữ liệu", e.getMessage());
+            if (newPhotoPath != null && !newPhotoPath.equals(originalPhotoPath)) {
+                ImageManager.deleteImageQuietly(newPhotoPath);
+            }
             return;
         } catch (Exception e) {
             showErrorAlert("Lỗi cập nhật", "Không thể cập nhật thông tin thành viên: " + e.getMessage());
+            if (newPhotoPath != null && !newPhotoPath.equals(originalPhotoPath)) {
+                ImageManager.deleteImageQuietly(newPhotoPath);
+            }
             return;
         }
 
-        // Bước 4: Báo cáo kết quả
+        // Bước 4: Cập nhật ảnh đại diện — CHỈ ghi cột photo_path.
+        // Tách khỏi Bước 3 để lỗi ảnh không làm hỏng việc cập nhật thông tin
+        // thành viên đã thành công.
+        if (newPhotoPath != null) {
+            try {
+                familyTreeService.updatePhotoPath(personId, newPhotoPath);
+                personToUpdate.setPhotoPath(newPhotoPath);
+                successMsg.append("\n• Đã cập nhật ảnh đại diện thành công.");
+
+                // Dọn file ảnh CŨ nếu đường dẫn đã đổi (ảnh mới có tên file khác).
+                if (originalPhotoPath != null && !originalPhotoPath.equals(newPhotoPath)) {
+                    ImageManager.deleteImageQuietly(originalPhotoPath);
+                }
+            } catch (Exception e) {
+                errorMsg.append("\n• Không thể cập nhật ảnh đại diện trong cơ sở dữ liệu: ")
+                        .append(e.getMessage());
+            }
+        } else if (imageError != null) {
+            errorMsg.append("\n• ").append(imageError);
+        }
+
+        // Bước 5: Báo cáo kết quả
         if (errorMsg.length() > 0) {
             showErrorAlert("Cảnh báo quan hệ", successMsg.toString() + "\n" + errorMsg.toString());
         } else {
@@ -383,8 +504,26 @@ public class PersonController {
      * @param id mã thành viên cần xóa
      */
     public void handleDelete(int id) {
+        // Lấy đường dẫn ảnh TRƯỚC khi xóa bản ghi — sau khi xóa thì không còn
+        // đọc được photo_path nữa.
+        String photoPath = null;
+        try {
+            Person target = familyTreeService.getPersonById(id);
+            photoPath = target.getPhotoPath();
+        } catch (PersonNotFoundException e) {
+            // Không tìm thấy người cần xóa → không có gì để dọn ảnh.
+            photoPath = null;
+        }
+
         try {
             familyTreeService.deletePerson(id);
+
+            // Chỉ xóa file ảnh SAU khi xóa DB thành công.
+            // Nếu xóa DB thất bại (PersonInUseException / SQLException) → ảnh được giữ nguyên.
+            // deleteImageQuietly() không ném exception nên lỗi xóa file KHÔNG làm
+            // đảo ngược kết quả xóa DB.
+            ImageManager.deleteImageQuietly(photoPath);
+
             showInfoAlert("Thành công", "Đã xóa thành viên có ID = " + id + " khỏi hệ thống gia phả.");
             if (peopleListView != null) {
                 peopleListView.refresh();
@@ -742,38 +881,6 @@ public class PersonController {
             return true;
         }
         return newMother.getId() != originalMother.getId();
-    }
-
-    /**
-     * Copy ảnh đại diện do người dùng chọn vào thư mục images của ứng dụng.
-     *
-     * <p>Được gọi sau khi thành viên đã được lưu thành công (đã có id) để đặt tên file
-     * theo mã định danh. Nếu copy thất bại, ảnh cũ trong DB vẫn được giữ nguyên.
-     *
-     * @param sourceFilePath đường dẫn tuyệt đối tới ảnh nguồn
-     * @param personId       mã định danh của thành viên
-     * @return đường dẫn tương đối cần lưu vào DB, hoặc null nếu không có ảnh nào được chọn
-     */
-    private String persistSelectedImage(String sourceFilePath, int personId) {
-        if (sourceFilePath == null || sourceFilePath.trim().isEmpty()) {
-            return null;
-        }
-
-        if (!ImageManager.isAllowedImage(sourceFilePath)) {
-            showErrorAlert("Định dạng ảnh không hợp lệ",
-                    "Chỉ chấp nhận các định dạng ảnh: png, jpg, jpeg.");
-            return null;
-        }
-
-        try {
-            return ImageManager.copyImageToAppDirectory(sourceFilePath, personId);
-        } catch (IOException e) {
-            showErrorAlert("Lỗi ảnh đại diện", "Không thể lưu ảnh vào thư mục images: " + e.getMessage());
-            return null;
-        } catch (IllegalArgumentException e) {
-            showErrorAlert("Định dạng ảnh không hợp lệ", e.getMessage());
-            return null;
-        }
     }
 
     public void setPeopleListView(PeopleListView peopleListView) {

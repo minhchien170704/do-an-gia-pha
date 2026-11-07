@@ -272,6 +272,30 @@ public class JdbcPersonRepository implements PersonRepository {
     }
 
     @Override
+    public void updatePhotoPath(int id, String photoPath) {
+        String sql = "UPDATE person SET photo_path = ? WHERE id = ?";
+
+        Connection conn = null;
+        try {
+            conn = getConnection();
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                if (photoPath != null && !photoPath.trim().isEmpty()) {
+                    ps.setString(1, photoPath.trim());
+                } else {
+                    ps.setNull(1, Types.VARCHAR);
+                }
+                ps.setInt(2, id);
+                ps.executeUpdate();
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi khi cập nhật ảnh đại diện của Person id = " + id + ": " + e.getMessage(), e);
+        } finally {
+            closeIfOwned(conn);
+        }
+    }
+
+    @Override
     public void delete(int id) {
         String sql = "DELETE FROM person WHERE id = ?";
 
