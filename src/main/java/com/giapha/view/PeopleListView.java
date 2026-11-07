@@ -5,6 +5,7 @@ import com.giapha.controller.PersonController;
 import com.giapha.model.Gender;
 import com.giapha.model.Person;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -305,20 +306,20 @@ public class PeopleListView implements PeopleListSource {
         colYear.setPrefWidth(90);
         colYear.setMaxWidth(110);
 
-        TableColumn<Person, String> colGender = new TableColumn<>("Giới tính");
-        colGender.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getGender() == Gender.MALE ? "Nam" : "Nữ"));
+        TableColumn<Person, Gender> colGender = new TableColumn<>("Giới tính");
+        colGender.setCellValueFactory(d -> new SimpleObjectProperty<>(d.getValue().getGender()));
         colGender.setPrefWidth(90);
         colGender.setMaxWidth(110);
         colGender.setCellFactory(col -> new TableCell<>() {
             @Override
-            protected void updateItem(String item, boolean empty) {
+            protected void updateItem(Gender item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setGraphic(null);
                     setText(null);
                 } else {
-                    Label badge = new Label(item);
-                    badge.getStyleClass().add("Nam".equals(item) ? "badge-male" : "badge-female");
+                    Label badge = new Label(item.getDisplayName());
+                    badge.getStyleClass().add(item.getBadgeCssClass());
                     setGraphic(badge);
                     setText(null);
                 }

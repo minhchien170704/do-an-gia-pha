@@ -86,14 +86,12 @@ public class PersonDetailView {
         // không có ảnh hoặc file ảnh không tồn tại / bị hỏng.
         PersonAvatar avatar = new PersonAvatar(person, 70);
 
-        boolean isMale = person.getGender() == Gender.MALE;
-
         // Tên & Năm sinh · Giới tính
         VBox nameBox = new VBox(5);
         Label nameLabel = new Label(person.getFullName());
         nameLabel.getStyleClass().add("profile-name");
 
-        String genderText = isMale ? "Nam" : "Nữ";
+        String genderText = person.getGender().getDisplayName();
         Label metaLabel = new Label("Sinh năm " + person.getBirthYear() + "  ·  " + genderText);
         metaLabel.getStyleClass().add("profile-subtitle");
 
@@ -140,7 +138,7 @@ public class PersonDetailView {
         addDetailRow(grid, 0, "Họ và tên", person.getFullName());
         addDetailRow(grid, 1, "Năm sinh", String.valueOf(person.getBirthYear()));
 
-        String genderText = person.getGender() == Gender.MALE ? "Nam" : "Nữ";
+        String genderText = person.getGender().getDisplayName();
         addDetailRow(grid, 2, "Giới tính", genderText);
 
         // Ảnh đại diện: hiển thị thumbnail thật thay vì chỉ in đường dẫn.
@@ -213,9 +211,9 @@ public class PersonDetailView {
                 Label yearLabel = new Label("Sinh năm " + child.getBirthYear());
                 yearLabel.getStyleClass().add("parent-card-meta");
 
-                String cGender = child.getGender() == Gender.MALE ? "Nam" : "Nữ";
+                String cGender = child.getGender().getDisplayName();
                 Label genderBadge = new Label(cGender);
-                genderBadge.getStyleClass().add(child.getGender() == Gender.MALE ? "badge-male" : "badge-female");
+                genderBadge.getStyleClass().add(child.getGender().getBadgeCssClass());
 
                 Region spacer = new Region();
                 HBox.setHgrow(spacer, Priority.ALWAYS);

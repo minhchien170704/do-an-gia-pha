@@ -153,8 +153,15 @@ public class PersonFormView implements FormDataSource {
         cboGender.setMaxWidth(Double.MAX_VALUE);
         cboGender.setPromptText("Chọn giới tính");
         cboGender.setConverter(new StringConverter<>() {
-            @Override public String toString(Gender g) { return g == null ? "" : g == Gender.MALE ? "Nam" : "Nữ"; }
-            @Override public Gender fromString(String s) { return "Nam".equals(s) ? Gender.MALE : Gender.FEMALE; }
+            @Override public String toString(Gender g) { return g == null ? "" : g.getDisplayName(); }
+            @Override public Gender fromString(String s) {
+                for (Gender g : Gender.values()) {
+                    if (g.getDisplayName().equals(s)) {
+                        return g;
+                    }
+                }
+                return Gender.FEMALE;
+            }
         });
         cboGender.valueProperty().addListener((obs, o, n) -> updateAvatarPreview());
         genderGroup.getChildren().addAll(lblGender, cboGender);
@@ -339,7 +346,7 @@ public class PersonFormView implements FormDataSource {
             @Override
             public String toString(Person person) {
                 if (person == null) return "— Không có —";
-                String genderStr = person.getGender() == Gender.MALE ? "Nam" : "Nữ";
+                String genderStr = person.getGender().getDisplayName();
                 return person.getFullName() + " (" + person.getBirthYear() + ", " + genderStr + ")";
             }
 

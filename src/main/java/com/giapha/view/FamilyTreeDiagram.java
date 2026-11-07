@@ -654,7 +654,7 @@ public class FamilyTreeDiagram extends Pane {
         name.getStyleClass().add("tree2d-name");
         name.setWrapText(true);
 
-        String genderText = person.getGender() == Gender.MALE ? "Nam" : "Nữ";
+        String genderText = person.getGender().getDisplayName();
         Label meta = new Label("Sinh " + person.getBirthYear() + " · " + genderText);
         meta.getStyleClass().add("tree2d-meta");
 

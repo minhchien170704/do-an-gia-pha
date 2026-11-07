@@ -557,7 +557,7 @@ public class FamilyTreeView {
             @Override
             public String toString(Person person) {
                 if (person == null) return "";
-                String genderStr = person.getGender() == Gender.MALE ? "Nam" : "Nữ";
+                String genderStr = person.getGender().getDisplayName();
                 return person.getFullName() + " (" + person.getBirthYear() + ", " + genderStr + ")";
             }
 
@@ -655,8 +655,8 @@ public class FamilyTreeView {
             Label detailLabel = new Label("Sinh năm " + person.getBirthYear());
             detailLabel.getStyleClass().add("tree-person-detail");
 
-            Label genderBadge = new Label(person.getGender() == Gender.MALE ? "Nam" : "Nữ");
-            genderBadge.getStyleClass().add(person.getGender() == Gender.MALE ? "badge-male" : "badge-female");
+            Label genderBadge = new Label(person.getGender().getDisplayName());
+            genderBadge.getStyleClass().add(person.getGender().getBadgeCssClass());
 
             card.getChildren().addAll(nameLabel, detailLabel, genderBadge);
             return card;
