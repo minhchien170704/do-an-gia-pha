@@ -313,13 +313,8 @@ class PersonControllerTest {
 
     @Test
     @Order(21)
-    @DisplayName("handleSearch() dùng keyword từ context khi không truyền tham số")
-    void handleSearchUsesContextKeyword() {
-        controller.setSearchKeyword("Cháu");
-        // Bản overload không tham số trả void — xác nhận chạy không lỗi
-        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> controller.handleSearch());
-
-        // Và kết quả phải khớp với truy vấn trực tiếp qua Service
+    @DisplayName("handleSearch(keyword) tìm kiếm theo họ tên")
+    void handleSearchFindsByKeyword() {
         List<Person> results = controller.handleSearch("Cháu");
         assertNotNull(results);
         assertTrue(results.stream().anyMatch(p -> p.getFullName().contains("Cháu")));
@@ -340,9 +335,9 @@ class PersonControllerTest {
 
     @Test
     @Order(23)
-    @DisplayName("handleViewTree() dùng focusPersonId từ context")
-    void handleViewTreeUsesContextFocusId() {
-        controller.setFocusPersonId(7);
+    @DisplayName("handleViewTree() dùng người được chọn từ context")
+    void handleViewTreeUsesContextSelection() {
+        controller.setSelectedPerson(service.getPersonById(7));
         org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> controller.handleViewTree());
 
         // Bản overload có tham số trả về người trung tâm

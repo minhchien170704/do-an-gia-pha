@@ -9,8 +9,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
@@ -470,19 +468,10 @@ public class PersonFormView {
         this.onCancel = handler;
     }
 
-    /**
-     * No-op — Navigation sau save được xử lý bởi PersonController qua navigateToPeopleList.
-     * Giữ lại để tương thích nếu PersonController no-arg version cần.
-     */
-    public void setOnSave(Runnable handler) {
-        // intentionally no-op
-    }
-
     public Person getEditingPerson() { return editingPerson; }
     public String getFullNameInput() { return txtFullName != null ? txtFullName.getText() : ""; }
     public String getBirthYearInput() { return txtBirthYear != null ? txtBirthYear.getText() : ""; }
     public Gender getGenderInput() { return cboGender != null ? cboGender.getValue() : null; }
-    public String getPhotoPathInput() { return txtPhotoPath != null ? txtPhotoPath.getText() : null; }
     public Person getSelectedFather() { return cboFather != null ? cboFather.getValue() : null; }
     public Person getSelectedMother() { return cboMother != null ? cboMother.getValue() : null; }
 

@@ -55,7 +55,6 @@ public class Main extends Application {
 
         // Đăng ký callback điều hướng để Controller có thể navigate sau CRUD
         controller.setNavigateToPeopleList(this::showPeopleList);
-        controller.setNavigateToPersonForm(this::showPersonForm);
         controller.setNavigateToPersonDetail(this::showPersonDetail);
         controller.setNavigateToFamilyTree(this::showFamilyTree);
 

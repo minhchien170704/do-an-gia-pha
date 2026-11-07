@@ -10,7 +10,7 @@ participant "JdbcPersonRepository" as JdbcRepo
 participant "DatabaseConnection" as DBConn
 database "MySQL" as DB
 
-User -> Controller : handleAssignFather() hoặc handleAssignMother()
+User -> Controller : handleAssignFather(childId, fatherId) hoặc handleAssignMother(childId, motherId)
 activate Controller
 
 alt Gán Cha

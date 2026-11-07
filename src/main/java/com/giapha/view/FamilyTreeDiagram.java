@@ -745,33 +745,6 @@ public class FamilyTreeDiagram extends Pane {
     }
 
     /**
-     * Lấy mức zoom hiện tại.
-     *
-     * @return hệ số zoom
-     */
-    public double getZoom() {
-        return content.getScaleX();
-    }
-
-    /**
-     * Kích thước nội dung sơ đồ ở mức zoom 1.0.
-     *
-     * @return chiều rộng nội dung (px)
-     */
-    public double getContentWidth() {
-        return baseWidth;
-    }
-
-    /**
-     * Kích thước nội dung sơ đồ ở mức zoom 1.0.
-     *
-     * @return chiều cao nội dung (px)
-     */
-    public double getContentHeight() {
-        return baseHeight;
-    }
-
-    /**
      * Chụp toàn bộ sơ đồ (kể cả phần đang bị cuộn/zoom ra ngoài khung nhìn)
      * thành một ảnh PNG ở mức zoom 1.0.
      *

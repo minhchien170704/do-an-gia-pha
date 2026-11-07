@@ -91,9 +91,9 @@ public class PeopleListView {
 
     /**
      * Tải lại toàn bộ danh sách thành viên từ MySQL thông qua Controller.
-     * Được gọi sau mỗi thao tác CRUD để đồng bộ UI với database.
+     * Được gọi nội bộ khi khởi tạo và sau mỗi thao tác CRUD để đồng bộ UI với database.
      */
-    public void reloadData() {
+    private void reloadData() {
         List<Person> people = controller.getAllPersons();
         allData.setAll(people != null ? people : List.of());
         updateStats();

@@ -25,16 +25,8 @@ package "com.giapha.controller" {
         - familyTreeService : FamilyTreeService
         - peopleListView : PeopleListView
         - personFormView : PersonFormView
-        - personDetailView : PersonDetailView
-        - familyTreeView : FamilyTreeView
         - selectedPerson : Person
-        - searchKeyword : String
-        - targetChildId : Integer
-        - targetFatherId : Integer
-        - targetMotherId : Integer
-        - focusPersonId : Integer
         - navigateToPeopleList : Runnable
-        - navigateToPersonForm : Consumer<Person>
         - navigateToPersonDetail : Consumer<Person>
         - navigateToFamilyTree : Consumer<Person>
         + PersonController(familyTreeService : FamilyTreeService)
@@ -44,14 +36,11 @@ package "com.giapha.controller" {
         + handleEdit(personToUpdate : Person, newFather : Person, newMother : Person) : void
         + handleDelete() : void
         + handleDelete(id : int) : void
-        + handleSearch() : void
         + handleSearch(keyword : String) : List<Person>
         + getAllPersons() : List<Person>
         + handleViewDetail() : void
         + handleViewDetail(id : int) : Person
-        + handleAssignFather() : void
         + handleAssignFather(childId : int, fatherId : int) : void
-        + handleAssignMother() : void
         + handleAssignMother(childId : int, motherId : int) : void
         + handleClearFather(childId : int) : void
         + handleClearMother(childId : int) : void
@@ -70,7 +59,7 @@ package "com.giapha.view" {
         - filteredData : FilteredList<Person>
         + PeopleListView(controller : PersonController)
         + getRoot() : BorderPane
-        + reloadData() : void
+        - reloadData() : void
         + refresh() : void
         + getSelectedPerson() : Person
         + getSearchKeyword() : String
@@ -89,7 +78,6 @@ package "com.giapha.view" {
         + getFullNameInput() : String
         + getBirthYearInput() : String
         + getGenderInput() : Gender
-        + getPhotoPathInput() : String
         + getSelectedFather() : Person
         + getSelectedMother() : Person
         + getSelectedPhotoSourcePath() : String
@@ -129,9 +117,6 @@ package "com.giapha.view" {
         + zoomBy(factor : double) : void
         + resetZoom() : void
         + fitToView() : void
-        + getZoom() : double
-        + getContentWidth() : double
-        + getContentHeight() : double
         + renderFullImage() : WritableImage
         + setOnViewPerson(handler : Consumer<Person>) : void
     }
@@ -184,10 +169,8 @@ note right of PersonController
 end note
 
 ' Controller ↔ View (2 chiều: setter đăng ký View hiện hành)
-PersonController --> PeopleListView : giữ tham chiếu View
-PersonController --> PersonFormView : giữ tham chiếu View
-PersonController --> PersonDetailView : giữ tham chiếu View
-PersonController --> FamilyTreeView : giữ tham chiếu View
+PersonController --> PeopleListView : giữ tham chiếu View\n(dùng để refresh sau khi xóa)
+PersonController --> PersonFormView : giữ tham chiếu View\n(dùng để đọc dữ liệu form khi lưu)
 
 ' View ↔ View
 FamilyTreeView *-- FamilyTreeDiagram : chứa (composition)

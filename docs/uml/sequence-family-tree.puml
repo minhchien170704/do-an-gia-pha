@@ -15,6 +15,11 @@ database "MySQL" as DB
 User -> Controller : handleViewTree()
 activate Controller
 
+note right of Controller
+  Nguồn id trung tâm: focusPersonId đã chọn
+  (hoặc người được chọn trên danh sách)
+end note
+
 Controller -> Service : getPersonById(focusPersonId)
 Service -> Repo : findById(focusPersonId)
 Repo -> JdbcRepo : findById(focusPersonId)
@@ -32,43 +37,12 @@ alt Thành viên không tồn tại
 else Thành viên tồn tại
     Service --> Controller : Person (trọng tâm)
 
-    Controller -> Service : getAncestors(focusPersonId)
-    activate Service
-    note right of Service
-      Duyệt BFS ngược qua các nhánh
-      cha/mẹ với Set<Integer> visited
-      → không lặp vô hạn
+    note right of Controller
+      Controller KHÔNG truy vấn getAncestors()/getDescendants()
+      — FamilyTreeView tự tải toàn bộ danh sách (đồ thị
+      liên kết đầy đủ) để dựng sơ đồ 2D.
+      → tránh 2 truy vấn DB thừa mỗi lần mở cây gia phả.
     end note
-    loop Mỗi tổ tiên
-        Service -> Repo : findById(id)
-        Repo -> JdbcRepo : findById(id)
-        JdbcRepo -> DBConn : getConnection()
-        DBConn --> JdbcRepo : Connection
-        JdbcRepo -> DB : SELECT ... FROM person WHERE id = id
-        DB --> JdbcRepo : dòng dữ liệu
-        JdbcRepo --> Repo : Person
-        Repo --> Service : Person
-    end
-    Service --> Controller : List<Person> (tổ tiên)
-    deactivate Service
-
-    Controller -> Service : getDescendants(focusPersonId)
-    activate Service
-    note right of Service
-      findAll() một lần → dựng
-      childrenMap theo father_id/mother_id
-      rồi BFS xuống với Set<Integer> visited
-    end note
-    Service -> Repo : findAll()
-    Repo -> JdbcRepo : findAll()
-    JdbcRepo -> DBConn : getConnection()
-    DBConn --> JdbcRepo : Connection
-    JdbcRepo -> DB : SELECT ... FROM person
-    DB --> JdbcRepo : danh sách dòng
-    JdbcRepo --> Repo : List<Person> (đã liên kết cha/mẹ)
-    Repo --> Service : List<Person>
-    Service --> Controller : List<Person> (hậu duệ)
-    deactivate Service
 
     Controller --> TreeView : navigateToFamilyTree.accept(focusPerson)
     deactivate Controller

@@ -661,9 +661,5 @@ public class FamilyTreeView {
             card.getChildren().addAll(nameLabel, detailLabel, genderBadge);
             return card;
         }
-
-        public Person getPerson() {
-            return person;
-        }
     }
 }

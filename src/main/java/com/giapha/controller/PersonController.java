@@ -11,9 +11,7 @@ import com.giapha.model.Gender;
 import com.giapha.model.Person;
 import com.giapha.service.FamilyTreeService;
 import com.giapha.util.ImageManager;
-import com.giapha.view.FamilyTreeView;
 import com.giapha.view.PeopleListView;
-import com.giapha.view.PersonDetailView;
 import com.giapha.view.PersonFormView;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
@@ -39,20 +37,13 @@ public class PersonController {
     // Tham chiếu tới các View hiện hành (nếu có)
     private PeopleListView peopleListView;
     private PersonFormView personFormView;
-    private PersonDetailView personDetailView;
-    private FamilyTreeView familyTreeView;
 
-    // Trạng thái context phục vụ các sự kiện không tham số từ UI
+    // Thành viên được chọn trên danh sách — dùng làm ngữ cảnh mặc định
+    // cho các handler không tham số (handleEdit / handleDelete / handleViewDetail).
     private Person selectedPerson;
-    private String searchKeyword;
-    private Integer targetChildId;
-    private Integer targetFatherId;
-    private Integer targetMotherId;
-    private Integer focusPersonId;
 
     // Callbacks điều hướng màn hình
     private Runnable navigateToPeopleList;
-    private Consumer<Person> navigateToPersonForm;
     private Consumer<Person> navigateToPersonDetail;
     private Consumer<Person> navigateToFamilyTree;
 
@@ -540,19 +531,7 @@ public class PersonController {
     }
 
     /**
-     * Xử lý tìm kiếm thành viên theo từ khóa họ tên (UC04).
-     */
-    public void handleSearch() {
-        String keyword = searchKeyword;
-        if (keyword == null && peopleListView != null) {
-            keyword = peopleListView.getSearchKeyword();
-        }
-
-        handleSearch(keyword);
-    }
-
-    /**
-     * Overloaded: Tìm kiếm thành viên với từ khóa cụ thể.
+     * Tìm kiếm thành viên theo từ khóa họ tên (UC04).
      *
      * @param keyword từ khóa tìm kiếm họ tên
      * @return danh sách kết quả phù hợp
@@ -620,19 +599,7 @@ public class PersonController {
     }
 
     /**
-     * Xử lý gán cha cho người con (UC07).
-     */
-    public void handleAssignFather() {
-        if (targetChildId == null || targetFatherId == null) {
-            showWarningAlert("Thông báo", "Vui lòng chọn đầy đủ thông tin người con và người cha.");
-            return;
-        }
-
-        handleAssignFather(targetChildId, targetFatherId);
-    }
-
-    /**
-     * Overloaded: Gán cha với childId và fatherId cụ thể.
+     * Gán cha với childId và fatherId cụ thể.
      *
      * @param childId  mã con
      * @param fatherId mã cha
@@ -659,19 +626,7 @@ public class PersonController {
     }
 
     /**
-     * Xử lý gán mẹ cho người con (UC08).
-     */
-    public void handleAssignMother() {
-        if (targetChildId == null || targetMotherId == null) {
-            showWarningAlert("Thông báo", "Vui lòng chọn đầy đủ thông tin người con và người mẹ.");
-            return;
-        }
-
-        handleAssignMother(targetChildId, targetMotherId);
-    }
-
-    /**
-     * Overloaded: Gán mẹ với childId và motherId cụ thể.
+     * Gán mẹ với childId và motherId cụ thể.
      *
      * @param childId  mã con
      * @param motherId mã mẹ
@@ -698,18 +653,7 @@ public class PersonController {
     }
 
     /**
-     * Xử lý gỡ quan hệ cha cho người con từ context giao diện.
-     */
-    public void handleClearFather() {
-        if (targetChildId == null) {
-            showWarningAlert("Thông báo", "Vui lòng chọn thông tin người con để gỡ quan hệ cha.");
-            return;
-        }
-        handleClearFather(targetChildId);
-    }
-
-    /**
-     * Overloaded: Gỡ quan hệ cha với childId cụ thể.
+     * Gỡ quan hệ cha với childId cụ thể.
      *
      * @param childId mã thành viên con cần gỡ quan hệ cha
      */
@@ -725,18 +669,7 @@ public class PersonController {
     }
 
     /**
-     * Xử lý gỡ quan hệ mẹ cho người con từ context giao diện.
-     */
-    public void handleClearMother() {
-        if (targetChildId == null) {
-            showWarningAlert("Thông báo", "Vui lòng chọn thông tin người con để gỡ quan hệ mẹ.");
-            return;
-        }
-        handleClearMother(targetChildId);
-    }
-
-    /**
-     * Overloaded: Gỡ quan hệ mẹ với childId cụ thể.
+     * Gỡ quan hệ mẹ với childId cụ thể.
      *
      * @param childId mã thành viên con cần gỡ quan hệ mẹ
      */
@@ -753,13 +686,11 @@ public class PersonController {
 
     /**
      * Xử lý xem cây gia phả trực quan (UC09).
-     * Bắt buộc xác thực sự tồn tại của focusPerson trước khi truy vấn tổ tiên và hậu duệ.
+     * Bắt buộc xác thực sự tồn tại của focusPerson trước khi hiển thị.
      */
     public void handleViewTree() {
         int idToFocus;
-        if (focusPersonId != null) {
-            idToFocus = focusPersonId;
-        } else if (selectedPerson != null) {
+        if (selectedPerson != null) {
             idToFocus = selectedPerson.getId();
         } else if (peopleListView != null && peopleListView.getSelectedPerson() != null) {
             idToFocus = peopleListView.getSelectedPerson().getId();
@@ -772,7 +703,7 @@ public class PersonController {
     }
 
     /**
-     * Overloaded: Xem cây gia phả với focusPersonId cụ thể.
+     * Overloaded: Xem cây gia phả với focusId cụ thể.
      *
      * @param focusId mã thành viên trung tâm cây gia phả
      * @return đối tượng Person trung tâm nếu tìm thấy
@@ -782,10 +713,10 @@ public class PersonController {
             // Bước 1: Xác thực thành viên tồn tại theo sequence-family-tree.puml
             Person focusPerson = familyTreeService.getPersonById(focusId);
 
-            // Bước 2: Tải tổ tiên và hậu duệ qua Service
-            List<Person> ancestors = familyTreeService.getAncestors(focusId);
-            List<Person> descendants = familyTreeService.getDescendants(focusId);
-
+            // Bước 2: Điều hướng sang màn hình cây gia phả.
+            // FamilyTreeView tự tải toàn bộ danh sách (đồ thị liên kết đầy đủ) để dựng
+            // sơ đồ 2D và danh sách phả hệ — vì vậy Controller KHÔNG cần truy vấn
+            // thêm getAncestors()/getDescendants() ở đây (tránh truy vấn thừa).
             if (navigateToFamilyTree != null) {
                 navigateToFamilyTree.accept(focusPerson);
             }
@@ -891,44 +822,12 @@ public class PersonController {
         this.personFormView = personFormView;
     }
 
-    public void setPersonDetailView(PersonDetailView personDetailView) {
-        this.personDetailView = personDetailView;
-    }
-
-    public void setFamilyTreeView(FamilyTreeView familyTreeView) {
-        this.familyTreeView = familyTreeView;
-    }
-
     public void setSelectedPerson(Person selectedPerson) {
         this.selectedPerson = selectedPerson;
     }
 
-    public void setSearchKeyword(String searchKeyword) {
-        this.searchKeyword = searchKeyword;
-    }
-
-    public void setTargetChildId(Integer targetChildId) {
-        this.targetChildId = targetChildId;
-    }
-
-    public void setTargetFatherId(Integer targetFatherId) {
-        this.targetFatherId = targetFatherId;
-    }
-
-    public void setTargetMotherId(Integer targetMotherId) {
-        this.targetMotherId = targetMotherId;
-    }
-
-    public void setFocusPersonId(Integer focusPersonId) {
-        this.focusPersonId = focusPersonId;
-    }
-
     public void setNavigateToPeopleList(Runnable navigateToPeopleList) {
         this.navigateToPeopleList = navigateToPeopleList;
-    }
-
-    public void setNavigateToPersonForm(Consumer<Person> navigateToPersonForm) {
-        this.navigateToPersonForm = navigateToPersonForm;
     }
 
     public void setNavigateToPersonDetail(Consumer<Person> navigateToPersonDetail) {
